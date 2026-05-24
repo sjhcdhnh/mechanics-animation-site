@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>椭圆规 · 刚体平面运动瞬心法演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 250px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">椭圆规 · 瞬心法速度分析</div>
+<div id="subtitle">Elliptic Trammel — 刚体平面运动 · 瞬时速度中心</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>杆转角 θ : <span id="v_theta" class="v">—</span></div>
+  <div>滑块 A x<sub>A</sub> : <span id="v_xA" class="v">—</span></div>
+  <div>滑块 B y<sub>B</sub> : <span id="v_yB" class="v">—</span></div>
+  <div>瞬心 C : <span id="v_C" class="v">—</span></div>
+  <div>|OC| : <span id="v_OC" class="v">—</span></div>
+  <div>杆角速度 ω : <span id="v_omega" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>杆长 L = 200 mm</div>
+  <div>ω = π/4 rad/s</div>
+  <div>M 距 A 端 d = 60 mm</div>
+  <div>瞬心轨迹：圆 |OC| = L</div>
+  <div>中点轨迹：圆 R = L/2</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>十字滑槽（机架）</div>
+  <div><span class="sw" style="background:#ffe66d"></span>滑块 A / B</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆 AB</div>
+  <div><span class="sw" style="background:#ff5c8a"></span>瞬心 C（IC）</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链销</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const L     = 200;
+const omega = Math.PI / 4;
+const d_M   = 60; // point M distance from A
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_ROD    = 0x4ecdc4;
+const COLOR_SLIDER = 0xffe66d;
+const COLOR_PIN    = 0xf5e0dc;
+const COLOR_IC     = 0xff5c8a;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 500, 1800);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(60, 100, 420);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 40, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 100;
+controls.maxDistance = 1000;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 350, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-200, -100, -200);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(50));
+
+/* 十字滑槽 */
+const railMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+
+function makeRail(w, h, d, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), railMat);
+  m.position.set(x, y, z);
+  scene.add(m);
+}
+
+// 水平滑槽导轨（两平行轨，沿X轴，y = ±24）
+makeRail(460, 6, 16, 0,  24, 0);
+makeRail(460, 6, 16, 0, -24, 0);
+// 垂直滑槽导轨（两平行轨，沿Y轴，x = ±24）
+makeRail(6, 460, 16,  24, 0, 0);
+makeRail(6, 460, 16, -24, 0, 0);
+
+// 支座底座
+const basePlate = new THREE.Mesh(
+  new THREE.BoxGeometry(120, 8, 80), railMat
+);
+basePlate.position.set(0, -50, 0);
+scene.add(basePlate);
+
+// 四个角的支撑柱
+[-1, 1].forEach(sx => {
+  [-1, 1].forEach(sy => {
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(6, 8, 90, 16), railMat
+    );
+    col.position.set(sx * 100, sy * 100 - 44, 0);
+    scene.add(col);
+  });
+});
+
+/* 瞬心轨迹 — 预绘制虚线圆 */
+const icCirclePts = [];
+const N_circle = 128;
+for (let i = 0; i <= N_circle; i++) {
+  const t = (i / N_circle) * Math.PI * 2;
+  icCirclePts.push(new THREE.Vector3(L * Math.cos(t), L * Math.sin(t), 0));
+}
+const icCircleGeom = new THREE.BufferGeometry().setFromPoints(icCirclePts);
+const icCircle = new THREE.Line(
+  icCircleGeom,
+  new THREE.LineDashedMaterial({ color: 0x885566, dashSize: 8, gapSize: 6 })
+);
+icCircle.computeLineDistances();
+scene.add(icCircle);
+
+/* 瞬心标记球 */
+const icSphere = new THREE.Mesh(
+  new THREE.SphereGeometry(7, 24, 24),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_IC, metalness: 0.3, roughness: 0.35,
+    emissive: COLOR_IC, emissiveIntensity: 0.5
+  })
+);
+scene.add(icSphere);
+
+/* 瞬心到滑块的虚线连线 */
+const icLineAGeom = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(), new THREE.Vector3()
+]);
+const icLineA = new THREE.Line(
+  icLineAGeom,
+  new THREE.LineDashedMaterial({ color: 0x886670, dashSize: 5, gapSize: 4 })
+);
+icLineA.computeLineDistances();
+scene.add(icLineA);
+
+const icLineBGeom = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(), new THREE.Vector3()
+]);
+const icLineB = new THREE.Line(
+  icLineBGeom,
+  new THREE.LineDashedMaterial({ color: 0x886670, dashSize: 5, gapSize: 4 })
+);
+icLineB.computeLineDistances();
+scene.add(icLineB);
+
+/* 滑块 A（水平滑块）*/
+const sliderA = new THREE.Mesh(
+  new THREE.BoxGeometry(28, 16, 14),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_SLIDER, metalness: 0.5, roughness: 0.45
+  })
+);
+scene.add(sliderA);
+
+/* 滑块 B（垂直滑块）*/
+const sliderB = new THREE.Mesh(
+  new THREE.BoxGeometry(14, 28, 16),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_SLIDER, metalness: 0.5, roughness: 0.45
+  })
+);
+scene.add(sliderB);
+
+/* 连杆 AB */
+const rod = new THREE.Mesh(
+  new THREE.BoxGeometry(L, 8, 8),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(rod);
+
+/* 杆上点 M（椭圆轨迹）*/
+const markerM = new THREE.Mesh(
+  new THREE.SphereGeometry(4.5, 16, 16),
+  new THREE.MeshStandardMaterial({
+    color: 0xff8aa7, metalness: 0.3, roughness: 0.35,
+    emissive: 0xff4060, emissiveIntensity: 0.4
+  })
+);
+scene.add(markerM);
+
+/* 铰链销 */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.25
+});
+const pinA = new THREE.Mesh(new THREE.SphereGeometry(5, 20, 20), pinMat);
+const pinB = new THREE.Mesh(new THREE.SphereGeometry(5, 20, 20), pinMat);
+const pinO = new THREE.Mesh(new THREE.SphereGeometry(5, 20, 20), pinMat);
+scene.add(pinA, pinB, pinO);
+
+/* 速度箭头 */
+const arrowVA = new THREE.ArrowHelper(
+  new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 30, 0xa6e3a1, 5, 3
+);
+const arrowVB = new THREE.ArrowHelper(
+  new THREE.Vector3(0, 1, 0), new THREE.Vector3(), 30, 0xa6e3a1, 5, 3
+);
+scene.add(arrowVA, arrowVB);
+
+/* HUD */
+const ui = {
+  theta: document.getElementById('v_theta'),
+  xA:    document.getElementById('v_xA'),
+  yB:    document.getElementById('v_yB'),
+  C:     document.getElementById('v_C'),
+  OC:    document.getElementById('v_OC'),
+  omega: document.getElementById('v_omega'),
+};
+
+/* M 点轨迹拖尾 */
+const trailM = [];
+const trailGeom = new THREE.BufferGeometry();
+const trailLine = new THREE.Line(
+  trailGeom,
+  new THREE.LineBasicMaterial({ color: 0xff8aa7, transparent: true, opacity: 0.55 })
+);
+scene.add(trailLine);
+
+/* IC 轨迹拖尾（应与预绘虚线圆重合，验证用）*/
+const trailIC = [];
+const trailICGeom = new THREE.BufferGeometry();
+const trailICLine = new THREE.Line(
+  trailICGeom,
+  new THREE.LineBasicMaterial({
+    color: COLOR_IC, transparent: true, opacity: 0.35
+  })
+);
+scene.add(trailICLine);
+
+const clock = new THREE.Clock();
+let theta = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  theta = (theta + omega * dt) % (2 * Math.PI);
+
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
+
+  // 关键点
+  const Ax = L * cosT;
+  const Ay = 0;
+  const Bx = 0;
+  const By = L * sinT;
+
+  // 瞬心 C
+  const Cx = Ax;
+  const Cy = By;
+
+  // 杆上点 M（距 A 为 d）
+  const Mx = Ax + (d_M / L) * (Bx - Ax);
+  const My = Ay + (d_M / L) * (By - Ay);
+
+  // 杆方向角：从 A → B
+  const rodDirX = Bx - Ax;
+  const rodDirY = By - Ay;
+  const rodAngle = Math.atan2(rodDirY, rodDirX);
+
+  // 滑块更新
+  sliderA.position.set(Ax, Ay, 0);
+  sliderB.position.set(Bx, By, 0);
+
+  // 连杆更新
+  rod.position.set((Ax + Bx) / 2, (Ay + By) / 2, 0);
+  rod.rotation.z = rodAngle;
+
+  // 铰链销
+  pinA.position.set(Ax, Ay, 0);
+  pinB.position.set(Bx, By, 0);
+  pinO.position.set(0, 0, 0);
+
+  // 瞬心
+  icSphere.position.set(Cx, Cy, 0);
+
+  // 瞬心连线
+  icLineAGeom.setFromPoints([
+    new THREE.Vector3(Cx, Cy, 0),
+    new THREE.Vector3(Ax, Ay, 0)
+  ]);
+  icLineA.computeLineDistances();
+  icLineBGeom.setFromPoints([
+    new THREE.Vector3(Cx, Cy, 0),
+    new THREE.Vector3(Bx, By, 0)
+  ]);
+  icLineB.computeLineDistances();
+
+  // 速度箭头
+  const vA_mag = L * omega * Math.abs(sinT);
+  const vA_dir = -Math.sign(sinT); // v_Ax = -Lω sinθ
+  if (vA_mag > 2) {
+    arrowVA.visible = true;
+    arrowVA.setDirection(new THREE.Vector3(vA_dir, 0, 0));
+    arrowVA.setLength(Math.min(vA_mag * 0.5, 80), 5, 3);
+    arrowVA.position.copy(new THREE.Vector3(Ax, Ay, 0));
+  } else {
+    arrowVA.visible = false;
+  }
+
+  const vB_mag = L * omega * Math.abs(cosT);
+  const vB_dir = Math.sign(cosT);
+  if (vB_mag > 2) {
+    arrowVB.visible = true;
+    arrowVB.setDirection(new THREE.Vector3(0, vB_dir, 0));
+    arrowVB.setLength(Math.min(vB_mag * 0.5, 80), 5, 3);
+    arrowVB.position.copy(new THREE.Vector3(Bx, By, 0));
+  } else {
+    arrowVB.visible = false;
+  }
+
+  // 点 M 标记
+  markerM.position.set(Mx, My, 0);
+
+  // M 点轨迹（椭圆）
+  trailM.push(new THREE.Vector3(Mx, My, 0));
+  if (trailM.length > 400) trailM.shift();
+  trailGeom.setFromPoints(trailM);
+
+  // IC 轨迹（圆）
+  trailIC.push(new THREE.Vector3(Cx, Cy, 0));
+  if (trailIC.length > 400) trailIC.shift();
+  trailICGeom.setFromPoints(trailIC);
+
+  // HUD
+  const dOC = Math.sqrt(Cx * Cx + Cy * Cy);
+  ui.theta.textContent = (theta * 180 / Math.PI).toFixed(1) + ' °';
+  ui.xA.textContent    = Ax.toFixed(2) + ' mm';
+  ui.yB.textContent    = By.toFixed(2) + ' mm';
+  ui.C.textContent     = '(' + Cx.toFixed(1) + ', ' + Cy.toFixed(1) + ')';
+  ui.OC.textContent    = dOC.toFixed(1) + ' mm （≡ L）';
+  ui.omega.textContent = omega.toFixed(3) + ' rad/s';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

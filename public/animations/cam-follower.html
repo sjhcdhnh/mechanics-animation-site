@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>凸轮推杆机构 · 点的合成运动演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 260px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">凸轮推杆机构 · 点的合成运动</div>
+<div id="subtitle">Cam-Follower Mechanism — 牵连运动 · 相对运动 · 绝对运动</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>凸轮转角 φ : <span id="v_phi" class="v">—</span></div>
+  <div>推杆位移 s : <span id="v_s" class="v">—</span></div>
+  <div>推杆速度 v : <span id="v_v" class="v">—</span></div>
+  <div>推杆加速度 a : <span id="v_a" class="v">—</span></div>
+  <div>接触点 x<sub>c</sub> : <span id="v_xc" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>凸轮半径 R = 40 mm</div>
+  <div>偏心距 e = 15 mm</div>
+  <div>基圆半径 R₀ = 25 mm</div>
+  <div>升程 h = 2e = 30 mm</div>
+  <div>ω = 2π rad/s</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架 / 导轨</div>
+  <div><span class="sw" style="background:#ff6b35"></span>偏心凸轮（主动件）</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>平底推杆</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>接触点标记</div>
+  <div><span class="sw" style="background:#a6e3a1"></span>绝对速度 v<sub>a</sub></div>
+  <div><span class="sw" style="background:#ff8aa7"></span>牵连速度 v<sub>e</sub></div>
+  <div><span class="sw" style="background:#cba6f7"></span>相对速度 v<sub>r</sub></div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const R     = 40;  // cam profile circle radius
+const e     = 15;  // eccentricity
+const R0    = R - e; // base circle radius (min distance from rotation center)
+const omega = 2 * Math.PI;
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_CAM    = 0xff6b35;
+const COLOR_ROD    = 0x4ecdc4;
+const COLOR_PIN    = 0xf5e0dc;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 400, 1200);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(80, 60, 280);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 30, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 70;
+controls.maxDistance = 800;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(150, 300, 250);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-150, -100, -150);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(35));
+
+/* 机架：底座 + 导轨立柱 */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+
+const base = new THREE.Mesh(new THREE.BoxGeometry(100, 8, 60), frameMat);
+base.position.set(0, -R - e - 20, 0);
+scene.add(base);
+
+// 导轨 — 两根立柱在推杆两侧
+[-16, 16].forEach(sx => {
+  const guide = new THREE.Mesh(new THREE.BoxGeometry(10, 110, 16), frameMat);
+  guide.position.set(sx, 5, 0);
+  scene.add(guide);
+  // 顶部横梁
+  const cross = new THREE.Mesh(new THREE.BoxGeometry(42, 8, 16), frameMat);
+  cross.position.set(0, 62, 0);
+  scene.add(cross);
+});
+
+/* 凸轮组：绕原点转动 */
+const camGroup = new THREE.Group();
+scene.add(camGroup);
+
+const camMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CAM, metalness: 0.45, roughness: 0.4
+});
+
+// 凸轮盘（将偏心距体现在 cam 几何体在组内的偏移上）
+const camDisc = new THREE.Mesh(
+  new THREE.CylinderGeometry(R, R, 10, 56), camMat
+);
+camDisc.rotation.x = Math.PI / 2; // 圆盘法线沿 Z
+camDisc.position.set(e, 0, 0);    // 几何中心偏离转轴
+camGroup.add(camDisc);
+
+// 转轴毂
+const camHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(6, 7, 18, 20), camMat
+);
+camHub.rotation.x = Math.PI / 2;
+camGroup.add(camHub);
+
+// 基圆参考环
+const baseCirclePts = [];
+const N_base = 72;
+for (let i = 0; i <= N_base; i++) {
+  const t = (i / N_base) * Math.PI * 2;
+  baseCirclePts.push(new THREE.Vector3(R0 * Math.cos(t), R0 * Math.sin(t), 0));
+}
+const baseCircleGeom = new THREE.BufferGeometry().setFromPoints(baseCirclePts);
+const baseCircle = new THREE.Line(
+  baseCircleGeom,
+  new THREE.LineDashedMaterial({ color: 0x556080, dashSize: 4, gapSize: 3 })
+);
+baseCircle.computeLineDistances();
+scene.add(baseCircle);
+
+/* 推杆组（平底从动件）*/
+const followerGroup = new THREE.Group();
+scene.add(followerGroup);
+
+const rodMat = new THREE.MeshStandardMaterial({
+  color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+});
+
+// 推杆主体
+const rodBody = new THREE.Mesh(new THREE.BoxGeometry(14, 72, 12), rodMat);
+rodBody.position.set(0, 39, 0);
+followerGroup.add(rodBody);
+
+// 平底鞋（宽底板，与凸轮接触）
+const shoe = new THREE.Mesh(new THREE.BoxGeometry(36, 6, 16), rodMat);
+shoe.position.set(0, 3, 0);
+followerGroup.add(shoe);
+
+/* 接触点标记 */
+const contactPin = new THREE.Mesh(
+  new THREE.SphereGeometry(3.5, 20, 20),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+    emissive: 0x553311, emissiveIntensity: 0.3
+  })
+);
+scene.add(contactPin);
+
+/* 速度矢量箭头 */
+const arrowAbs = new THREE.ArrowHelper(
+  new THREE.Vector3(0, 1, 0), new THREE.Vector3(), 20, 0xa6e3a1, 5, 3
+);
+const arrowTrans = new THREE.ArrowHelper(
+  new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 20, 0xff8aa7, 4, 2.5
+);
+const arrowRel = new THREE.ArrowHelper(
+  new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 20, 0xcba6f7, 4, 2.5
+);
+scene.add(arrowAbs, arrowTrans, arrowRel);
+
+/* HUD */
+const ui = {
+  phi: document.getElementById('v_phi'),
+  s:   document.getElementById('v_s'),
+  v:   document.getElementById('v_v'),
+  a:   document.getElementById('v_a'),
+  xc:  document.getElementById('v_xc'),
+};
+
+const clock = new THREE.Clock();
+let phi = 0;
+let prevS = null;
+let prevV = null;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  const sinP = Math.sin(phi);
+  const cosP = Math.cos(phi);
+
+  // 推杆位移 s(φ) = e·sinφ + R（以转轴中心为基准的接触高度）
+  const s = e * sinP + R;
+  const ds = s - R0; // 推杆位移（从最低位置算起）
+
+  // 接触点坐标
+  const contactX = e * cosP;
+  const contactY = s;
+
+  // 速度 & 加速度（用有限差分或解析）
+  const v = e * omega * cosP;
+  const a = -e * omega * omega * sinP;
+
+  // 牵连速度：凸轮上与接触点重合的点的速度
+  const vTransX = -omega * contactY;
+  const vTransY = omega * contactX;
+  const vTransMag = Math.sqrt(vTransX * vTransX + vTransY * vTransY);
+
+  // 相对速度 = v_abs - v_transport
+  const vRelX = 0 - vTransX;
+  const vRelY = v - vTransY;
+  const vRelMag = Math.sqrt(vRelX * vRelX + vRelY * vRelY);
+
+  // 更新凸轮
+  camGroup.rotation.z = phi;
+
+  // 更新推杆
+  // s 是接触高度（世界 Y），推杆底面应在接触高度处
+  // 推杆 shoe 底部在 local y=0，需要放到 world y=contactY
+  followerGroup.position.set(0, contactY, 0);
+
+  // 更新接触点
+  contactPin.position.set(contactX, contactY, 0);
+
+  // 更新速度箭头
+  const arrowScale = 0.35;
+  // 绝对速度（推杆）= 垂直
+  if (Math.abs(v) > 0.5) {
+    arrowAbs.visible = true;
+    arrowAbs.setDirection(new THREE.Vector3(0, Math.sign(v), 0));
+    arrowAbs.setLength(Math.min(Math.abs(v) * arrowScale, 60), 4, 2.5);
+    arrowAbs.position.set(contactX + 18, contactY, 0);
+  } else {
+    arrowAbs.visible = false;
+  }
+
+  // 牵连速度 = ω × r_contact
+  if (vTransMag > 0.5) {
+    arrowTrans.visible = true;
+    arrowTrans.setDirection(
+      new THREE.Vector3(vTransX, vTransY, 0).normalize()
+    );
+    arrowTrans.setLength(Math.min(vTransMag * arrowScale, 60), 4, 2.5);
+    arrowTrans.position.set(contactX, contactY, 0);
+  } else {
+    arrowTrans.visible = false;
+  }
+
+  // 相对速度
+  if (vRelMag > 0.5) {
+    arrowRel.visible = true;
+    arrowRel.setDirection(
+      new THREE.Vector3(vRelX, vRelY, 0).normalize()
+    );
+    arrowRel.setLength(Math.min(vRelMag * arrowScale, 60), 4, 2.5);
+    arrowRel.position.set(contactX, contactY - 12, 0);
+  } else {
+    arrowRel.visible = false;
+  }
+
+  ui.phi.textContent = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.s.textContent   = ds.toFixed(2) + ' mm';
+  ui.v.textContent   = v.toFixed(2) + ' mm/s';
+  ui.a.textContent   = a.toFixed(2) + ' mm/s²';
+  ui.xc.textContent  = contactX.toFixed(2) + ' mm';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

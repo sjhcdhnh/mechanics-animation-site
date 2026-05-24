@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>平行四边形机构运动学演示 · 双曲柄等长 / 圆周平动</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 240px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">平行四边形机构 · 运动学演示</div>
+<div id="subtitle">Parallelogram Linkage — 双曲柄等长 · 连杆做圆周平动</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>输入相位 φ : <span id="v_phi" class="v">—</span></div>
+  <div>输出角度 θ : <span id="v_theta" class="v">—</span></div>
+  <div>连杆角度 β : <span id="v_beta" class="v">—</span></div>
+  <div>连杆点速度 |v| : <span id="v_vp" class="v">—</span></div>
+  <div>连杆点加速度 |a| : <span id="v_ap" class="v">—</span></div>
+  <div>连杆角速度 ω<sub>AB</sub> : <span id="v_wAB" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>机架 a = O<sub>1</sub>O<sub>2</sub> = 200 mm</div>
+  <div>输入曲柄 b = O<sub>1</sub>A = 80 mm</div>
+  <div>连杆 c = AB = 200 mm（= a）</div>
+  <div>输出曲柄 d = O<sub>2</sub>B = 80 mm（= b）</div>
+  <div>角速度 ω = 2π rad/s</div>
+  <div>(转速 n = 60 r/min)</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架 O<sub>1</sub>O<sub>2</sub></div>
+  <div><span class="sw" style="background:#ff6b35"></span>输入曲柄 O<sub>1</sub>A</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆 AB（圆周平动）</div>
+  <div><span class="sw" style="background:#ffe66d"></span>输出曲柄 O<sub>2</sub>B</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链销 O<sub>1</sub> / A / B / O<sub>2</sub></div>
+  <div><span class="sw" style="background:#ff5edb"></span>连杆中点 M（轨迹示意）</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<!-- Three.js 通过 importmap 加载 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  运动学参数（场景单位 = mm；时间单位 = s）
+ *      O1 = (0, 0)            输入曲柄铰
+ *      O2 = (a, 0)            输出曲柄铰
+ *      A  = O1 + b·(cosφ, sinφ)
+ *      B  = O2 + b·(cosφ, sinφ)   (因 θ ≡ φ)
+ *  平行四边形约束 a = c，b = d ⇒ 连杆做平动，β ≡ 0
+ * ============================================================ */
+const a      = 200;           // 机架长度
+const b      = 80;            // 输入曲柄长度
+const c      = a;             // 连杆长度（= 机架）
+const d      = b;             // 输出曲柄长度（= 输入曲柄）
+const omega  = 2 * Math.PI;   // 输入角速度 rad/s
+
+/* ============================================================
+ *  色彩规范（与项目其他机构保持一致）
+ * ============================================================ */
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;   // 机架 — 灰
+const COLOR_CRANK  = 0xff6b35;   // 输入曲柄 — 橙
+const COLOR_ROD    = 0x4ecdc4;   // 连杆 — 青
+const COLOR_OUT    = 0xffe66d;   // 输出曲柄 — 黄
+const COLOR_PIN    = 0xf5e0dc;   // 销钉 — 米白
+const COLOR_MARK   = 0xff5edb;   // 连杆标记点（强调"圆周平动"）
+
+/* ============================================================
+ *  场景 / 相机 / 渲染器
+ * ============================================================ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 1800);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(100, 160, 360);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ============================================================
+ *  OrbitControls
+ * ============================================================ */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(a / 2, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 1200;
+controls.update();
+
+/* ============================================================
+ *  灯光
+ * ============================================================ */
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 350, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-200, -120, -200);
+scene.add(fillLight);
+
+/* ============================================================
+ *  辅助：坐标轴 + A、B、M 三点的圆形轨迹
+ * ============================================================ */
+scene.add(new THREE.AxesHelper(70));
+
+function makeCircle(cx, cy, r, color, opacity = 0.55) {
+  const pts = [];
+  const N = 96;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    pts.push(new THREE.Vector3(cx + r * Math.cos(t), cy + r * Math.sin(t), 0));
+  }
+  const geom = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineDashedMaterial({
+    color, dashSize: 4, gapSize: 3, transparent: true, opacity
+  });
+  const line = new THREE.Line(geom, mat);
+  line.computeLineDistances();
+  return line;
+}
+scene.add(makeCircle(0, 0, b, 0xff8c5c));   // A 点轨迹（与曲柄同色调）
+scene.add(makeCircle(a, 0, b, 0xffe066));   // B 点轨迹（与输出曲柄同色调）
+scene.add(makeCircle(a / 2, 0, b, 0xff5edb)); // 连杆中点 M 的轨迹（强调点）
+
+/* ============================================================
+ *  机架（底座 + 两侧支座）
+ * ============================================================ */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+
+const base = new THREE.Mesh(
+  new THREE.BoxGeometry(a + 100, 8, 60), frameMat
+);
+base.position.set(a / 2, -110, 0);
+scene.add(base);
+
+const standO1 = new THREE.Mesh(
+  new THREE.BoxGeometry(20, 110, 30), frameMat
+);
+standO1.position.set(0, -55, 0);
+scene.add(standO1);
+
+const standO2 = new THREE.Mesh(
+  new THREE.BoxGeometry(20, 110, 30), frameMat
+);
+standO2.position.set(a, -55, 0);
+scene.add(standO2);
+
+// 机架顶部细横杆，强调 O1-O2 之间的几何长度
+const frameTop = new THREE.Mesh(
+  new THREE.BoxGeometry(a, 5, 5),
+  new THREE.MeshStandardMaterial({
+    color: 0x9aa3c2, metalness: 0.4, roughness: 0.5,
+    transparent: true, opacity: 0.5
+  })
+);
+frameTop.position.set(a / 2, 0, -22);
+scene.add(frameTop);
+
+/* ============================================================
+ *  输入曲柄 O1A —— 绕 O1 定轴转动
+ * ============================================================ */
+const crankInputGroup = new THREE.Group();
+scene.add(crankInputGroup);
+
+const crankInputMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CRANK, metalness: 0.45, roughness: 0.4
+});
+
+const crankInputArm = new THREE.Mesh(
+  new THREE.BoxGeometry(b, 12, 12), crankInputMat
+);
+crankInputArm.position.set(b / 2, 0, 0);
+crankInputGroup.add(crankInputArm);
+
+const crankInputHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9, 22, 24), crankInputMat
+);
+crankInputHub.rotation.x = Math.PI / 2;
+crankInputGroup.add(crankInputHub);
+
+/* ============================================================
+ *  输出曲柄 O2B —— 绕 O2 定轴转动（颜色不同以区分）
+ * ============================================================ */
+const crankOutputGroup = new THREE.Group();
+crankOutputGroup.position.set(a, 0, 0);
+scene.add(crankOutputGroup);
+
+const crankOutputMat = new THREE.MeshStandardMaterial({
+  color: COLOR_OUT, metalness: 0.45, roughness: 0.4
+});
+
+const crankOutputArm = new THREE.Mesh(
+  new THREE.BoxGeometry(d, 12, 12), crankOutputMat
+);
+crankOutputArm.position.set(d / 2, 0, 0);
+crankOutputGroup.add(crankOutputArm);
+
+const crankOutputHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9, 22, 24), crankOutputMat
+);
+crankOutputHub.rotation.x = Math.PI / 2;
+crankOutputGroup.add(crankOutputHub);
+
+/* ============================================================
+ *  连杆 AB —— 用 Group 实现"平动"
+ *  Group 的局部坐标系 X 轴始终与世界 X 轴对齐（rotation.z = 0）
+ *  只更新 Group.position（即连杆中心位置）
+ * ============================================================ */
+const couplerGroup = new THREE.Group();
+scene.add(couplerGroup);
+
+const couplerMat = new THREE.MeshStandardMaterial({
+  color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+});
+
+const couplerBar = new THREE.Mesh(
+  new THREE.BoxGeometry(c, 9, 9), couplerMat
+);
+couplerGroup.add(couplerBar);
+
+// 连杆两端的端帽
+const couplerEndA = new THREE.Mesh(
+  new THREE.CylinderGeometry(8, 8, 14, 20), couplerMat
+);
+couplerEndA.rotation.x = Math.PI / 2;
+couplerEndA.position.set(-c / 2, 0, 0);
+couplerGroup.add(couplerEndA);
+
+const couplerEndB = new THREE.Mesh(
+  new THREE.CylinderGeometry(8, 8, 14, 20), couplerMat
+);
+couplerEndB.rotation.x = Math.PI / 2;
+couplerEndB.position.set(+c / 2, 0, 0);
+couplerGroup.add(couplerEndB);
+
+// 连杆中点的标记小球：随连杆平动，画出与 A、B 同半径的圆
+const couplerMark = new THREE.Mesh(
+  new THREE.SphereGeometry(7, 20, 20),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_MARK, metalness: 0.5, roughness: 0.3,
+    emissive: 0x551144, emissiveIntensity: 0.4
+  })
+);
+couplerMark.position.set(0, 0, 0);  // 局部坐标：连杆中点
+couplerGroup.add(couplerMark);
+
+/* ============================================================
+ *  铰链销（O1、A、B、O2 四处小球）
+ * ============================================================ */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.25
+});
+const pinO1 = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+const pinA  = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+const pinB  = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+const pinO2 = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+scene.add(pinO1, pinA, pinB, pinO2);
+pinO1.position.set(0, 0, 0);
+pinO2.position.set(a, 0, 0);
+
+/* ============================================================
+ *  HUD 元素
+ * ============================================================ */
+const ui = {
+  phi:   document.getElementById('v_phi'),
+  theta: document.getElementById('v_theta'),
+  beta:  document.getElementById('v_beta'),
+  vp:    document.getElementById('v_vp'),
+  ap:    document.getElementById('v_ap'),
+  wAB:   document.getElementById('v_wAB'),
+};
+
+/* ============================================================
+ *  主循环：完全由运动学方程驱动
+ *      φ  = ω·t
+ *      θ  = φ            （平行四边形等长约束的恒等解）
+ *      β  = 0            （连杆做平动）
+ *      A  = (b·cosφ, b·sinφ)
+ *      B  = (a + b·cosφ, b·sinφ)
+ * ============================================================ */
+const clock = new THREE.Clock();
+let phi = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  const cosPhi = Math.cos(phi);
+  const sinPhi = Math.sin(phi);
+
+  // 关键点位置（推导见 docs/kinematics-parallelogram.md 式 4）
+  const Ax = b * cosPhi;
+  const Ay = b * sinPhi;
+  const Bx = a + b * cosPhi;
+  const By = b * sinPhi;
+
+  // —— 几何更新 ——
+  crankInputGroup.rotation.z  = phi;          // 输入曲柄绕 O1
+  crankOutputGroup.rotation.z = phi;          // 输出曲柄绕 O2，同步同向
+
+  // 连杆做平动：只动 position，不动 rotation
+  couplerGroup.position.set((Ax + Bx) / 2, Ay, 0);
+  couplerGroup.rotation.z = 0;                // 显式置零，防止累积误差
+
+  pinA.position.set(Ax, Ay, 0);
+  pinB.position.set(Bx, By, 0);
+
+  // —— HUD：所有量都是闭合形式（推导见文档第 4、5 节）——
+  const vMag = b * omega;                      // 连杆任意点速度模
+  const aMag = b * omega * omega;              // 连杆任意点加速度模
+
+  ui.phi.textContent   = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.theta.textContent = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.beta.textContent  = '0.00 °';
+  ui.vp.textContent    = (vMag / 1000).toFixed(4) + ' m/s';
+  ui.ap.textContent    = (aMag / 1000).toFixed(3) + ' m/s²';
+  ui.wAB.textContent   = '0.000 rad/s';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

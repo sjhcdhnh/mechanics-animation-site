@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>抽油机（游梁式磕头机）运动学演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px; color: #e0e6f8;
+    pointer-events: none; text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 260px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 13px; line-height: 1.85; backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">游梁式抽油机 · 运动学演示</div>
+<div id="subtitle">Beam Pumping Unit (Pumpjack) — 四杆机构 + 游梁 + 驴头 + 悬绳器</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>曲柄相位 φ : <span id="v_phi" class="v">—</span></div>
+  <div>游梁倾角 ψ : <span id="v_psi" class="v">—</span></div>
+  <div>游梁角速度 ψ̇ : <span id="v_psd" class="v">—</span></div>
+  <div>悬点高度 H<sub>y</sub> : <span id="v_hy" class="v">—</span></div>
+  <div>悬点速度 v<sub>y</sub> : <span id="v_vy" class="v">—</span></div>
+  <div>冲程 S : <span id="v_stroke" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>曲柄 r = 0.8 m</div>
+  <div>连杆 p = 3.2 m</div>
+  <div>游梁后臂 d = 2.0 m</div>
+  <div>游梁前臂 f = 3.0 m</div>
+  <div>支点 S = (3.0, 2.5) m</div>
+  <div>曲柄中心 O = (0, 0)</div>
+  <div>ω = 2π/3 rad/s（10 r/min）</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架（底座 + 支架）</div>
+  <div><span class="sw" style="background:#ff6b35"></span>曲柄 + 平衡块</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆（pitman）</div>
+  <div><span class="sw" style="background:#ffe66d"></span>游梁 + 驴头</div>
+  <div><span class="sw" style="background:#89b4fa"></span>悬绳 + 光杆</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链销</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  几何参数（物理单位：m；渲染缩放 scale = 60）
+ *
+ *  布局（从左到右）：曲柄 O → 支架 S → 井口
+ *      O = (0, 0)              曲柄回转中心（减速器输出轴）
+ *      S = (Sx, Sy)            游梁支点（Sampson post 顶端）
+ *
+ *  四杆机构 O–A–C–S：
+ *      A = O + r·(cosφ, sinφ)         曲柄销
+ *      |AC| = p,  |SC| = d            连杆 & 游梁后臂
+ *
+ *  游梁延伸（驴头）：
+ *      H = S − f·(cosψ, sinψ)         驴头悬点
+ *
+ *  悬绳器 + 光杆：竖直约束在井口正上方
+ *      carrier.x = 井口 X（≈ Sx + f）
+ *      carrier.y = H_y                 跟随驴头升降
+ * ============================================================ */
+const r  = 0.8;
+const p  = 3.2;
+const d  = 2.0;
+const f  = 3.0;
+const Sx = 3.0;
+const Sy = 2.5;
+const omega = 2 * Math.PI / 3;
+
+/* 渲染缩放：1 m → 60 scene units */
+const SCALE = 60;
+/* 井口世界 X（驴头悬点正下方 ≈ Sx + f） */
+const WELLHEAD_X_m = Sx + f;        // ≈ 6.0 m（驴头圆弧近似铅垂段下方）
+const WELLHEAD_X   = WELLHEAD_X_m * SCALE;
+const WELLHEAD_Y   = -40;
+
+const COLOR_BG      = 0x0a0a14;
+const COLOR_FRAME   = 0x6b7280;
+const COLOR_CRANK   = 0xff6b35;
+const COLOR_PITMAN  = 0x4ecdc4;
+const COLOR_BEAM    = 0xffe66d;
+const COLOR_ROD     = 0x89b4fa;
+const COLOR_PIN     = 0xf5e0dc;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 2400);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 8000
+);
+camera.position.set(100, 160, 650);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set((Sx + f/2) * SCALE, Sy * SCALE * 0.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 100;
+controls.maxDistance = 1500;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(300, 600, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.3);
+fillLight.position.set(-300, -100, -300);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(60));
+
+/* 地面 */
+const groundMat = new THREE.MeshStandardMaterial({
+  color: 0x2a2f3a, metalness: 0.1, roughness: 0.8
+});
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1500, 1500), groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -55;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(1200, 24, 0x445080, 0x2a3050);
+grid.position.y = -54;
+scene.add(grid);
+
+/* ========== 机架 ========== */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.55
+});
+
+// 底座
+const baseSlab = new THREE.Mesh(
+  new THREE.BoxGeometry(720, 14, 100), frameMat
+);
+baseSlab.position.set(WELLHEAD_X / 2, -47, 0);
+scene.add(baseSlab);
+
+// 减速器箱体
+const gearbox = new THREE.Mesh(
+  new THREE.BoxGeometry(70, 55, 70), frameMat
+);
+gearbox.position.set(0, -16, 0);
+scene.add(gearbox);
+
+// Sampson post（A 字形支架，顶端在 S）
+const postH = Sy * SCALE + 40;
+function makePost(x, z, rotZ) {
+  const p = new THREE.Mesh(new THREE.BoxGeometry(11, postH, 11), frameMat);
+  p.position.set(x, Sy * SCALE / 2 - 22, z);
+  p.rotation.z = rotZ;
+  scene.add(p);
+}
+makePost(Sx * SCALE - 22, -14, -0.10);
+makePost(Sx * SCALE + 22, -14,  0.10);
+makePost(Sx * SCALE - 22,  14, -0.10);
+makePost(Sx * SCALE + 22,  14,  0.10);
+
+// 支架顶部轴承座
+const topPad = new THREE.Mesh(
+  new THREE.BoxGeometry(70, 14, 46), frameMat
+);
+topPad.position.set(Sx * SCALE, Sy * SCALE + 6, 0);
+scene.add(topPad);
+
+/* ========== 井口装置 ========== */
+const wellHeadY = WELLHEAD_Y + 10;
+const wellCasing = new THREE.Mesh(
+  new THREE.CylinderGeometry(12, 14, 36, 18),
+  new THREE.MeshStandardMaterial({ color: 0x4a5060, metalness: 0.5, roughness: 0.4 })
+);
+wellCasing.position.set(WELLHEAD_X, wellHeadY, 0);
+scene.add(wellCasing);
+
+// 井口法兰
+const wellFlange = new THREE.Mesh(
+  new THREE.CylinderGeometry(16, 16, 5, 20),
+  new THREE.MeshStandardMaterial({ color: 0x5a6070, metalness: 0.55, roughness: 0.35 })
+);
+wellFlange.position.set(WELLHEAD_X, wellHeadY + 20, 0);
+scene.add(wellFlange);
+
+/* ========== 曲柄 + 平衡块（绕 O 转动）========== */
+const crankGroup = new THREE.Group();
+scene.add(crankGroup);
+
+const crankMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CRANK, metalness: 0.45, roughness: 0.4
+});
+
+const crankArmLen = r * SCALE;
+const crankArm = new THREE.Mesh(
+  new THREE.BoxGeometry(crankArmLen, 13, 13), crankMat
+);
+crankArm.position.set(crankArmLen / 2, 0, 0);
+crankGroup.add(crankArm);
+
+// 平衡块（曲柄反向延长，带扇形配重）
+const cwLen = crankArmLen * 0.7;
+const counterweight = new THREE.Mesh(
+  new THREE.BoxGeometry(cwLen, 26, 26), crankMat
+);
+counterweight.position.set(-cwLen / 2, 0, 0);
+crankGroup.add(counterweight);
+
+// 配重扇形块
+const cwArc = new THREE.Mesh(
+  new THREE.CylinderGeometry(16, 16, 20, 20, 1, false, 0, Math.PI),
+  new THREE.MeshStandardMaterial({ color: 0xdd5520, metalness: 0.5, roughness: 0.35 })
+);
+cwArc.rotation.x = Math.PI / 2;
+cwArc.position.set(-cwLen, 0, 0);
+crankGroup.add(cwArc);
+
+const crankHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(9, 9, 20, 20), crankMat
+);
+crankHub.rotation.x = Math.PI / 2;
+crankGroup.add(crankHub);
+
+/* ========== 连杆（pitman）========== */
+const pitman = new THREE.Mesh(
+  new THREE.BoxGeometry(p * SCALE, 7, 7),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_PITMAN, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(pitman);
+
+/* ========== 游梁组（绕 S 转动）========== */
+const beamGroup = new THREE.Group();
+beamGroup.position.set(Sx * SCALE, Sy * SCALE, 0);
+scene.add(beamGroup);
+
+const beamMat = new THREE.MeshStandardMaterial({
+  color: COLOR_BEAM, metalness: 0.45, roughness: 0.45
+});
+
+// 游梁主体（从 -f 到 +d 沿局部 X）
+const beamRear = new THREE.Mesh(
+  new THREE.BoxGeometry(d * SCALE, 16, 13), beamMat
+);
+beamRear.position.set(d * SCALE / 2, 0, 0);
+beamGroup.add(beamRear);
+
+const beamFront = new THREE.Mesh(
+  new THREE.BoxGeometry(f * SCALE, 16, 13), beamMat
+);
+beamFront.position.set(-f * SCALE / 2, 0, 0);
+beamGroup.add(beamFront);
+
+// 游梁中央轴承座
+const bearingHousing = new THREE.Mesh(
+  new THREE.CylinderGeometry(10, 10, 24, 16),
+  new THREE.MeshStandardMaterial({ color: 0xddbb55, metalness: 0.55, roughness: 0.3 })
+);
+bearingHousing.rotation.x = Math.PI / 2;
+beamGroup.add(bearingHousing);
+
+// 驴头：弧形板（用 LatheGeometry 做弧形截面 extrusion 或用简单弧形段）
+// 这里用一个弧形排列的小长方体近似
+const horseheadGroup = new THREE.Group();
+horseheadGroup.position.set(-f * SCALE, 0, 0);
+beamGroup.add(horseheadGroup);
+
+const hhMat = new THREE.MeshStandardMaterial({
+  color: 0xe8a840, metalness: 0.5, roughness: 0.4
+});
+
+// 驴头主体（弧形板 — 用多个盒子拼接成弧）
+const arcRadius = 35;
+const arcAngleStart = -Math.PI * 0.15;
+const arcAngleEnd   =  Math.PI * 0.55;
+const arcSegs = 10;
+for (let i = 0; i < arcSegs; i++) {
+  const t = i / (arcSegs - 1);
+  const angle = arcAngleStart + t * (arcAngleEnd - arcAngleStart);
+  const seg = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 14, 24),
+    hhMat
+  );
+  seg.position.set(
+    arcRadius * Math.cos(angle),
+    arcRadius * Math.sin(angle),
+    0
+  );
+  seg.rotation.z = angle;
+  horseheadGroup.add(seg);
+}
+
+// 驴头侧板（加强视觉）
+[-1, 1].forEach(sz => {
+  const sidePlate = new THREE.Mesh(
+    new THREE.BoxGeometry(60, 50, 3),
+    new THREE.MeshStandardMaterial({ color: 0xd49530, metalness: 0.5, roughness: 0.35 })
+  );
+  sidePlate.position.set(10, -8, sz * 13);
+  horseheadGroup.add(sidePlate);
+});
+
+/* ========== 悬绳（钢丝绳 — 每帧更新）========== */
+const bridlePts = [new THREE.Vector3(), new THREE.Vector3()];
+const bridleGeom = new THREE.BufferGeometry().setFromPoints(bridlePts);
+const bridleLine = new THREE.Line(
+  bridleGeom,
+  new THREE.LineBasicMaterial({ color: 0x8899bb })
+);
+scene.add(bridleLine);
+
+/* ========== 悬绳器 + 光杆 ========== */
+// 悬绳器横梁
+const carrier = new THREE.Mesh(
+  new THREE.BoxGeometry(30, 10, 20),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(carrier);
+
+// 光杆
+const polishedRod = new THREE.Mesh(
+  new THREE.CylinderGeometry(3.5, 3.5, 100, 14),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD, metalness: 0.55, roughness: 0.3
+  })
+);
+scene.add(polishedRod);
+
+/* ========== 铰链销 ========== */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.2
+});
+const pinO = new THREE.Mesh(new THREE.SphereGeometry(6, 18, 18), pinMat);
+const pinA = new THREE.Mesh(new THREE.SphereGeometry(6, 18, 18), pinMat);
+const pinC = new THREE.Mesh(new THREE.SphereGeometry(6, 18, 18), pinMat);
+const pinS = new THREE.Mesh(new THREE.SphereGeometry(7, 18, 18), pinMat);
+pinO.position.set(0, 0, 0);
+pinS.position.set(Sx * SCALE, Sy * SCALE, 0);
+scene.add(pinO, pinA, pinC, pinS);
+
+/* ========== 悬点轨迹拖尾 ========== */
+const hTrail = [];
+const trailGeom = new THREE.BufferGeometry();
+const trailLine = new THREE.Line(
+  trailGeom,
+  new THREE.LineBasicMaterial({ color: 0xff8aa7, transparent: true, opacity: 0.55 })
+);
+scene.add(trailLine);
+
+/* ========== HUD 引用 ========== */
+const ui = {
+  phi:    document.getElementById('v_phi'),
+  psi:    document.getElementById('v_psi'),
+  psd:    document.getElementById('v_psd'),
+  hy:     document.getElementById('v_hy'),
+  vy:     document.getElementById('v_vy'),
+  stroke: document.getElementById('v_stroke'),
+};
+
+/* ============================================================
+ *  运动学求解
+ *
+ *  已知：A = (r·cosφ, r·sinφ)，S = (Sx, Sy)
+ *  在 △SAC 中：|SA| = q，|SC| = d，|AC| = p
+ *  cos∠ASC = (q² + d² − p²) / (2qd)
+ *  χ = atan2(Ay−Sy, Ax−Sx)    … 向量 SA 的方向角
+ *
+ *  两分支：ψ = χ ± ∠ASC
+ *  "+" → C 在 SA 右侧 → 游梁前臂（驴头）朝左（错误：朝向曲柄）
+ *  "−" → C 在 SA 左侧 → 游梁前臂朝右（正确：朝向井口）
+ * ============================================================ */
+function solvePsi(phi) {
+  const Ax = r * Math.cos(phi);
+  const Ay = r * Math.sin(phi);
+  const dx = Ax - Sx, dy = Ay - Sy;
+  const q  = Math.hypot(dx, dy);
+  const chi = Math.atan2(dy, dx);
+  const cosBSC = (q * q + d * d - p * p) / (2 * q * d);
+  const angBSC = Math.acos(Math.max(-1, Math.min(1, cosBSC)));
+  return chi - angBSC;  // 驴头朝右（井口侧）
+}
+
+const clock = new THREE.Clock();
+let phi = 0;
+
+// 冲程统计
+let Hy_min = Infinity, Hy_max = -Infinity;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  /* ---- 位置（物理单位 m）---- */
+  const Ax = r * Math.cos(phi);
+  const Ay = r * Math.sin(phi);
+  const psi = solvePsi(phi);
+  const Cx = Sx + d * Math.cos(psi);
+  const Cy = Sy + d * Math.sin(psi);
+  const Hx_m = Sx - f * Math.cos(psi);
+  const Hy_m = Sy - f * Math.sin(psi);
+
+  /* ---- 角速度（向量回路法）---- */
+  // 由四边形 O-A-C-S：ψ̇ = −rω·sin(φ−α) / [d·sin(ψ−α)]
+  const alpha = Math.atan2(Cy - Ay, Cx - Ax);
+  const denom = d * Math.sin(psi - alpha);
+  const psiDot = Math.abs(denom) > 1e-6
+    ? -r * omega * Math.sin(phi - alpha) / denom
+    : 0;
+
+  // 悬点垂直速度（解析）：Hy = Sy − f·sinψ ⇒ v_y = −f·cosψ·ψ̇
+  const vy_phys = -f * Math.cos(psi) * psiDot;
+
+  /* ---- 冲程统计 ---- */
+  if (Hy_m < Hy_min) Hy_min = Hy_m;
+  if (Hy_m > Hy_max) Hy_max = Hy_m;
+  const stroke = Hy_max - Hy_min;
+
+  /* ---- 渲染坐标 ---- */
+  const sAx = Ax * SCALE, sAy = Ay * SCALE;
+  const sCx = Cx * SCALE, sCy = Cy * SCALE;
+  const sHx = Hx_m * SCALE, sHy = Hy_m * SCALE;
+
+  /* ---- 更新几何 ---- */
+  crankGroup.rotation.z = phi;
+  beamGroup.rotation.z  = psi;
+
+  // 连杆
+  pitman.position.set((sAx + sCx) / 2, (sAy + sCy) / 2, 0);
+  pitman.rotation.z = Math.atan2(sCy - sAy, sCx - sAx);
+
+  pinA.position.set(sAx, sAy, 0);
+  pinC.position.set(sCx, sCy, 0);
+
+  // 悬绳器固定在井口正上方，仅竖直运动
+  carrier.position.set(WELLHEAD_X, sHy, 0);
+
+  // 悬绳（钢丝绳）：从驴头悬点到悬绳器
+  bridlePts[0].set(sHx, sHy, 0);
+  bridlePts[1].set(WELLHEAD_X, sHy, 0);
+  bridleGeom.setFromPoints(bridlePts);
+
+  // 光杆从悬绳器向下伸入井口
+  const rodTop = sHy - 6;
+  const rodBot = WELLHEAD_Y + 20;
+  const rodLen = Math.max(rodTop - rodBot, 10);
+  polishedRod.scale.y = rodLen / 100;       // 圆柱原始高度 100
+  polishedRod.position.set(WELLHEAD_X, (rodTop + rodBot) / 2, 0);
+
+  // 轨迹拖尾
+  hTrail.push(new THREE.Vector3(WELLHEAD_X, sHy, 0));
+  if (hTrail.length > 300) hTrail.shift();
+  trailGeom.setFromPoints(hTrail);
+
+  /* ---- HUD ---- */
+  ui.phi.textContent    = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.psi.textContent    = (psi * 180 / Math.PI).toFixed(2) + ' °';
+  ui.psd.textContent    = psiDot.toFixed(3) + ' rad/s';
+  ui.hy.textContent     = Hy_m.toFixed(3) + ' m';
+  ui.vy.textContent     = vy_phys.toFixed(3) + ' m/s';
+  ui.stroke.textContent = stroke.toFixed(3) + ' m';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

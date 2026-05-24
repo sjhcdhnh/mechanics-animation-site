@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>卷扬机吊重物 · 运动学演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px; color: #e0e6f8;
+    pointer-events: none; text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 240px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 13px; line-height: 1.85; backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 12px 14px; min-width: 230px;
+    background: rgba(20, 22, 38, 0.78);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+  #params .row {
+    display: flex; align-items: center; gap: 6px; margin: 4px 0;
+  }
+  #params label { width: 78px; color: #a6adc8; }
+  #params input[type=range] { width: 90px; }
+  #params input[type=number] {
+    width: 52px; background: #1a1d2e; color: #cdd6f4;
+    border: 1px solid #2a2f4a; border-radius: 3px;
+    padding: 1px 3px; font-family: "Consolas", monospace;
+  }
+  #params .unit { color: #8b95b8; font-size: 11px; min-width: 38px; }
+  #params .btnrow {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid #2a2f4a;
+  }
+  #params button {
+    padding: 4px 10px; background: #2a2f4a; color: #cdd6f4;
+    border: none; border-radius: 3px; cursor: pointer; font-size: 12px;
+  }
+  #params button:hover { background: #3a4060; }
+  #params button.active { background: #ff8aa7; color: #1a1d2e; }
+  #chart {
+    position: absolute; bottom: 14px; right: 200px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+  }
+  #chart-label {
+    position: absolute; bottom: 100px; right: 200px;
+    font-size: 11px; color: #8b95b8; padding: 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">卷扬机吊重物 · 运动学演示</div>
+<div id="subtitle">Winch Hoist (Kinematics) — 鼓轮匀速转动 → 重物匀速上行（a ≡ 0）</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>鼓轮角速度 ω : <span id="v_omega" class="v">—</span></div>
+  <div>转速 n : <span id="v_n" class="v">—</span></div>
+  <div>角位移 φ : <span id="v_phi" class="v">—</span></div>
+  <div>重物速度 v : <span id="v_v" class="v">—</span></div>
+  <div>重物位移 y : <span id="v_y" class="v">—</span></div>
+  <div>重物加速度 a : <span id="v_a" class="v">0.000 m/s²</span></div>
+</div>
+
+<div id="params">
+  <div><b>运动学参数（可调）</b></div>
+  <div class="row">
+    <label>R 鼓轮半径</label>
+    <input type="range" id="r_R" min="0.05" max="0.60" step="0.005" value="0.20">
+    <input type="number" id="n_R" value="0.20" step="0.005" min="0.05" max="0.60">
+    <span class="unit">m</span>
+  </div>
+  <div class="row">
+    <label>n 转速</label>
+    <input type="range" id="r_n" min="-180" max="180" step="1" value="60">
+    <input type="number" id="n_n" value="60" step="1" min="-180" max="180">
+    <span class="unit">r/min</span>
+  </div>
+  <div class="btnrow">
+    <button id="btn_pause">暂停</button>
+    <button id="btn_reset">重置</button>
+  </div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架（立柱 + 横梁 + 底座）</div>
+  <div><span class="sw" style="background:#ff6b35"></span>鼓轮（drum）</div>
+  <div><span class="sw" style="background:#ffe66d"></span>鼓轮辐条 / 标记</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>绳索</div>
+  <div><span class="sw" style="background:#89b4fa"></span>重物（货箱）</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<canvas id="chart" width="180" height="80"></canvas>
+<div id="chart-label">y(t) 时序（线性）</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  卷扬机运动学
+ *  输入：鼓轮转速 n (r/min) → ω = 2πn/60
+ *  输出：φ = ω·t, y = R·ω·t, v = R·ω, a ≡ 0
+ *  几何在 yOz 平面：鼓轮轴沿 Z 轴，y 上 z 出屏（习惯三维视角）
+ * ============================================================ */
+
+/* —— 视觉常量 —— */
+const VS = 60;                 // 视觉缩放：1 m → 60 单位
+const COLOR_BG    = 0x0a0a14;
+const COLOR_FRAME = 0x6b7280;
+const COLOR_DRUM  = 0xff6b35;
+const COLOR_SPOKE_A = 0xffe66d;
+const COLOR_SPOKE_B = 0xfab387;
+const COLOR_MARKER = 0xff5c8a;
+const COLOR_ROPE  = 0x4ecdc4;
+const COLOR_LOAD  = 0x89b4fa;
+const COLOR_PIN   = 0xf5e0dc;
+
+/* —— 物理参数（GUI 可改） —— */
+const params = {
+  R: 0.20,            // 鼓轮半径 m
+  n: 60,              // 鼓轮转速 r/min
+  paused: false,
+};
+
+/* —— 运行时状态 —— */
+const state = {
+  omega: 0,           // 鼓轮角速度 rad/s（从 n 派生）
+  phi: 0,             // 角位移 rad
+  y: 0,               // 重物位移 m（向上为正）
+  v: 0,               // 重物速度 m/s
+};
+
+/* —— 行程极限（相对初始位置的位移；避免穿模），单位 m —— */
+const Y_TRAVEL_UP   =  1.10;   // 最多上行 m
+const Y_TRAVEL_DOWN = -1.10;   // 最多下行 m
+const Y_INIT_HANG   = -1.40;   // 初始时重物挂点 Y（鼓轮中心下方 1.40 m）
+
+/* —— Three.js 场景 —— */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 2400);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 8000
+);
+camera.position.set(220, 120, 380);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(15, -45, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 100;
+controls.maxDistance = 1500;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(300, 600, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.30);
+fillLight.position.set(-300, -100, -300);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(60));
+
+/* 地面 */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(1500, 1500),
+  new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.1, roughness: 0.8 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 30;
+scene.add(ground);
+const grid = new THREE.GridHelper(1200, 24, 0x445080, 0x2a3050);
+grid.position.y = (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 29;
+scene.add(grid);
+
+/* ============================================================
+ *  机架：底座 + 两根立柱 + 横梁 + 鼓轮支座
+ * ============================================================ */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.55
+});
+const drumCenterY = 0;            // 鼓轮中心 = 世界原点
+const postH = 220;                // 立柱总高（视觉单位）
+const postSep = 80;               // 两根立柱沿 Z 间距
+
+// 底座
+const baseSlab = new THREE.Mesh(
+  new THREE.BoxGeometry(180, 14, 130), frameMat
+);
+baseSlab.position.set(0, (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 16, 0);
+scene.add(baseSlab);
+
+// 立柱（沿 Z 对称）
+const postLZ = -postSep / 2;
+const postRZ =  postSep / 2;
+const postY = drumCenterY - postH / 2 + 30;
+[postLZ, postRZ].forEach(z => {
+  const post = new THREE.Mesh(
+    new THREE.BoxGeometry(14, postH, 14), frameMat
+  );
+  post.position.set(0, postY, z);
+  scene.add(post);
+  // 立柱底盘
+  const foot = new THREE.Mesh(
+    new THREE.BoxGeometry(40, 8, 40), frameMat
+  );
+  foot.position.set(0, (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 5, z);
+  scene.add(foot);
+});
+
+// 横梁（鼓轮支座顶板）
+const topPad = new THREE.Mesh(
+  new THREE.BoxGeometry(60, 14, postSep + 30), frameMat
+);
+topPad.position.set(0, drumCenterY + 30, 0);
+scene.add(topPad);
+
+// 鼓轮轴承座（左右各一）
+[postLZ, postRZ].forEach(z => {
+  const bearing = new THREE.Mesh(
+    new THREE.BoxGeometry(34, 28, 14), frameMat
+  );
+  bearing.position.set(0, drumCenterY, z);
+  scene.add(bearing);
+});
+
+/* ============================================================
+ *  鼓轮 group：圆柱主体 + 双色辐条 ABAB + 端面非对称红 marker + 端面径向指针
+ *  group.rotation.z = state.phi
+ * ============================================================ */
+const drumGroup = new THREE.Group();
+scene.add(drumGroup);
+
+// 圆柱主体（轴沿 Z）
+const drumMat = new THREE.MeshStandardMaterial({
+  color: COLOR_DRUM, metalness: 0.45, roughness: 0.4
+});
+const drumLen = postSep - 20;     // 鼓轮长度（沿 Z）
+function buildDrumBody(R_render) {
+  const g = new THREE.Group();
+  const cyl = new THREE.Mesh(
+    new THREE.CylinderGeometry(R_render, R_render, drumLen, 32), drumMat
+  );
+  cyl.rotation.x = Math.PI / 2;
+  g.add(cyl);
+
+  // 端面 disk（两端各一）
+  const diskMat = new THREE.MeshStandardMaterial({
+    color: 0xc25028, metalness: 0.5, roughness: 0.45
+  });
+  [-drumLen/2 - 1, drumLen/2 + 1].forEach(zEnd => {
+    const disk = new THREE.Mesh(
+      new THREE.CylinderGeometry(R_render * 1.05, R_render * 1.05, 4, 32),
+      diskMat
+    );
+    disk.rotation.x = Math.PI / 2;
+    disk.position.z = zEnd;
+    g.add(disk);
+  });
+
+  // 4 根辐条（沿径向从中心伸到鼓边），ABAB 双色 — 让旋转可见
+  const spokeColors = [COLOR_SPOKE_A, COLOR_SPOKE_B, COLOR_SPOKE_A, COLOR_SPOKE_B];
+  const spokeLen = R_render * 0.95;
+  for (let i = 0; i < 4; i++) {
+    const ang = i * Math.PI / 2;
+    const mat = new THREE.MeshStandardMaterial({
+      color: spokeColors[i], metalness: 0.4, roughness: 0.4
+    });
+    [-drumLen/2 - 3.2, drumLen/2 + 3.2].forEach(zEnd => {
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(spokeLen, 4, 4), mat
+      );
+      // 中点放在半径 spokeLen/2 处，沿 ang 方向；spoke 自身长度方向 = 局部 X 轴
+      spoke.position.set(
+        Math.cos(ang) * spokeLen / 2,
+        Math.sin(ang) * spokeLen / 2,
+        zEnd
+      );
+      spoke.rotation.z = ang;
+      g.add(spoke);
+    });
+  }
+
+  // 端面非对称红色 marker（绕轴一圈只有一个，便于看出旋转）
+  const markerMat = new THREE.MeshStandardMaterial({
+    color: COLOR_MARKER, metalness: 0.5, roughness: 0.35,
+    emissive: 0x661030, emissiveIntensity: 0.4
+  });
+  [-drumLen/2 - 5, drumLen/2 + 5].forEach(zEnd => {
+    const marker = new THREE.Mesh(
+      new THREE.BoxGeometry(8, R_render * 0.7, 4), markerMat
+    );
+    marker.position.set(0, R_render * 0.55, zEnd);
+    g.add(marker);
+  });
+
+  // 端面径向指针 cone（与 marker 对称的另一种视觉提示）
+  const pointerMat = new THREE.MeshStandardMaterial({
+    color: 0xa6e3a1, metalness: 0.4, roughness: 0.4
+  });
+  [-drumLen/2 - 7, drumLen/2 + 7].forEach(zEnd => {
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(4, 16, 12), pointerMat
+    );
+    cone.position.set(R_render * 0.7, 0, zEnd);
+    cone.rotation.z = -Math.PI / 2;   // 尖端朝外（+X）
+    g.add(cone);
+  });
+
+  return g;
+}
+let drumBody = buildDrumBody(params.R * VS * 1.5);
+drumGroup.add(drumBody);
+
+// 鼓轮中心轴（穿过两侧轴承）
+const axleMat = new THREE.MeshStandardMaterial({
+  color: 0x8a93a8, metalness: 0.7, roughness: 0.3
+});
+const axle = new THREE.Mesh(
+  new THREE.CylinderGeometry(4, 4, postSep + 20, 16), axleMat
+);
+axle.rotation.x = Math.PI / 2;
+scene.add(axle);
+
+/* ============================================================
+ *  绳索：Line，两端点 = 鼓轮右切点 → 重物挂点
+ *  切点固定取 (R, drumCenterY)；绕鼓部分不画
+ * ============================================================ */
+const ropeGeom = new THREE.BufferGeometry();
+ropeGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+const ropeMat = new THREE.LineBasicMaterial({ color: COLOR_ROPE, linewidth: 2 });
+const rope = new THREE.Line(ropeGeom, ropeMat);
+scene.add(rope);
+
+/* ============================================================
+ *  重物：货箱 + 顶部吊环
+ * ============================================================ */
+const loadGroup = new THREE.Group();
+scene.add(loadGroup);
+
+const loadMat = new THREE.MeshStandardMaterial({
+  color: COLOR_LOAD, metalness: 0.3, roughness: 0.55
+});
+const loadBox = new THREE.Mesh(
+  new THREE.BoxGeometry(45, 45, 45), loadMat
+);
+loadBox.position.y = -22.5;   // 让 group 原点在重物顶部挂点
+loadGroup.add(loadBox);
+
+const loadEye = new THREE.Mesh(
+  new THREE.TorusGeometry(6, 1.6, 8, 24),
+  new THREE.MeshStandardMaterial({ color: COLOR_PIN, metalness: 0.6, roughness: 0.3 })
+);
+loadEye.rotation.x = Math.PI / 2;
+loadEye.position.y = 4;
+loadGroup.add(loadEye);
+
+// 货箱表面 4 条加强带
+const bandMat = new THREE.MeshStandardMaterial({
+  color: 0x5c7cb8, metalness: 0.4, roughness: 0.5
+});
+[-15, 15].forEach(yy => {
+  const band = new THREE.Mesh(
+    new THREE.BoxGeometry(46, 3, 46), bandMat
+  );
+  band.position.y = -22.5 + yy;
+  loadGroup.add(band);
+});
+
+/* ============================================================
+ *  GUI 绑定
+ * ============================================================ */
+function bindParam(rId, nId, key, onChange) {
+  const r = document.getElementById(rId), n = document.getElementById(nId);
+  const sync = v => {
+    const num = +v;
+    params[key] = num;
+    if (r.value !== String(num)) r.value = num;
+    if (n.value !== String(num)) n.value = num;
+    if (onChange) onChange();
+  };
+  r.addEventListener('input',  e => sync(e.target.value));
+  n.addEventListener('change', e => sync(e.target.value));
+}
+
+function rebuildDrum() {
+  drumGroup.remove(drumBody);
+  drumBody = buildDrumBody(params.R * VS * 1.5);
+  drumBody.rotation.z = state.phi;     // 视觉一致
+  drumGroup.add(drumBody);
+}
+
+bindParam('r_R', 'n_R', 'R', rebuildDrum);
+bindParam('r_n', 'n_n', 'n');
+
+const btnPause = document.getElementById('btn_pause');
+btnPause.onclick = () => {
+  params.paused = !params.paused;
+  btnPause.textContent = params.paused ? '继续' : '暂停';
+  btnPause.classList.toggle('active', params.paused);
+};
+document.getElementById('btn_reset').onclick = () => {
+  state.phi = 0;
+  state.y = 0;
+  samples.length = 0;
+  tTotal = 0;
+};
+
+/* ============================================================
+ *  HUD
+ * ============================================================ */
+const ui = {
+  omega: document.getElementById('v_omega'),
+  n:     document.getElementById('v_n'),
+  phi:   document.getElementById('v_phi'),
+  v:     document.getElementById('v_v'),
+  y:     document.getElementById('v_y'),
+  a:     document.getElementById('v_a'),
+};
+
+/* ============================================================
+ *  实时图表 y(t)
+ * ============================================================ */
+const chart = document.getElementById('chart');
+const ctx = chart.getContext('2d');
+const samples = [];   // [{t, y}, ...]
+const SAMPLE_MAX = 240;
+let tTotal = 0;
+
+function pushSample(y) {
+  samples.push({ t: tTotal, y });
+  if (samples.length > SAMPLE_MAX) samples.shift();
+}
+
+function drawChart() {
+  const w = chart.width, h = chart.height;
+  ctx.clearRect(0, 0, w, h);
+  // 背景
+  ctx.fillStyle = 'rgba(20,22,38,0.4)';
+  ctx.fillRect(0, 0, w, h);
+  // 0 线
+  ctx.strokeStyle = '#445080';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, h / 2);
+  ctx.lineTo(w, h / 2);
+  ctx.stroke();
+  if (samples.length < 2) return;
+
+  const t0 = samples[0].t, t1 = samples[samples.length - 1].t;
+  const dt = Math.max(1e-3, t1 - t0);
+  let yMin =  Infinity, yMax = -Infinity;
+  for (const s of samples) { if (s.y < yMin) yMin = s.y; if (s.y > yMax) yMax = s.y; }
+  if (yMax - yMin < 0.05) { yMax += 0.05; yMin -= 0.05; }
+  const yRange = yMax - yMin;
+
+  // 折线
+  ctx.strokeStyle = '#a6e3a1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const px = ((s.t - t0) / dt) * w;
+    const py = h - ((s.y - yMin) / yRange) * h * 0.85 - h * 0.075;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  // y 范围标注
+  ctx.fillStyle = '#8b95b8';
+  ctx.font = '10px Consolas';
+  ctx.fillText(yMax.toFixed(2), 2, 10);
+  ctx.fillText(yMin.toFixed(2), 2, h - 2);
+}
+
+/* ============================================================
+ *  动画主循环
+ * ============================================================ */
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dtFrame = Math.min(clock.getDelta(), 1 / 30);
+  const dt = params.paused ? 0 : dtFrame;
+
+  // —— 运动学：直接给定 ω ——
+  state.omega = 2 * Math.PI * params.n / 60;
+
+  // 更新角位移
+  state.phi += state.omega * dt;
+
+  // 更新重物位移（带行程极限）
+  const dy = params.R * state.omega * dt;
+  let yNew = state.y + dy;
+  if (yNew > Y_TRAVEL_UP)   { yNew = Y_TRAVEL_UP; }
+  if (yNew < Y_TRAVEL_DOWN) { yNew = Y_TRAVEL_DOWN; }
+  state.y = yNew;
+
+  state.v = params.R * state.omega;
+
+  tTotal += dt;
+  pushSample(state.y);
+
+  // —— 几何更新 ——
+  drumBody.rotation.z = state.phi;
+
+  // 绳索：从鼓轮右切点 (R, 0, 0) 到重物挂点
+  const txX = params.R * VS * 1.5;
+  const ropeTopY = drumCenterY;
+  const loadYWorld = (Y_INIT_HANG + state.y) * VS;   // 重物挂点 Y
+  const arr = ropeGeom.attributes.position.array;
+  arr[0] = txX; arr[1] = ropeTopY; arr[2] = 0;
+  arr[3] = txX; arr[4] = loadYWorld; arr[5] = 0;
+  ropeGeom.attributes.position.needsUpdate = true;
+
+  loadGroup.position.set(txX, loadYWorld, 0);
+
+  // —— HUD 更新 ——
+  ui.omega.textContent = state.omega.toFixed(3) + ' rad/s';
+  ui.n.textContent = params.n.toFixed(0) + ' r/min';
+  ui.phi.textContent = ((state.phi * 180 / Math.PI) % 360).toFixed(1) + ' °';
+  ui.v.textContent = state.v.toFixed(3) + ' m/s';
+  ui.y.textContent = state.y.toFixed(3) + ' m';
+  // a 始终为 0（运动学版的核心结论）
+
+  drawChart();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

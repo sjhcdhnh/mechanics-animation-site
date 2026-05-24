@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>双摆 · 拉格朗日方程数值求解演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 260px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+  #btnReset {
+    margin-top: 6px;
+    padding: 5px 14px;
+    background: rgba(255, 107, 53, 0.2);
+    border: 1px solid #ff6b35;
+    color: #ff8a65;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  #btnReset:hover {
+    background: rgba(255, 107, 53, 0.35);
+  }
+</style>
+</head>
+<body>
+
+<div id="title">双摆 · 拉格朗日方程数值模拟</div>
+<div id="subtitle">Double Pendulum — 分析力学 · 混沌运动 · 能量守恒验证</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>摆角 θ<sub>1</sub> : <span id="v_t1" class="v">—</span></div>
+  <div>摆角 θ<sub>2</sub> : <span id="v_t2" class="v">—</span></div>
+  <div>动能 T : <span id="v_T" class="v">—</span></div>
+  <div>势能 V : <span id="v_V" class="v">—</span></div>
+  <div>总能量 E : <span id="v_E" class="v">—</span></div>
+  <div>模拟时间 t : <span id="v_t" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>l<sub>1</sub> = 120 cm, l<sub>2</sub> = 100 cm</div>
+  <div>m<sub>1</sub> = 1 kg, m<sub>2</sub> = 1 kg</div>
+  <div>g = 9.81 m/s²</div>
+  <div>初始 θ<sub>1</sub> = 120°, θ<sub>2</sub> = 90°</div>
+  <div>数值方法：RK4, 4 子步/帧</div>
+  <button id="btnReset">↺ 重置</button>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>支架 / 底座</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>摆杆 l<sub>1</sub></div>
+  <div><span class="sw" style="background:#ff6b35"></span>摆杆 l<sub>2</sub></div>
+  <div><span class="sw" style="background:#ffe66d"></span>质点 m<sub>2</sub></div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链 O / 质点 m<sub>1</sub></div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* 物理参数（scene units = cm）*/
+const l1 = 120, l2 = 100;
+const m1 = 1, m2 = 1;
+const g  = 981; // cm/s² → 981 scene-units/s²
+const SCALE = 1;
+
+/* 初始条件 */
+const INIT_THETA1 = 120 * Math.PI / 180;
+const INIT_THETA2 = 90 * Math.PI / 180;
+
+const SUBSTEPS = 4;
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_ROD1   = 0x4ecdc4;
+const COLOR_ROD2   = 0xff6b35;
+const COLOR_MASS2  = 0xffe66d;
+const COLOR_PIN    = 0xf5e0dc;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 500, 1800);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(50, 80, 380);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, -60, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 1000;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 350, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-200, -100, -200);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(40));
+
+/* 支架 */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+
+const basePlate = new THREE.Mesh(
+  new THREE.BoxGeometry(160, 8, 100), frameMat
+);
+basePlate.position.set(0, -250, 0);
+scene.add(basePlate);
+
+const standPillar = new THREE.Mesh(
+  new THREE.CylinderGeometry(8, 12, 260, 16), frameMat
+);
+standPillar.position.set(0, -120, 0);
+scene.add(standPillar);
+
+// 顶部枢轴支座
+const pivotBracket = new THREE.Mesh(
+  new THREE.BoxGeometry(28, 16, 20), frameMat
+);
+pivotBracket.position.set(0, 8, 0);
+scene.add(pivotBracket);
+
+/* 摆杆1 组（绕 O 转动）*/
+const rod1Group = new THREE.Group();
+scene.add(rod1Group);
+
+const rod1Geom = new THREE.BoxGeometry(l1, 7, 7);
+const rod1 = new THREE.Mesh(
+  rod1Geom,
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD1, metalness: 0.4, roughness: 0.4
+  })
+);
+rod1.position.set(l1 / 2, 0, 0);
+rod1Group.add(rod1);
+
+/* 摆杆2 组（绕 m1 转动）—— 作为 rod1Group 的子对象 */
+const rod2Group = new THREE.Group();
+rod2Group.position.set(l1, 0, 0);
+rod1Group.add(rod2Group);
+
+const rod2 = new THREE.Mesh(
+  new THREE.BoxGeometry(l2, 6, 6),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD2, metalness: 0.4, roughness: 0.4
+  })
+);
+rod2.position.set(l2 / 2, 0, 0);
+rod2Group.add(rod2);
+
+/* 质点 m1（在杆1末端）*/
+const mass1 = new THREE.Mesh(
+  new THREE.SphereGeometry(9, 24, 24),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_PIN, metalness: 0.6, roughness: 0.3,
+    emissive: 0x553311, emissiveIntensity: 0.2
+  })
+);
+mass1.position.set(l1, 0, 0);
+rod1Group.add(mass1);
+
+/* 质点 m2（在杆2末端）*/
+const mass2 = new THREE.Mesh(
+  new THREE.SphereGeometry(9, 24, 24),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_MASS2, metalness: 0.5, roughness: 0.4
+  })
+);
+mass2.position.set(l2, 0, 0);
+rod2Group.add(mass2);
+
+/* 固定铰 O */
+const pinO = new THREE.Mesh(
+  new THREE.SphereGeometry(6, 20, 20),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+    emissive: 0x553311, emissiveIntensity: 0.25
+  })
+);
+scene.add(pinO);
+
+/* m2 轨迹拖尾 */
+const trail = [];
+const trailGeom = new THREE.BufferGeometry();
+const trailLine = new THREE.Line(
+  trailGeom,
+  new THREE.LineBasicMaterial({ color: 0xff8aa7, transparent: true, opacity: 0.5 })
+);
+scene.add(trailLine);
+
+/* 铅垂参考线 */
+const refPts = [];
+for (let i = 0; i <= 20; i++) {
+  const yy = -i * 13;
+  refPts.push(new THREE.Vector3(0, yy, 0));
+}
+const refGeom = new THREE.BufferGeometry().setFromPoints(refPts);
+const refLine = new THREE.Line(
+  refGeom,
+  new THREE.LineDashedMaterial({ color: 0x445566, dashSize: 6, gapSize: 4 })
+);
+refLine.computeLineDistances();
+scene.add(refLine);
+
+/* HUD */
+const ui = {
+  t1: document.getElementById('v_t1'),
+  t2: document.getElementById('v_t2'),
+  T:  document.getElementById('v_T'),
+  V:  document.getElementById('v_V'),
+  E:  document.getElementById('v_E'),
+  t:  document.getElementById('v_t'),
+};
+
+/* 状态向量 [θ1, θ2, θ̇1, θ̇2] */
+let state = [INIT_THETA1, INIT_THETA2, 0, 0];
+let simTime = 0;
+
+function derivatives(s) {
+  const [th1, th2, d1, d2] = s;
+  const cd = Math.cos(th1 - th2);
+  const sd = Math.sin(th1 - th2);
+
+  const M11 = (m1 + m2) * l1 * l1;
+  const M12 = m2 * l1 * l2 * cd;
+  const M22 = m2 * l2 * l2;
+  const det = M11 * M22 - M12 * M12;
+
+  const R1 = -m2 * l1 * l2 * d2 * d2 * sd - (m1 + m2) * g * l1 * Math.sin(th1);
+  const R2 =  m2 * l1 * l2 * d1 * d1 * sd - m2 * g * l2 * Math.sin(th2);
+
+  const dd1 = (R1 * M22 - R2 * M12) / det;
+  const dd2 = (R2 * M11 - R1 * M12) / det;
+
+  return [d1, d2, dd1, dd2];
+}
+
+function rk4Step(s, h) {
+  const k1 = derivatives(s);
+  const s2 = s.map((v, i) => v + 0.5 * h * k1[i]);
+  const k2 = derivatives(s2);
+  const s3 = s.map((v, i) => v + 0.5 * h * k2[i]);
+  const k3 = derivatives(s3);
+  const s4 = s.map((v, i) => v + h * k3[i]);
+  const k4 = derivatives(s4);
+  return s.map((v, i) => v + (h / 6) * (k1[i] + 2*k2[i] + 2*k3[i] + k4[i]));
+}
+
+function computeEnergy(s) {
+  const [th1, th2, d1, d2] = s;
+  const cd = Math.cos(th1 - th2);
+  const T = 0.5 * m1 * (l1 * d1) * (l1 * d1)
+          + 0.5 * m2 * ((l1 * d1) * (l1 * d1) + (l2 * d2) * (l2 * d2)
+          + 2 * l1 * l2 * d1 * d2 * cd);
+  const V = -(m1 + m2) * g * l1 * Math.cos(th1) - m2 * g * l2 * Math.cos(th2);
+  return { T, V, E: T + V };
+}
+
+const clock = new THREE.Clock();
+const pivotY = 0; // 枢轴在原点
+
+function reset() {
+  state = [INIT_THETA1, INIT_THETA2, 0, 0];
+  simTime = 0;
+  trail.length = 0;
+  trailGeom.setFromPoints([]);
+}
+
+document.getElementById('btnReset').addEventListener('click', reset);
+
+function animate() {
+  requestAnimationFrame(animate);
+  let dt = Math.min(clock.getDelta(), 0.05);
+  // 若暂停太久，限制单帧步进
+  if (dt <= 0) dt = 1 / 60;
+
+  const h = dt / SUBSTEPS;
+  for (let i = 0; i < SUBSTEPS; i++) {
+    state = rk4Step(state, h);
+    simTime += h;
+  }
+
+  const [th1, th2] = state;
+
+  // 位置计算（θ = 0 对应竖直向下，即 -Y）
+  // 杆1 方向从枢轴指向 m1
+  rod1Group.rotation.z = th1 - Math.PI / 2;
+  // 杆2 方向从 m1 指向 m2
+  rod2Group.rotation.z = th2 - Math.PI / 2;
+
+  // 世界坐标中 m2 位置（用于轨迹）
+  const m2WorldX = l1 * Math.sin(th1) + l2 * Math.sin(th2);
+  const m2WorldY = -(l1 * Math.cos(th1) + l2 * Math.cos(th2));
+
+  // 轨迹
+  trail.push(new THREE.Vector3(m2WorldX, m2WorldY, 0));
+  if (trail.length > 350) trail.shift();
+  trailGeom.setFromPoints(trail);
+
+  // 能量
+  const energy = computeEnergy(state);
+
+  ui.t1.textContent = (th1 * 180 / Math.PI % 360).toFixed(2) + ' °';
+  ui.t2.textContent = (th2 * 180 / Math.PI % 360).toFixed(2) + ' °';
+  ui.T.textContent  = energy.T.toFixed(2) + ' J';
+  ui.V.textContent  = energy.V.toFixed(2) + ' J';
+  ui.E.textContent  = energy.E.toFixed(2) + ' J';
+  ui.t.textContent  = simTime.toFixed(3) + ' s';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

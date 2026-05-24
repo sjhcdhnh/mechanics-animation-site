@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>卷扬机吊重物 · 动力学演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px; color: #e0e6f8;
+    pointer-events: none; text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 280px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 13px; line-height: 1.85; backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #hud .mode { color: #ff8aa7; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 12px 14px; min-width: 250px;
+    background: rgba(20, 22, 38, 0.78);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+  #params .row {
+    display: flex; align-items: center; gap: 6px; margin: 4px 0;
+  }
+  #params label { width: 100px; color: #a6adc8; }
+  #params input[type=range] { width: 88px; }
+  #params input[type=number] {
+    width: 56px; background: #1a1d2e; color: #cdd6f4;
+    border: 1px solid #2a2f4a; border-radius: 3px;
+    padding: 1px 3px; font-family: "Consolas", monospace;
+  }
+  #params .unit { color: #8b95b8; font-size: 11px; min-width: 40px; }
+  #params .btnrow {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px;
+    padding-top: 8px; border-top: 1px solid #2a2f4a;
+  }
+  #params button {
+    padding: 4px 8px; background: #2a2f4a; color: #cdd6f4;
+    border: none; border-radius: 3px; cursor: pointer; font-size: 12px;
+  }
+  #params button:hover { background: #3a4060; }
+  #params button.active { background: #ff8aa7; color: #1a1d2e; }
+  #chart {
+    position: absolute; bottom: 14px; right: 200px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+  }
+  #chart-label {
+    position: absolute; bottom: 100px; right: 200px;
+    font-size: 11px; color: #8b95b8; padding: 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">卷扬机吊重物 · 动力学演示</div>
+<div id="subtitle">Winch Hoist (Dynamics) — 动量定理 + 动量矩定理 → α、a、T 自动求出</div>
+
+<div id="hud">
+  <div><b>实时动力学量</b></div>
+  <div>角速度 ω : <span id="v_omega" class="v">—</span></div>
+  <div>转速 n : <span id="v_n" class="v">—</span></div>
+  <div>角加速度 α : <span id="v_alpha" class="v">—</span></div>
+  <div>重物速度 v : <span id="v_v" class="v">—</span></div>
+  <div>重物加速度 a : <span id="v_a" class="v">—</span></div>
+  <div>绳张力 T : <span id="v_T" class="v">—</span></div>
+  <div>重物位移 y : <span id="v_y" class="v">—</span></div>
+  <div>状态 : <span id="v_mode" class="mode">提升</span></div>
+</div>
+
+<div id="params">
+  <div><b>动力学参数（可调）</b></div>
+  <div class="row">
+    <label>J 转动惯量</label>
+    <input type="range" id="r_J" min="0.05" max="5.00" step="0.01" value="0.50">
+    <input type="number" id="n_J" value="0.50" step="0.01" min="0.05" max="5.00">
+    <span class="unit">kg·m²</span>
+  </div>
+  <div class="row">
+    <label>R 鼓轮半径</label>
+    <input type="range" id="r_R" min="0.05" max="0.60" step="0.005" value="0.20">
+    <input type="number" id="n_R" value="0.20" step="0.005" min="0.05" max="0.60">
+    <span class="unit">m</span>
+  </div>
+  <div class="row">
+    <label>m 重物质量</label>
+    <input type="range" id="r_m" min="5" max="500" step="1" value="50">
+    <input type="number" id="n_m" value="50" step="1" min="5" max="500">
+    <span class="unit">kg</span>
+  </div>
+  <div class="row">
+    <label>M 驱动力矩</label>
+    <input type="range" id="r_Mdrive" min="-500" max="500" step="1" value="150">
+    <input type="number" id="n_Mdrive" value="150" step="1" min="-500" max="500">
+    <span class="unit">N·m</span>
+  </div>
+  <div class="row">
+    <label>M_f 摩擦</label>
+    <input type="range" id="r_Mf" min="0" max="100" step="0.5" value="0">
+    <input type="number" id="n_Mf" value="0" step="0.5" min="0" max="100">
+    <span class="unit">N·m</span>
+  </div>
+  <div class="row">
+    <label>g 重力</label>
+    <input type="range" id="r_g" min="0" max="20" step="0.01" value="9.81">
+    <input type="number" id="n_g" value="9.81" step="0.01" min="0" max="20">
+    <span class="unit">m/s²</span>
+  </div>
+  <div class="btnrow">
+    <button id="btn_lift">提升</button>
+    <button id="btn_lower">下放</button>
+    <button id="btn_brake">制动</button>
+    <button id="btn_pause">暂停</button>
+    <button id="btn_reset">重置</button>
+  </div>
+</div>
+
+<div id="legend">
+  <div><b>构件 / 力箭头图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架</div>
+  <div><span class="sw" style="background:#ff6b35"></span>鼓轮</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>绳索</div>
+  <div><span class="sw" style="background:#89b4fa"></span>重物</div>
+  <div><span class="sw" style="background:#ff8aa7"></span>张力 T</div>
+  <div><span class="sw" style="background:#fab387"></span>重力 mg</div>
+  <div><span class="sw" style="background:#a6e3a1"></span>驱动力矩 M</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<canvas id="chart" width="180" height="80"></canvas>
+<div id="chart-label">v(t) 时序（线性增长 ⇔ α 恒定）</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  卷扬机动力学
+ *  输入：J, R, m, M_drive, M_f, g（GUI 可调）
+ *  方程：α = (M_drive − m g R − M_f sgn(ω)) / (J + m R²)   ★
+ *        a = R α        T = m(g + a)
+ *  数值积分：半隐式欧拉，4 子步/帧（≈240 Hz）
+ * ============================================================ */
+
+/* —— 视觉常量 —— */
+const VS = 60;
+const COLOR_BG    = 0x0a0a14;
+const COLOR_FRAME = 0x6b7280;
+const COLOR_DRUM  = 0xff6b35;
+const COLOR_SPOKE_A = 0xffe66d;
+const COLOR_SPOKE_B = 0xfab387;
+const COLOR_MARKER = 0xff5c8a;
+const COLOR_ROPE  = 0x4ecdc4;
+const COLOR_LOAD  = 0x89b4fa;
+const COLOR_PIN   = 0xf5e0dc;
+const COLOR_T     = 0xff8aa7;
+const COLOR_G     = 0xfab387;
+const COLOR_M     = 0xa6e3a1;
+
+/* —— 物理参数（GUI 可改） —— */
+const params = {
+  J:      0.50,    // 鼓轮转动惯量 kg·m²
+  R:      0.20,    // 鼓轮半径 m
+  m:      50,      // 重物质量 kg
+  Mdrive: 150,     // 驱动力矩 N·m（正→提升、负→下放）
+  Mf:     0,       // 轴承摩擦力矩幅值 N·m
+  g:      9.81,    // 重力加速度 m/s²
+  paused: false,
+  brake:  false,
+};
+
+/* —— 运行时状态 —— */
+const state = {
+  omega: 0,        // 鼓轮角速度 rad/s（提升方向为正）
+  phi:   0,        // 角位移 rad
+  y:     0,        // 重物相对初始位置的位移 m（向上为正）
+  alpha: 0, a: 0, T: 0,
+};
+
+/* —— 行程极限 m —— */
+const Y_TRAVEL_UP   =  1.10;
+const Y_TRAVEL_DOWN = -1.10;
+const Y_INIT_HANG   = -1.40;
+
+/* —— Three.js 场景 —— */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 2400);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 8000
+);
+camera.position.set(220, 120, 380);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(15, -45, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 100;
+controls.maxDistance = 1500;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(300, 600, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.30);
+fillLight.position.set(-300, -100, -300);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(60));
+
+/* 地面 + 网格 */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(1500, 1500),
+  new THREE.MeshStandardMaterial({ color: 0x2a2f3a, metalness: 0.1, roughness: 0.8 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 30;
+scene.add(ground);
+const grid = new THREE.GridHelper(1200, 24, 0x445080, 0x2a3050);
+grid.position.y = (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 29;
+scene.add(grid);
+
+/* ============================================================
+ *  机架
+ * ============================================================ */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.55
+});
+const drumCenterY = 0;
+const postH = 220;
+const postSep = 80;
+
+const baseSlab = new THREE.Mesh(
+  new THREE.BoxGeometry(180, 14, 130), frameMat
+);
+baseSlab.position.set(0, (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 16, 0);
+scene.add(baseSlab);
+
+const postLZ = -postSep / 2, postRZ = postSep / 2;
+const postY = drumCenterY - postH / 2 + 30;
+[postLZ, postRZ].forEach(z => {
+  const post = new THREE.Mesh(new THREE.BoxGeometry(14, postH, 14), frameMat);
+  post.position.set(0, postY, z);
+  scene.add(post);
+  const foot = new THREE.Mesh(new THREE.BoxGeometry(40, 8, 40), frameMat);
+  foot.position.set(0, (Y_INIT_HANG + Y_TRAVEL_DOWN) * VS - 5, z);
+  scene.add(foot);
+});
+
+const topPad = new THREE.Mesh(
+  new THREE.BoxGeometry(60, 14, postSep + 30), frameMat
+);
+topPad.position.set(0, drumCenterY + 30, 0);
+scene.add(topPad);
+
+[postLZ, postRZ].forEach(z => {
+  const bearing = new THREE.Mesh(new THREE.BoxGeometry(34, 28, 14), frameMat);
+  bearing.position.set(0, drumCenterY, z);
+  scene.add(bearing);
+});
+
+/* ============================================================
+ *  鼓轮 group
+ * ============================================================ */
+const drumGroup = new THREE.Group();
+scene.add(drumGroup);
+
+const drumMat = new THREE.MeshStandardMaterial({
+  color: COLOR_DRUM, metalness: 0.45, roughness: 0.4
+});
+const drumLen = postSep - 20;
+
+function buildDrumBody(R_render) {
+  const g = new THREE.Group();
+  const cyl = new THREE.Mesh(
+    new THREE.CylinderGeometry(R_render, R_render, drumLen, 32), drumMat
+  );
+  cyl.rotation.x = Math.PI / 2;
+  g.add(cyl);
+
+  const diskMat = new THREE.MeshStandardMaterial({
+    color: 0xc25028, metalness: 0.5, roughness: 0.45
+  });
+  [-drumLen/2 - 1, drumLen/2 + 1].forEach(zEnd => {
+    const disk = new THREE.Mesh(
+      new THREE.CylinderGeometry(R_render * 1.05, R_render * 1.05, 4, 32), diskMat
+    );
+    disk.rotation.x = Math.PI / 2;
+    disk.position.z = zEnd;
+    g.add(disk);
+  });
+
+  const spokeColors = [COLOR_SPOKE_A, COLOR_SPOKE_B, COLOR_SPOKE_A, COLOR_SPOKE_B];
+  const spokeLen = R_render * 0.95;
+  for (let i = 0; i < 4; i++) {
+    const ang = i * Math.PI / 2;
+    const mat = new THREE.MeshStandardMaterial({
+      color: spokeColors[i], metalness: 0.4, roughness: 0.4
+    });
+    [-drumLen/2 - 3.2, drumLen/2 + 3.2].forEach(zEnd => {
+      const spoke = new THREE.Mesh(new THREE.BoxGeometry(spokeLen, 4, 4), mat);
+      spoke.position.set(
+        Math.cos(ang) * spokeLen / 2,
+        Math.sin(ang) * spokeLen / 2,
+        zEnd
+      );
+      spoke.rotation.z = ang;
+      g.add(spoke);
+    });
+  }
+
+  const markerMat = new THREE.MeshStandardMaterial({
+    color: COLOR_MARKER, metalness: 0.5, roughness: 0.35,
+    emissive: 0x661030, emissiveIntensity: 0.4
+  });
+  [-drumLen/2 - 5, drumLen/2 + 5].forEach(zEnd => {
+    const marker = new THREE.Mesh(new THREE.BoxGeometry(8, R_render * 0.7, 4), markerMat);
+    marker.position.set(0, R_render * 0.55, zEnd);
+    g.add(marker);
+  });
+
+  const pointerMat = new THREE.MeshStandardMaterial({
+    color: 0xa6e3a1, metalness: 0.4, roughness: 0.4
+  });
+  [-drumLen/2 - 7, drumLen/2 + 7].forEach(zEnd => {
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(4, 16, 12), pointerMat);
+    cone.position.set(R_render * 0.7, 0, zEnd);
+    cone.rotation.z = -Math.PI / 2;
+    g.add(cone);
+  });
+
+  return g;
+}
+let drumBody = buildDrumBody(params.R * VS * 1.5);
+drumGroup.add(drumBody);
+
+const axleMat = new THREE.MeshStandardMaterial({
+  color: 0x8a93a8, metalness: 0.7, roughness: 0.3
+});
+const axle = new THREE.Mesh(
+  new THREE.CylinderGeometry(4, 4, postSep + 20, 16), axleMat
+);
+axle.rotation.x = Math.PI / 2;
+scene.add(axle);
+
+/* 绳索 */
+const ropeGeom = new THREE.BufferGeometry();
+ropeGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+const rope = new THREE.Line(ropeGeom, new THREE.LineBasicMaterial({
+  color: COLOR_ROPE, linewidth: 2
+}));
+scene.add(rope);
+
+/* 重物 */
+const loadGroup = new THREE.Group();
+scene.add(loadGroup);
+const loadMat = new THREE.MeshStandardMaterial({
+  color: COLOR_LOAD, metalness: 0.3, roughness: 0.55
+});
+const loadBox = new THREE.Mesh(new THREE.BoxGeometry(45, 45, 45), loadMat);
+loadBox.position.y = -22.5;
+loadGroup.add(loadBox);
+const loadEye = new THREE.Mesh(
+  new THREE.TorusGeometry(6, 1.6, 8, 24),
+  new THREE.MeshStandardMaterial({ color: COLOR_PIN, metalness: 0.6, roughness: 0.3 })
+);
+loadEye.rotation.x = Math.PI / 2;
+loadEye.position.y = 4;
+loadGroup.add(loadEye);
+const bandMat = new THREE.MeshStandardMaterial({
+  color: 0x5c7cb8, metalness: 0.4, roughness: 0.5
+});
+[-15, 15].forEach(yy => {
+  const band = new THREE.Mesh(new THREE.BoxGeometry(46, 3, 46), bandMat);
+  band.position.y = -22.5 + yy;
+  loadGroup.add(band);
+});
+
+/* ============================================================
+ *  力箭头：T_drum / T_load / mg / M_drive(环形)
+ * ============================================================ */
+function makeArrow(color, headLen = 10, headWidth = 6) {
+  const a = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 0),
+    50, color, headLen, headWidth
+  );
+  return a;
+}
+const arrowT_drum = makeArrow(COLOR_T);     // 鼓轮切点处张力（向下，绳被拉向重物）
+const arrowT_load = makeArrow(COLOR_T);     // 重物顶张力（向上）
+const arrowG      = makeArrow(COLOR_G);     // 重物重力（向下）
+scene.add(arrowT_drum, arrowT_load, arrowG);
+
+// 驱动力矩环形箭头：圆环 + 锥头，位于鼓轮 +Z 端面
+const torqueRing = new THREE.Group();
+const ringMat = new THREE.MeshStandardMaterial({
+  color: COLOR_M, metalness: 0.4, roughness: 0.4,
+  emissive: 0x224422, emissiveIntensity: 0.4
+});
+let torqueRingMesh = new THREE.Mesh(
+  new THREE.TorusGeometry(params.R * VS * 1.5 * 1.25, 2.5, 8, 32, Math.PI * 1.3),
+  ringMat
+);
+torqueRing.add(torqueRingMesh);
+const torqueHead = new THREE.Mesh(
+  new THREE.ConeGeometry(6, 14, 12), ringMat
+);
+torqueRing.add(torqueHead);
+torqueRing.position.set(0, 0, drumLen / 2 + 22);
+scene.add(torqueRing);
+
+function rebuildTorqueRing(R_render) {
+  torqueRing.remove(torqueRingMesh);
+  torqueRingMesh = new THREE.Mesh(
+    new THREE.TorusGeometry(R_render * 1.25, 2.5, 8, 32, Math.PI * 1.3),
+    ringMat
+  );
+  torqueRing.add(torqueRingMesh);
+}
+
+/* 力箭头长度映射：N → 视觉单位 */
+function forceLenMap(F) {
+  const v = Math.abs(F) * 0.10;       // 10 N → 1 单位
+  return Math.max(8, Math.min(120, v));
+}
+
+/* ============================================================
+ *  GUI 绑定
+ * ============================================================ */
+function bindParam(rId, nId, key, onChange) {
+  const r = document.getElementById(rId), n = document.getElementById(nId);
+  const sync = v => {
+    const num = +v;
+    params[key] = num;
+    if (r.value !== String(num)) r.value = num;
+    if (n.value !== String(num)) n.value = num;
+    if (onChange) onChange();
+  };
+  r.addEventListener('input',  e => sync(e.target.value));
+  n.addEventListener('change', e => sync(e.target.value));
+}
+
+function rebuildDrum() {
+  drumGroup.remove(drumBody);
+  drumBody = buildDrumBody(params.R * VS * 1.5);
+  drumBody.rotation.z = state.phi;
+  drumGroup.add(drumBody);
+  rebuildTorqueRing(params.R * VS * 1.5);
+}
+
+bindParam('r_J',      'n_J',      'J');
+bindParam('r_R',      'n_R',      'R', rebuildDrum);
+bindParam('r_m',      'n_m',      'm');
+bindParam('r_Mdrive', 'n_Mdrive', 'Mdrive');
+bindParam('r_Mf',     'n_Mf',     'Mf');
+bindParam('r_g',      'n_g',      'g');
+
+const btnLift  = document.getElementById('btn_lift');
+const btnLower = document.getElementById('btn_lower');
+const btnBrake = document.getElementById('btn_brake');
+const btnPause = document.getElementById('btn_pause');
+
+function setMdrive(value) {
+  params.Mdrive = value;
+  document.getElementById('r_Mdrive').value = value;
+  document.getElementById('n_Mdrive').value = value;
+}
+
+btnLift.onclick = () => {
+  setMdrive(Math.abs(params.Mdrive) || 150);
+  params.brake = false; updateButtons();
+};
+btnLower.onclick = () => {
+  setMdrive(-Math.abs(params.Mdrive || 150));
+  params.brake = false; updateButtons();
+};
+btnBrake.onclick = () => {
+  params.brake = !params.brake; updateButtons();
+};
+btnPause.onclick = () => {
+  params.paused = !params.paused; updateButtons();
+};
+document.getElementById('btn_reset').onclick = () => {
+  state.omega = 0; state.phi = 0; state.y = 0;
+  state.alpha = 0; state.a = 0; state.T = 0;
+  samples.length = 0; tTotal = 0;
+  params.brake = false;
+  updateButtons();
+};
+
+function updateButtons() {
+  btnPause.textContent = params.paused ? '继续' : '暂停';
+  btnPause.classList.toggle('active', params.paused);
+  btnBrake.classList.toggle('active', params.brake);
+}
+
+/* ============================================================
+ *  HUD
+ * ============================================================ */
+const ui = {
+  omega: document.getElementById('v_omega'),
+  n:     document.getElementById('v_n'),
+  alpha: document.getElementById('v_alpha'),
+  v:     document.getElementById('v_v'),
+  a:     document.getElementById('v_a'),
+  T:     document.getElementById('v_T'),
+  y:     document.getElementById('v_y'),
+  mode:  document.getElementById('v_mode'),
+};
+
+/* ============================================================
+ *  实时图表 v(t)
+ * ============================================================ */
+const chart = document.getElementById('chart');
+const ctx = chart.getContext('2d');
+const samples = [];
+const SAMPLE_MAX = 240;
+let tTotal = 0;
+
+function pushSample(v) {
+  samples.push({ t: tTotal, v });
+  if (samples.length > SAMPLE_MAX) samples.shift();
+}
+
+function drawChart() {
+  const w = chart.width, h = chart.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(20,22,38,0.4)';
+  ctx.fillRect(0, 0, w, h);
+
+  if (samples.length < 2) {
+    ctx.strokeStyle = '#445080';
+    ctx.beginPath(); ctx.moveTo(0, h/2); ctx.lineTo(w, h/2); ctx.stroke();
+    return;
+  }
+
+  const t0 = samples[0].t, t1 = samples[samples.length - 1].t;
+  const dt = Math.max(1e-3, t1 - t0);
+  let vMin = Infinity, vMax = -Infinity;
+  for (const s of samples) { if (s.v < vMin) vMin = s.v; if (s.v > vMax) vMax = s.v; }
+  // 让 0 总是可见
+  if (vMin > 0) vMin = 0;
+  if (vMax < 0) vMax = 0;
+  if (vMax - vMin < 0.05) { vMax += 0.05; vMin -= 0.05; }
+  const vRange = vMax - vMin;
+
+  // 0 线
+  const y0 = h - ((0 - vMin) / vRange) * h * 0.85 - h * 0.075;
+  ctx.strokeStyle = '#445080';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, y0); ctx.lineTo(w, y0); ctx.stroke();
+
+  // 折线
+  ctx.strokeStyle = '#a6e3a1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const px = ((s.t - t0) / dt) * w;
+    const py = h - ((s.v - vMin) / vRange) * h * 0.85 - h * 0.075;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+
+  ctx.fillStyle = '#8b95b8';
+  ctx.font = '10px Consolas';
+  ctx.fillText(vMax.toFixed(2), 2, 10);
+  ctx.fillText(vMin.toFixed(2), 2, h - 2);
+}
+
+/* ============================================================
+ *  数值积分（半隐式欧拉，4 子步/帧）
+ * ============================================================ */
+const OMEGA_EPS = 1e-3;            // sgn0 阈值
+function sgn0(x) {
+  if (x >  OMEGA_EPS) return  1;
+  if (x < -OMEGA_EPS) return -1;
+  return 0;
+}
+
+function step(h) {
+  const Mfric = params.Mf * sgn0(state.omega);
+  const alpha = (params.Mdrive - params.m * params.g * params.R - Mfric)
+              / (params.J + params.m * params.R * params.R);
+  let omegaNew = state.omega + alpha * h;
+
+  // 库仑摩擦跨零钳位（避免抖振）：
+  //   静止时所有非摩擦力矩之合 = |M_drive − mgR|
+  //   只有当它 ≤ M_f 时，静摩擦才足以维持平衡 → ω 跨零步直接锁到 0
+  const netNonFric = Math.abs(params.Mdrive - params.m * params.g * params.R);
+  if (params.Mf > 0 &&
+      Math.sign(state.omega) !== 0 &&
+      Math.sign(state.omega) !== Math.sign(omegaNew) &&
+      netNonFric <= params.Mf) {
+    omegaNew = 0;
+  }
+
+  state.omega = omegaNew;
+  state.phi += state.omega * h;
+
+  // 重物位移 + 行程极限（碰到极限把 ω 钳零）
+  const dy = params.R * state.omega * h;
+  let yNew = state.y + dy;
+  if (yNew > Y_TRAVEL_UP)   { yNew = Y_TRAVEL_UP;   state.omega = 0; }
+  if (yNew < Y_TRAVEL_DOWN) { yNew = Y_TRAVEL_DOWN; state.omega = 0; }
+  state.y = yNew;
+
+  state.alpha = alpha;
+}
+
+function computeReport() {
+  state.a = params.R * state.alpha;
+  state.T = params.m * (params.g + state.a);
+}
+
+function determineMode() {
+  if (params.paused) return '暂停';
+  if (params.brake)  return '制动';
+  if (Math.abs(state.omega) < OMEGA_EPS) return '静止';
+  return state.omega > 0 ? '提升' : '下放';
+}
+
+/* ============================================================
+ *  几何 / 箭头同步
+ * ============================================================ */
+function updateGeometry() {
+  drumBody.rotation.z = state.phi;
+
+  const txX = params.R * VS * 1.5;
+  const ropeTopY = drumCenterY;
+  const loadYWorld = (Y_INIT_HANG + state.y) * VS;
+  const arr = ropeGeom.attributes.position.array;
+  arr[0] = txX; arr[1] = ropeTopY; arr[2] = 0;
+  arr[3] = txX; arr[4] = loadYWorld; arr[5] = 0;
+  ropeGeom.attributes.position.needsUpdate = true;
+
+  loadGroup.position.set(txX, loadYWorld, 0);
+}
+
+function updateForceArrows() {
+  const txX = params.R * VS * 1.5;
+  const ropeTopY = drumCenterY;
+  const loadYWorld = (Y_INIT_HANG + state.y) * VS;
+
+  const tLen = forceLenMap(state.T);
+  const gLen = forceLenMap(params.m * params.g);
+
+  // T_drum：鼓轮切点 → 沿绳指向重物方向（绳把鼓轮往下拉）
+  arrowT_drum.position.set(txX, ropeTopY, 0);
+  arrowT_drum.setDirection(new THREE.Vector3(0, -1, 0));
+  arrowT_drum.setLength(tLen, 10, 6);
+
+  // T_load：重物顶 → 向上
+  arrowT_load.position.set(txX, loadYWorld + 6, 0);
+  arrowT_load.setDirection(new THREE.Vector3(0, 1, 0));
+  arrowT_load.setLength(tLen, 10, 6);
+
+  // mg：重物中心 → 向下
+  arrowG.position.set(txX, loadYWorld - 22.5, 0);
+  arrowG.setDirection(new THREE.Vector3(0, -1, 0));
+  arrowG.setLength(gLen, 10, 6);
+
+  // 驱动力矩环形：scale 与符号
+  const Mabs = Math.abs(params.Mdrive);
+  const ringScale = Math.max(0.3, Math.min(1.0, Mabs / 200));
+  torqueRing.scale.set(ringScale, ringScale, 1);
+  torqueRing.rotation.z = params.Mdrive >= 0 ? 0 : Math.PI;
+  // 头部 cone 在 torqueRing 局部坐标系下放在弧末端（父 group 的 scale 会自动缩放）
+  const R_render = params.R * VS * 1.5 * 1.25;
+  const endAng = Math.PI * 1.3;
+  torqueHead.position.set(
+    R_render * Math.cos(endAng),
+    R_render * Math.sin(endAng),
+    0
+  );
+  // cone 默认沿 +Y；让其切向（弧度方向，垂直于半径）
+  torqueHead.rotation.z = endAng + Math.PI / 2;
+}
+
+/* ============================================================
+ *  动画主循环
+ * ============================================================ */
+const clock = new THREE.Clock();
+const SUBSTEPS = 4;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dtFrame = Math.min(clock.getDelta(), 1 / 30);
+
+  if (!params.paused) {
+    if (params.brake) {
+      // 制动：ω 强制锁 0，故 α、a 也为 0；张力 T = m g（重物悬而不动）
+      state.omega = 0;
+      state.alpha = 0;
+    } else {
+      const h = dtFrame / SUBSTEPS;
+      for (let k = 0; k < SUBSTEPS; k++) step(h);
+    }
+    tTotal += dtFrame;
+  }
+
+  computeReport();
+  updateGeometry();
+  updateForceArrows();
+  pushSample(params.R * state.omega);
+
+  // HUD
+  ui.omega.textContent = state.omega.toFixed(3) + ' rad/s';
+  ui.n.textContent     = (state.omega * 60 / (2 * Math.PI)).toFixed(1) + ' r/min';
+  ui.alpha.textContent = state.alpha.toFixed(3) + ' rad/s²';
+  ui.v.textContent     = (params.R * state.omega).toFixed(3) + ' m/s';
+  ui.a.textContent     = state.a.toFixed(3) + ' m/s²';
+  ui.T.textContent     = state.T.toFixed(1) + ' N';
+  ui.y.textContent     = state.y.toFixed(3) + ' m';
+  ui.mode.textContent  = determineMode();
+
+  drawChart();
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

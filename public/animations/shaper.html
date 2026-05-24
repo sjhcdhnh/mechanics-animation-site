@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>牛头刨床急回机构运动学演示 · 曲柄摆动导杆机构</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px; color: #e0e6f8;
+    pointer-events: none; text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 260px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 13px; line-height: 1.85; backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">牛头刨床急回机构 · 运动学演示</div>
+<div id="subtitle">Slotted-Lever Quick-Return Mechanism — 曲柄摆动导杆 + 刨刀滑块</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>曲柄相位 φ : <span id="v_phi" class="v">—</span></div>
+  <div>导杆角度 θ : <span id="v_theta" class="v">—</span></div>
+  <div>导杆角速度 θ̇ : <span id="v_thd" class="v">—</span></div>
+  <div>刨刀位置 x<sub>C</sub> : <span id="v_xc" class="v">—</span></div>
+  <div>刨刀速度 v<sub>C</sub> : <span id="v_vc" class="v">—</span></div>
+  <div>当前行程相 : <span id="v_phase" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>曲柄 r = 100 mm</div>
+  <div>机架 O₁O₂ = 200 mm</div>
+  <div>导杆全长 L = 500 mm</div>
+  <div>短链 e = 80 mm</div>
+  <div>刨刀基线高度 = 480 mm</div>
+  <div>ω = π rad/s（30 r/min）</div>
+  <div>急回比 K = (180+2α)/(180−2α)</div>
+  <div>　 α = arcsin(r/h) = 30° → K = 2</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架（含导轨）</div>
+  <div><span class="sw" style="background:#ff6b35"></span>曲柄 O₁A</div>
+  <div><span class="sw" style="background:#cba6f7"></span>导杆滑块（套在导杆上）</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>摆动导杆 O₂B</div>
+  <div><span class="sw" style="background:#89b4fa"></span>短连杆 BC</div>
+  <div><span class="sw" style="background:#ffe66d"></span>刨刀滑块 C</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  几何参数（mm；时间 s）
+ *      O₂ = (0,0)：导杆摆动中心
+ *      O₁ = (0, h)：曲柄中心，位于 O₂ 上方
+ *      h > r 保证曲柄可整圈、A 始终在 O₂ 上方
+ *      A = O₁ + r·(cosφ, sinφ) = (r cosφ, h + r sinφ)
+ *      导杆方向角 θ = atan2(A_y, A_x)
+ *      导杆顶端 B = L·(cosθ, sinθ)
+ *      短链 BC：长度 e；C 在水平刨刀线 y = y_C 上做直线运动
+ *      x_C = B_x + sgn·√(e² − (y_C − B_y)²)
+ * ============================================================ */
+const r       = 100;
+const h       = 200;        // O₁O₂
+const L       = 500;        // 导杆从 O₂ 到 B 的长度
+const e       = 80;         // 短连杆 BC 长度
+const yC      = 480;        // 刨刀水平线高度
+const omega   = Math.PI;    // 30 r/min
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_CRANK  = 0xff6b35;
+const COLOR_BLOCK  = 0xcba6f7;
+const COLOR_GUIDE  = 0x4ecdc4;
+const COLOR_LINK   = 0x89b4fa;
+const COLOR_RAM    = 0xffe66d;
+const COLOR_PIN    = 0xf5e0dc;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 800, 2400);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 8000
+);
+camera.position.set(60, 280, 720);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 240, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 200;
+controls.maxDistance = 2000;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(300, 600, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.3);
+fillLight.position.set(-300, -100, -300);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(80));
+
+/* 机架：底座 + O₁/O₂ 支座 + 顶部刨刀导轨 */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.55
+});
+// 底座
+const base = new THREE.Mesh(new THREE.BoxGeometry(700, 14, 90), frameMat);
+base.position.set(0, -28, 0);
+scene.add(base);
+// O₂ 支座
+const standO2 = new THREE.Mesh(new THREE.CylinderGeometry(12, 14, 26, 18), frameMat);
+standO2.position.set(0, -8, 0);
+scene.add(standO2);
+// 立柱（O₂ 到 O₁）
+const column = new THREE.Mesh(new THREE.BoxGeometry(20, h, 24), frameMat);
+column.position.set(-40, h / 2, 0);
+scene.add(column);
+// O₁ 支座
+const standO1 = new THREE.Mesh(new THREE.CylinderGeometry(12, 14, 26, 18), frameMat);
+standO1.position.set(0, h, 0);
+scene.add(standO1);
+// 刨刀导轨（顶部水平横梁）
+const guideRail = new THREE.Mesh(
+  new THREE.BoxGeometry(700, 12, 50),
+  new THREE.MeshStandardMaterial({
+    color: 0x808699, metalness: 0.5, roughness: 0.4
+  })
+);
+guideRail.position.set(0, yC, 0);
+scene.add(guideRail);
+// 导轨的虚线，标识刨刀行程
+const ramTrack = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(-280, yC + 12, 30),
+    new THREE.Vector3( 280, yC + 12, 30)
+  ]),
+  new THREE.LineDashedMaterial({ color: 0x556080, dashSize: 6, gapSize: 4 })
+);
+ramTrack.computeLineDistances();
+scene.add(ramTrack);
+
+/* 曲柄 O₁A（绕 O₁ 转动）*/
+const crankGroup = new THREE.Group();
+crankGroup.position.set(0, h, 0);
+scene.add(crankGroup);
+const crankMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CRANK, metalness: 0.45, roughness: 0.4
+});
+const crankArm = new THREE.Mesh(new THREE.BoxGeometry(r, 10, 10), crankMat);
+crankArm.position.set(r / 2, 0, 0);
+crankGroup.add(crankArm);
+const crankHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(8, 8, 18, 20), crankMat
+);
+crankHub.rotation.x = Math.PI / 2;
+crankGroup.add(crankHub);
+
+/* 摆动导杆 O₂B：用一根长方体，绕 O₂ 转动 */
+const guideGroup = new THREE.Group();
+scene.add(guideGroup);
+const guideMat = new THREE.MeshStandardMaterial({
+  color: COLOR_GUIDE, metalness: 0.4, roughness: 0.45
+});
+const guideRod = new THREE.Mesh(new THREE.BoxGeometry(L, 14, 10), guideMat);
+guideRod.position.set(L / 2, 0, 0);
+guideGroup.add(guideRod);
+// 导杆顶端 B 处铰孔凸缘
+const guideTop = new THREE.Mesh(
+  new THREE.CylinderGeometry(8, 8, 14, 18), guideMat
+);
+guideTop.rotation.x = Math.PI / 2;
+guideTop.position.set(L, 0, 0);
+guideGroup.add(guideTop);
+
+/* 导杆上的滑块（包住曲柄销 A）*/
+const sliderBlock = new THREE.Mesh(
+  new THREE.BoxGeometry(28, 22, 22),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_BLOCK, metalness: 0.45, roughness: 0.4
+  })
+);
+scene.add(sliderBlock);
+
+/* 短连杆 BC */
+const link = new THREE.Mesh(
+  new THREE.BoxGeometry(e, 6, 6),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_LINK, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(link);
+
+/* 刨刀滑块 C */
+const ram = new THREE.Mesh(
+  new THREE.BoxGeometry(60, 26, 32),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_RAM, metalness: 0.5, roughness: 0.45
+  })
+);
+scene.add(ram);
+// 刨刀刀头
+const tool = new THREE.Mesh(
+  new THREE.BoxGeometry(8, 30, 12),
+  new THREE.MeshStandardMaterial({
+    color: 0xe06c75, metalness: 0.6, roughness: 0.3
+  })
+);
+scene.add(tool);
+
+/* 铰链销 */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.2
+});
+const pinO1 = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), pinMat);
+const pinO2 = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), pinMat);
+const pinA  = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), pinMat);
+const pinB  = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), pinMat);
+const pinC  = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 16), pinMat);
+pinO1.position.set(0, h, 0);
+pinO2.position.set(0, 0, 0);
+scene.add(pinO1, pinO2, pinA, pinB, pinC);
+
+const ui = {
+  phi:   document.getElementById('v_phi'),
+  theta: document.getElementById('v_theta'),
+  thd:   document.getElementById('v_thd'),
+  xc:    document.getElementById('v_xc'),
+  vc:    document.getElementById('v_vc'),
+  phase: document.getElementById('v_phase'),
+};
+
+const clock = new THREE.Clock();
+let phi = 0;
+let prev_xC = null;
+let prev_t = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  const cosp = Math.cos(phi), sinp = Math.sin(phi);
+
+  // 曲柄销 A 的世界坐标
+  const Ax = r * cosp;
+  const Ay = h + r * sinp;
+
+  // 导杆方向角 θ（从 +X 量起）
+  const theta = Math.atan2(Ay, Ax);
+
+  // 导杆角速度： θ̇ = r(r + h sinφ)/(r² + h² + 2rh sinφ) · ω
+  const denom_th = r * r + h * h + 2 * r * h * sinp;
+  const thetaDot = r * (r + h * sinp) / denom_th * omega;
+
+  // 导杆顶端 B
+  const Bx = L * Math.cos(theta);
+  const By = L * Math.sin(theta);
+
+  // 短链 BC 至刨刀线 y = yC
+  const dy = yC - By;
+  // x_C = Bx + √(e² - dy²)，约束 |dy| ≤ e
+  const inside = Math.max(0, e * e - dy * dy);
+  const xC = Bx + Math.sqrt(inside);
+
+  // 几何更新
+  crankGroup.rotation.z = phi;
+  guideGroup.rotation.z = theta;
+
+  pinA.position.set(Ax, Ay, 0);
+  pinB.position.set(Bx, By, 0);
+  pinC.position.set(xC, yC, 0);
+
+  // 滑块（包住 A 销，沿导杆方向）
+  sliderBlock.position.set(Ax, Ay, 0);
+  sliderBlock.rotation.z = theta;
+
+  // 短链
+  link.position.set((Bx + xC) / 2, (By + yC) / 2, 0);
+  link.rotation.z = Math.atan2(yC - By, xC - Bx);
+
+  // 刨刀
+  ram.position.set(xC, yC, 0);
+  tool.position.set(xC, yC - 28, 0);
+
+  // 刨刀速度（数值导）
+  let vC = 0;
+  const tNow = performance.now() / 1000;
+  if (prev_xC !== null && tNow > prev_t) {
+    vC = (xC - prev_xC) / (tNow - prev_t);
+  }
+  prev_xC = xC; prev_t = tNow;
+
+  // 当前行程相：导杆角速度 > 0 工作冲程，< 0 回程
+  const phaseLabel = thetaDot > 0 ? '工作行程（慢）' : '回程（快）';
+
+  ui.phi.textContent   = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.theta.textContent = (theta * 180 / Math.PI).toFixed(2) + ' °';
+  ui.thd.textContent   = thetaDot.toFixed(3) + ' rad/s';
+  ui.xc.textContent    = xC.toFixed(1) + ' mm';
+  ui.vc.textContent    = (vC / 1000).toFixed(3) + ' m/s';
+  ui.phase.textContent = phaseLabel;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

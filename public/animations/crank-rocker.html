@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>曲柄摇杆机构运动学演示 · 雨刮器简化模型</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 240px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">曲柄摇杆机构 · 运动学演示</div>
+<div id="subtitle">Crank-Rocker Mechanism — 雨刮器简化模型</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>曲柄相位 φ : <span id="v_phi" class="v">—</span></div>
+  <div>摇杆角度 θ : <span id="v_theta" class="v">—</span></div>
+  <div>摇杆角速度 ω<sub>4</sub> : <span id="v_w4" class="v">—</span></div>
+  <div>连杆角度 α : <span id="v_alpha" class="v">—</span></div>
+  <div>连杆角速度 ω<sub>3</sub> : <span id="v_w3" class="v">—</span></div>
+  <div>刮臂端速率 |v<sub>tip</sub>| : <span id="v_vtip" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>机架 a = 90 mm</div>
+  <div>曲柄 b = 30 mm</div>
+  <div>连杆 c = 100 mm</div>
+  <div>摇杆 d = 80 mm</div>
+  <div>刮臂延伸 = 120 mm</div>
+  <div>ω = 2π rad/s</div>
+  <div>Grashof：30+100 ≤ 80+90 ✓</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架（车体）</div>
+  <div><span class="sw" style="background:#ff6b35"></span>曲柄（驱动）</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆 BC</div>
+  <div><span class="sw" style="background:#ffe66d"></span>摇杆 + 刮臂</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链销</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  四杆参数（mm；时间单位 s）
+ *      A_g = (0,0)        曲柄回转中心（左侧机架铰）
+ *      D_g = (a,0)        摇杆回转中心（右侧机架铰）
+ *      B   = A + b·(cosφ, sinφ)
+ *      C   由 |BC|=c, |DC|=d 解出
+ * ============================================================ */
+const a       = 90;         // 机架长度
+const b       = 30;         // 曲柄长度
+const c       = 100;        // 连杆长度
+const d       = 80;         // 摇杆长度
+const armExt  = 120;        // 摇杆刮臂延伸
+const omega   = 2 * Math.PI;
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_CRANK  = 0xff6b35;
+const COLOR_ROD    = 0x4ecdc4;
+const COLOR_ROCK   = 0xffe66d;
+const COLOR_PIN    = 0xf5e0dc;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 500, 1500);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(60, 100, 280);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(a / 2, 60, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 800;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(150, 300, 250);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-150, -100, -150);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(40));
+
+/* 机架：底座 + 两侧支座 */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+const base = new THREE.Mesh(new THREE.BoxGeometry(a + 60, 6, 50), frameMat);
+base.position.set(a / 2, -8, 0);
+scene.add(base);
+const standA = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 22, 16), frameMat);
+standA.position.set(0, -3, 0);
+scene.add(standA);
+const standD = new THREE.Mesh(new THREE.CylinderGeometry(8, 10, 22, 16), frameMat);
+standD.position.set(a, -3, 0);
+scene.add(standD);
+
+/* 曲柄（绕 A_g 转动）*/
+const crankGroup = new THREE.Group();
+scene.add(crankGroup);
+const crankMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CRANK, metalness: 0.45, roughness: 0.4
+});
+const crankArm = new THREE.Mesh(new THREE.BoxGeometry(b, 8, 8), crankMat);
+crankArm.position.set(b / 2, 0, 0);
+crankGroup.add(crankArm);
+const crankHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(6, 6, 16, 20), crankMat
+);
+crankHub.rotation.x = Math.PI / 2;
+crankGroup.add(crankHub);
+
+/* 连杆 BC（每帧 reposition）*/
+const rod = new THREE.Mesh(
+  new THREE.BoxGeometry(c, 6, 6),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(rod);
+
+/* 摇杆 + 刮臂延伸（一根整体；以 D_g 为旋转点）*/
+const rockerGroup = new THREE.Group();
+rockerGroup.position.set(a, 0, 0);
+scene.add(rockerGroup);
+const rockerMat = new THREE.MeshStandardMaterial({
+  color: COLOR_ROCK, metalness: 0.45, roughness: 0.45
+});
+// 主体（D 到 C 的一段，外加延伸到刮臂尖端）
+const totalLen = d + armExt;
+const rockerBody = new THREE.Mesh(
+  new THREE.BoxGeometry(totalLen, 7, 7),
+  rockerMat
+);
+rockerBody.position.set(totalLen / 2, 0, 0);  // 局部坐标：从 D 沿 +X 延伸
+rockerGroup.add(rockerBody);
+// C 点凸缘，标识铰孔
+const rockerJointC = new THREE.Mesh(
+  new THREE.CylinderGeometry(7, 7, 12, 20), rockerMat
+);
+rockerJointC.rotation.x = Math.PI / 2;
+rockerJointC.position.set(d, 0, 0);
+rockerGroup.add(rockerJointC);
+// 刮臂尖端的"刮片"（更醒目）
+const wiperBlade = new THREE.Mesh(
+  new THREE.BoxGeometry(60, 3, 18),
+  new THREE.MeshStandardMaterial({
+    color: 0xffd166, metalness: 0.3, roughness: 0.5
+  })
+);
+wiperBlade.position.set(totalLen, 0, 0);
+rockerGroup.add(wiperBlade);
+
+/* 铰链销 */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.25
+});
+const pinA  = new THREE.Mesh(new THREE.SphereGeometry(4.5, 16, 16), pinMat);
+const pinB  = new THREE.Mesh(new THREE.SphereGeometry(4.5, 16, 16), pinMat);
+const pinC  = new THREE.Mesh(new THREE.SphereGeometry(4.5, 16, 16), pinMat);
+const pinD  = new THREE.Mesh(new THREE.SphereGeometry(4.5, 16, 16), pinMat);
+scene.add(pinA, pinB, pinC, pinD);
+
+/* HUD */
+const ui = {
+  phi:   document.getElementById('v_phi'),
+  theta: document.getElementById('v_theta'),
+  w4:    document.getElementById('v_w4'),
+  alpha: document.getElementById('v_alpha'),
+  w3:    document.getElementById('v_w3'),
+  vtip:  document.getElementById('v_vtip'),
+};
+
+/* 摇杆延伸尖端轨迹（对开放分支，位于上半平面 ≈ 圆弧）*/
+const tipTrail = [];
+const trailGeom = new THREE.BufferGeometry();
+const trailMat = new THREE.LineBasicMaterial({
+  color: 0xff8aa7, transparent: true, opacity: 0.55
+});
+const trailLine = new THREE.Line(trailGeom, trailMat);
+scene.add(trailLine);
+
+/* ============================================================
+ *  位置求解：给定 φ，求 θ
+ *  C = D + d·(cosθ, sinθ)，B = A + b·(cosφ, sinφ)
+ *  约束 |C − B| = c
+ *  展开 ⇒ A1 cosθ + A2 sinθ = A3，
+ *      其中
+ *      A1 = 2 d (a − b cosφ)
+ *      A2 = −2 d b sinφ
+ *      A3 = c² − a² − b² − d² + 2 a b cosφ
+ *  解：θ = atan2(A2, A1) ± arccos(A3 / √(A1²+A2²))
+ *  取 "+"（开放装配，C 在机架上方）
+ * ============================================================ */
+function solveTheta(phi) {
+  const A1 = 2 * d * (a - b * Math.cos(phi));
+  const A2 = -2 * d * b * Math.sin(phi);
+  const A3 = c * c - a * a - b * b - d * d + 2 * a * b * Math.cos(phi);
+  const R  = Math.sqrt(A1 * A1 + A2 * A2);
+  const delta = Math.atan2(A2, A1);
+  // arccos 内部参数应 ∈ [-1, 1]；Grashof 已保证
+  const arg = Math.max(-1, Math.min(1, A3 / R));
+  return delta + Math.acos(arg);  // 取上半平面分支
+}
+
+const clock = new THREE.Clock();
+let phi = 0;
+let prevTipPos = null;
+let prevTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  // 位置
+  const Bx = b * Math.cos(phi);
+  const By = b * Math.sin(phi);
+  const theta = solveTheta(phi);
+  const Cx = a + d * Math.cos(theta);
+  const Cy = d * Math.sin(theta);
+  const alpha = Math.atan2(Cy - By, Cx - Bx);
+
+  // 速度（向量回路法）
+  // -b sinφ ω - c sinα α̇ + d sinθ θ̇ = 0
+  //  b cosφ ω + c cosα α̇ - d cosθ θ̇ = 0
+  // ⇒ ω3 = b sin(θ−φ)/[c sin(α−θ)] · ω
+  //   ω4 = b sin(α−φ)/[d sin(α−θ)] · ω
+  const denom = Math.sin(alpha - theta);
+  const omega3 = (b * Math.sin(theta - phi)) / (c * denom) * omega;
+  const omega4 = (b * Math.sin(alpha - phi)) / (d * denom) * omega;
+
+  // 几何更新
+  crankGroup.rotation.z = phi;
+  rod.position.set((Bx + Cx) / 2, (By + Cy) / 2, 0);
+  rod.rotation.z = alpha;
+  rockerGroup.rotation.z = theta;
+
+  pinA.position.set(0, 0, 0);
+  pinD.position.set(a, 0, 0);
+  pinB.position.set(Bx, By, 0);
+  pinC.position.set(Cx, Cy, 0);
+
+  // 刮臂尖端世界坐标
+  const tipX = a + (d + armExt) * Math.cos(theta);
+  const tipY = (d + armExt) * Math.sin(theta);
+
+  // 尖端速率：v_tip = (d+armExt) · |ω4|
+  const vTip = (d + armExt) * Math.abs(omega4);
+
+  // 拖尾轨迹（尖端历经的圆弧）
+  tipTrail.push(new THREE.Vector3(tipX, tipY, 0));
+  if (tipTrail.length > 220) tipTrail.shift();
+  trailGeom.setFromPoints(tipTrail);
+
+  ui.phi.textContent   = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.theta.textContent = (theta * 180 / Math.PI).toFixed(2) + ' °';
+  ui.w4.textContent    = omega4.toFixed(3) + ' rad/s';
+  ui.alpha.textContent = (alpha * 180 / Math.PI).toFixed(2) + ' °';
+  ui.w3.textContent    = omega3.toFixed(3) + ' rad/s';
+  ui.vtip.textContent  = vTip.toFixed(2) + ' mm/s';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

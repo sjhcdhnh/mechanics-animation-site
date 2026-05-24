@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>曲柄滑块机构运动学演示 · 内燃机活塞简化模型</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 240px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">曲柄滑块机构 · 运动学演示</div>
+<div id="subtitle">Slider-Crank Mechanism — 内燃机活塞简化模型</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>曲柄相位 φ : <span id="v_phi" class="v">—</span></div>
+  <div>滑块位置 x<sub>B</sub> : <span id="v_xB" class="v">—</span></div>
+  <div>滑块速度 v<sub>B</sub> : <span id="v_vB" class="v">—</span></div>
+  <div>滑块加速度 a<sub>B</sub> : <span id="v_aB" class="v">—</span></div>
+  <div>连杆摆角 β : <span id="v_beta" class="v">—</span></div>
+  <div>连杆角速度 ω<sub>AB</sub> : <span id="v_wAB" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>设定参数</b></div>
+  <div>曲柄长度 r = 50 mm</div>
+  <div>连杆长度 l = 200 mm</div>
+  <div>连杆比 λ = r / l = 0.25</div>
+  <div>曲柄角速度 ω = 2π rad/s</div>
+  <div>(转速 n = 60 r/min)</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>机架（气缸体 / 支座）</div>
+  <div><span class="sw" style="background:#ff6b35"></span>曲柄 OA</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆 AB</div>
+  <div><span class="sw" style="background:#ffe66d"></span>滑块 B（活塞）</div>
+  <div><span class="sw" style="background:#f5e0dc"></span>铰链销 O / A / B</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<!-- Three.js 通过 importmap 加载 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  运动学参数（场景单位 = mm；时间单位 = s）
+ * ============================================================ */
+const r       = 50;                 // 曲柄长度 OA (mm)
+const l       = 200;                // 连杆长度 AB (mm)
+const lambda  = r / l;              // 连杆比 λ = 0.25
+const omega   = 2 * Math.PI;        // 曲柄角速度 (rad/s)，n = 60 r/min
+
+/* ============================================================
+ *  色彩规范（暗色背景 + 高对比构件色）
+ * ============================================================ */
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;      // 机架 — 灰
+const COLOR_CRANK  = 0xff6b35;      // 曲柄 — 橙
+const COLOR_ROD    = 0x4ecdc4;      // 连杆 — 青
+const COLOR_SLIDER = 0xffe66d;      // 滑块 — 黄
+const COLOR_PIN    = 0xf5e0dc;      // 销钉 — 米白
+
+/* ============================================================
+ *  场景 / 相机 / 渲染器
+ * ============================================================ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 1800);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(220, 180, 360);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ============================================================
+ *  OrbitControls（鼠标拖拽 + 缩放）
+ * ============================================================ */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(l / 2, 0, 0);   // 视点对准机构中段
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 1200;
+controls.update();
+
+/* ============================================================
+ *  灯光
+ * ============================================================ */
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 350, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-200, -120, -200);
+scene.add(fillLight);
+
+/* ============================================================
+ *  辅助：坐标轴 + 行程标记
+ * ============================================================ */
+const axes = new THREE.AxesHelper(70);
+scene.add(axes);
+
+// 滑块行程范围标记线（从 BDC 到 TDC）
+const strokeLine = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(l - r, 0, 0),
+    new THREE.Vector3(l + r, 0, 0)
+  ]),
+  new THREE.LineDashedMaterial({ color: 0x556080, dashSize: 4, gapSize: 3 })
+);
+strokeLine.computeLineDistances();
+scene.add(strokeLine);
+
+/* ============================================================
+ *  机架（气缸体 + 曲轴支座 + 底座）
+ * ============================================================ */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.35, roughness: 0.55
+});
+
+// 曲轴支座
+const stand = new THREE.Mesh(new THREE.BoxGeometry(28, 90, 40), frameMat);
+stand.position.set(0, -60, 0);
+scene.add(stand);
+
+// 底座
+const base = new THREE.Mesh(new THREE.BoxGeometry(420, 8, 90), frameMat);
+base.position.set(120, -108, 0);
+scene.add(base);
+
+// 气缸缸套（半透明圆筒，长轴沿 X）
+const boreGeom = new THREE.CylinderGeometry(22, 22, 150, 36, 1, true);
+const boreMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.5, roughness: 0.4,
+  transparent: true, opacity: 0.22, side: THREE.DoubleSide
+});
+const bore = new THREE.Mesh(boreGeom, boreMat);
+bore.rotation.z = Math.PI / 2;     // 圆柱默认沿 Y，旋转 90° 后沿 X
+bore.position.set(l, 0, 0);
+scene.add(bore);
+
+// 缸套两端环线，强化轮廓
+const boreRingMat = new THREE.LineBasicMaterial({ color: 0x9aa3c2 });
+[-75, 75].forEach(dx => {
+  const ringGeom = new THREE.BufferGeometry();
+  const pts = [];
+  const N = 64;
+  for (let i = 0; i <= N; i++) {
+    const t = (i / N) * Math.PI * 2;
+    pts.push(new THREE.Vector3(l + dx, 22 * Math.cos(t), 22 * Math.sin(t)));
+  }
+  ringGeom.setFromPoints(pts);
+  scene.add(new THREE.Line(ringGeom, boreRingMat));
+});
+
+/* ============================================================
+ *  曲柄 OA
+ *  —— 用 Group 实现"绕 O 定轴转动"，内部几何体长度沿 +X
+ * ============================================================ */
+const crankGroup = new THREE.Group();
+scene.add(crankGroup);
+
+const crankMat = new THREE.MeshStandardMaterial({
+  color: COLOR_CRANK, metalness: 0.45, roughness: 0.4
+});
+
+const crankArm = new THREE.Mesh(
+  new THREE.BoxGeometry(r, 14, 14), crankMat
+);
+crankArm.position.set(r / 2, 0, 0);    // 中心位于 OA 中点
+crankGroup.add(crankArm);
+
+const crankHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(11, 11, 24, 24), crankMat
+);
+crankHub.rotation.x = Math.PI / 2;     // 轴沿 Z
+crankGroup.add(crankHub);
+
+/* ============================================================
+ *  连杆 AB（自由刚体；每帧重新定位 + 旋转）
+ * ============================================================ */
+const conRod = new THREE.Mesh(
+  new THREE.BoxGeometry(l, 9, 9),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_ROD, metalness: 0.4, roughness: 0.4
+  })
+);
+scene.add(conRod);
+
+// 连杆两端的"小头/大头"加粗（视觉提示铰孔位置）
+const rodEndMat = new THREE.MeshStandardMaterial({
+  color: COLOR_ROD, metalness: 0.45, roughness: 0.35
+});
+const rodEndA = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 14, 20), rodEndMat);
+const rodEndB = new THREE.Mesh(new THREE.CylinderGeometry(9, 9, 16, 20), rodEndMat);
+rodEndA.rotation.x = Math.PI / 2;
+rodEndB.rotation.x = Math.PI / 2;
+scene.add(rodEndA, rodEndB);
+
+/* ============================================================
+ *  滑块 B（活塞）
+ * ============================================================ */
+const slider = new THREE.Mesh(
+  new THREE.BoxGeometry(32, 28, 28),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_SLIDER, metalness: 0.5, roughness: 0.45
+  })
+);
+scene.add(slider);
+
+/* ============================================================
+ *  铰链销（O / A / B 三处小球）
+ * ============================================================ */
+const pinMat = new THREE.MeshStandardMaterial({
+  color: COLOR_PIN, metalness: 0.7, roughness: 0.25,
+  emissive: 0x553311, emissiveIntensity: 0.25
+});
+const pinO = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+const pinA = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+const pinB = new THREE.Mesh(new THREE.SphereGeometry(6, 20, 20), pinMat);
+scene.add(pinO, pinA, pinB);
+
+/* ============================================================
+ *  HUD 元素
+ * ============================================================ */
+const ui = {
+  phi:  document.getElementById('v_phi'),
+  xB:   document.getElementById('v_xB'),
+  vB:   document.getElementById('v_vB'),
+  aB:   document.getElementById('v_aB'),
+  beta: document.getElementById('v_beta'),
+  wAB:  document.getElementById('v_wAB'),
+};
+
+/* ============================================================
+ *  主循环：完全由运动学方程驱动
+ *      φ  = ω·t
+ *      β  = arcsin(λ sinφ)
+ *      x_B = r cosφ + l √(1 − λ² sin²φ)
+ * ============================================================ */
+const clock = new THREE.Clock();
+let phi = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05); // 防止后台切换后的跳变
+  phi = (phi + omega * dt) % (2 * Math.PI);
+
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const sinBeta = lambda * sinPhi;
+  const cosBeta = Math.sqrt(1 - sinBeta * sinBeta);
+  const beta = Math.asin(sinBeta);
+
+  // 关键点位置
+  const ax = r * cosPhi;
+  const ay = r * sinPhi;
+  const xB = r * cosPhi + l * cosBeta;
+
+  // 更新构件
+  crankGroup.rotation.z = phi;
+
+  conRod.position.set((ax + xB) / 2, ay / 2, 0);
+  conRod.rotation.z = Math.atan2(0 - ay, xB - ax);
+
+  rodEndA.position.set(ax, ay, 0);
+  rodEndB.position.set(xB, 0, 0);
+
+  slider.position.set(xB, 0, 0);
+
+  pinO.position.set(0, 0, 0);
+  pinA.position.set(ax, ay, 0);
+  pinB.position.set(xB, 0, 0);
+
+  // —— HUD：速度、加速度、连杆角速度（仅显示，不影响几何）——
+  const vB_mmps = -r * omega * (sinPhi + lambda * sinPhi * cosPhi / cosBeta);
+  const aB_mmps2 = -r * omega * omega * (cosPhi + lambda * Math.cos(2 * phi)); // 工程近似
+  const omegaAB = (lambda * cosPhi / cosBeta) * omega;
+
+  ui.phi.textContent  = (phi * 180 / Math.PI).toFixed(1) + ' °';
+  ui.xB.textContent   = xB.toFixed(2) + ' mm';
+  ui.vB.textContent   = (vB_mmps / 1000).toFixed(4) + ' m/s';
+  ui.aB.textContent   = (aB_mmps2 / 1000).toFixed(3) + ' m/s²';
+  ui.beta.textContent = (beta * 180 / Math.PI).toFixed(2) + ' °';
+  ui.wAB.textContent  = omegaAB.toFixed(3) + ' rad/s';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+</script>
+
+</body>
+</html>

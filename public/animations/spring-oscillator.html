@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>弹簧振子 · 振动理论交互演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 270px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 13px; line-height: 1.85;
+    backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    background: rgba(20, 22, 38, 0.5);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #panel {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px;
+    background: rgba(20, 22, 38, 0.7);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+    max-width: 210px;
+  }
+  #panel b { color: #f5e0dc; display: block; margin-bottom: 4px; }
+  #panel .row { display: flex; align-items: center; justify-content: space-between; margin: 3px 0; font-size: 11px; }
+  #panel .row label { width: 42px; color: #8b95b8; }
+  #panel .row input[type=range] { flex: 1; margin: 0 6px; height: 4px; accent-color: #ff6b35; }
+  #panel .row .val { width: 36px; text-align: right; color: #a6e3a1; font-family: "Consolas", monospace; font-size: 10px; }
+  #panel .derived { color: #6b7fa8; font-size: 11px; margin-top: 4px; line-height: 1.5; }
+  #modes { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+  #modes button {
+    flex: 1; min-width: 52px;
+    padding: 3px 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid #3a3f5a;
+    color: #8b95b8;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  #modes button.active {
+    background: rgba(255,107,53,0.2);
+    border-color: #ff6b35;
+    color: #ff8a65;
+  }
+  #modes button:hover {
+    background: rgba(255,255,255,0.12);
+  }
+</style>
+</head>
+<body>
+
+<div id="title">弹簧振子 · 振动理论交互演示</div>
+<div id="subtitle">Spring-Mass-Damper — 自由振动 · 受迫振动 · 共振</div>
+
+<div id="hud">
+  <div><b>实时运动量</b></div>
+  <div>位移 x : <span id="v_x" class="v">—</span></div>
+  <div>速度 ẋ : <span id="v_v" class="v">—</span></div>
+  <div>模拟时间 t : <span id="v_t" class="v">—</span></div>
+  <div>固有频率 ω<sub>n</sub> : <span id="v_wn" class="v">—</span></div>
+  <div>阻尼比 ζ : <span id="v_zeta" class="v">—</span></div>
+  <div id="info_res" style="display:none">稳态振幅 X : <span id="v_X" class="v">—</span></div>
+</div>
+
+<div id="panel">
+  <b>参数调节</b>
+  <div class="row"><label>m</label><input type="range" id="sl_m"  min="0.2" max="5" step="0.1" value="1"><span class="val" id="val_m">1</span>kg</div>
+  <div class="row"><label>k</label><input type="range" id="sl_k"  min="5" max="200" step="1" value="40"><span class="val" id="val_k">40</span>N/m</div>
+  <div class="row"><label>c</label><input type="range" id="sl_c"  min="0" max="12" step="0.1" value="0.5"><span class="val" id="val_c">0.5</span></div>
+  <div class="row"><label>F₀</label><input type="range" id="sl_F0" min="0" max="20" step="0.5" value="0"><span class="val" id="val_F0">0</span>N</div>
+  <div class="row"><label>ω<sub>f</sub></label><input type="range" id="sl_wf" min="0.5" max="20" step="0.1" value="5"><span class="val" id="val_wf">5</span></div>
+
+  <div id="modes">
+    <button id="btn_free" class="active">自由振动</button>
+    <button id="btn_damped">阻尼振动</button>
+    <button id="btn_forced">受迫振动</button>
+    <button id="btn_resonance">共振演示</button>
+  </div>
+  <div style="display:flex;gap:4px;">
+    <button id="btn_pause" style="flex:1;padding:4px;background:rgba(255,255,255,0.06);border:1px solid #3a3f5a;color:#8b95b8;border-radius:3px;cursor:pointer;font-size:11px;">⏯ 暂停</button>
+    <button id="btn_reset" style="flex:1;padding:4px;background:rgba(255,255,255,0.06);border:1px solid #3a3f5a;color:#8b95b8;border-radius:3px;cursor:pointer;font-size:11px;">↺ 重置</button>
+  </div>
+  <div class="derived" id="derived_info"></div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>固定壁 / 导轨</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>弹簧 k</div>
+  <div><span class="sw" style="background:#ff6b35"></span>质量块 m</div>
+  <div><span class="sw" style="background:#95a5c8"></span>阻尼器 c</div>
+  <div><span class="sw" style="background:#cba6f7"></span>激振力 F(t)</div>
+</div>
+
+<div id="hint">
+  鼠标左键拖拽：旋转视角　|　滚轮：缩放　|　右键拖拽：平移
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const COLOR_BG     = 0x0a0a14;
+const COLOR_FRAME  = 0x6b7280;
+const COLOR_MASS   = 0xff6b35;
+const COLOR_SPRING = 0x4ecdc4;
+const COLOR_DAMPER = 0x95a5c8;
+
+/* 物理参数（SI 单位，渲染缩放 50）*/
+const RENDER_SCALE = 50; // 1m → 50 scene units
+const WALL_X = -150;
+const EQUIL_X = 0; // 平衡位置（世界坐标）
+const SPRING_REST = 150; // 弹簧原长对应 scene units
+
+let params = {
+  m: 1.0,
+  k: 40,
+  c: 0.5,
+  F0: 0,
+  wf: 5,
+};
+
+const SUBSTEPS = 4;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 400, 1200);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(30, 80, 320);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 800;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 300, 300);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-150, -100, -150);
+scene.add(fillLight);
+
+scene.add(new THREE.AxesHelper(40));
+
+/* 固定壁 */
+const wallMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.5
+});
+const wall = new THREE.Mesh(new THREE.BoxGeometry(16, 70, 50), wallMat);
+wall.position.set(WALL_X, 0, 0);
+scene.add(wall);
+
+/* 底座导轨 */
+const rail = new THREE.Mesh(new THREE.BoxGeometry(420, 7, 32), wallMat);
+rail.position.set(WALL_X + 170, -28, 0);
+scene.add(rail);
+
+/* 平衡位置标记（虚线）*/
+const eqLineGeom = new THREE.BufferGeometry().setFromPoints([
+  new THREE.Vector3(EQUIL_X, -40, 0),
+  new THREE.Vector3(EQUIL_X, 40, 0),
+]);
+const eqLine = new THREE.Line(
+  eqLineGeom,
+  new THREE.LineDashedMaterial({ color: 0x556080, dashSize: 4, gapSize: 3 })
+);
+eqLine.computeLineDistances();
+scene.add(eqLine);
+
+/* 弹簧（zigzag 折线，每帧更新）*/
+const springPtsArr = [];
+const N_ZIG = 18; // zigzag 数量
+const springGeom = new THREE.BufferGeometry();
+const springLine = new THREE.Line(
+  springGeom,
+  new THREE.LineBasicMaterial({ color: COLOR_SPRING, linewidth: 2 })
+);
+scene.add(springLine);
+
+/* 质量块 */
+const massBlock = new THREE.Mesh(
+  new THREE.BoxGeometry(30, 30, 30),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_MASS, metalness: 0.45, roughness: 0.45
+  })
+);
+scene.add(massBlock);
+
+/* 阻尼器（外壳 + 活塞杆）*/
+const damperHousing = new THREE.Mesh(
+  new THREE.CylinderGeometry(6, 7, 60, 16),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_DAMPER, metalness: 0.5, roughness: 0.35
+  })
+);
+damperHousing.rotation.z = Math.PI / 2;
+damperHousing.position.set(WALL_X + 45, -40, 0);
+scene.add(damperHousing);
+
+const damperRod = new THREE.Mesh(
+  new THREE.CylinderGeometry(3, 3, 80, 12),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_DAMPER, metalness: 0.55, roughness: 0.3
+  })
+);
+damperRod.rotation.z = Math.PI / 2;
+damperRod.position.set(WALL_X + 100, -40, 0);
+scene.add(damperRod);
+
+/* 激振力箭头 */
+const forceArrow = new THREE.ArrowHelper(
+  new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 20, 0xcba6f7, 5, 3
+);
+scene.add(forceArrow);
+
+/* HUD */
+const ui = {
+  x:    document.getElementById('v_x'),
+  v:    document.getElementById('v_v'),
+  t:    document.getElementById('v_t'),
+  wn:   document.getElementById('v_wn'),
+  zeta: document.getElementById('v_zeta'),
+  X:    document.getElementById('v_X'),
+};
+
+/* 滑块 */
+const sliders = {
+  m:  document.getElementById('sl_m'),
+  k:  document.getElementById('sl_k'),
+  c:  document.getElementById('sl_c'),
+  F0: document.getElementById('sl_F0'),
+  wf: document.getElementById('sl_wf'),
+};
+const vals = {
+  m:  document.getElementById('val_m'),
+  k:  document.getElementById('val_k'),
+  c:  document.getElementById('val_c'),
+  F0: document.getElementById('val_F0'),
+  wf: document.getElementById('val_wf'),
+};
+
+/* 状态 */
+let state = [0.8, 0]; // [x, xDot], start displaced 0.8m
+let simTime = 0;
+let paused = false;
+
+function updateDerived() {
+  const wn = Math.sqrt(params.k / params.m);
+  const zeta = params.c / (2 * Math.sqrt(params.m * params.k));
+  const wd = zeta < 1 ? wn * Math.sqrt(1 - zeta * zeta) : 0;
+  document.getElementById('derived_info').innerHTML =
+    'ω<sub>n</sub> = ' + wn.toFixed(2) + ' rad/s<br>' +
+    'ζ = ' + zeta.toFixed(3) +
+    (zeta < 1 ? ' （欠阻尼）<br>ω<sub>d</sub> = ' + wd.toFixed(2) + ' rad/s' :
+     zeta === 1 ? ' （临界阻尼）' : ' （过阻尼）');
+}
+
+function derivatives(s, t) {
+  const [x, xd] = s;
+  const force = params.F0 * Math.sin(params.wf * t);
+  const xdd = (force - params.c * xd - params.k * x) / params.m;
+  return [xd, xdd];
+}
+
+function rk4Step(s, t, h) {
+  const k1 = derivatives(s, t);
+  const s2 = [s[0] + 0.5*h*k1[0], s[1] + 0.5*h*k1[1]];
+  const k2 = derivatives(s2, t + 0.5*h);
+  const s3 = [s[0] + 0.5*h*k2[0], s[1] + 0.5*h*k2[1]];
+  const k3 = derivatives(s3, t + 0.5*h);
+  const s4 = [s[0] + h*k3[0], s[1] + h*k3[1]];
+  const k4 = derivatives(s4, t + h);
+  return [
+    s[0] + (h/6) * (k1[0] + 2*k2[0] + 2*k3[0] + k4[0]),
+    s[1] + (h/6) * (k1[1] + 2*k2[1] + 2*k3[1] + k4[1]),
+  ];
+}
+
+function buildSpringGeom(startX, endX) {
+  const len = endX - startX;
+  const dx = len / N_ZIG;
+  const amp = 14;
+  const pts = [new THREE.Vector3(startX, 0, 0)];
+  for (let i = 1; i < N_ZIG; i++) {
+    const x = startX + i * dx;
+    const y = (i % 2 === 1 ? amp : -amp);
+    pts.push(new THREE.Vector3(x, y, 0));
+  }
+  pts.push(new THREE.Vector3(endX, 0, 0));
+  return pts;
+}
+
+function setMode(mode) {
+  document.querySelectorAll('#modes button').forEach(b => b.classList.remove('active'));
+  const x0 = 0.8;
+  switch (mode) {
+    case 'free':
+      params.F0 = 0; params.c = 0;
+      sliders.F0.value = 0; sliders.c.value = 0;
+      vals.F0.textContent = '0'; vals.c.textContent = '0';
+      document.getElementById('btn_free').classList.add('active');
+      break;
+    case 'damped':
+      params.F0 = 0;
+      sliders.F0.value = 0;
+      vals.F0.textContent = '0';
+      document.getElementById('btn_damped').classList.add('active');
+      break;
+    case 'forced':
+      params.F0 = 5; params.c = 0.5;
+      sliders.F0.value = 5; sliders.c.value = 0.5;
+      vals.F0.textContent = '5'; vals.c.textContent = '0.5';
+      document.getElementById('btn_forced').classList.add('active');
+      break;
+    case 'resonance':
+      const wn = Math.sqrt(params.k / params.m);
+      params.F0 = 5; params.wf = wn; params.c = 0.3;
+      sliders.F0.value = 5; sliders.wf = wn; sliders.c.value = 0.3;
+      vals.F0.textContent = '5'; vals.wf.textContent = wn.toFixed(1); vals.c.textContent = '0.3';
+      document.getElementById('btn_resonance').classList.add('active');
+      break;
+  }
+  state = [x0, 0];
+  simTime = 0;
+  updateDerived();
+}
+
+function reset() {
+  state = [0.8, 0];
+  simTime = 0;
+}
+
+// 模式按钮
+document.getElementById('btn_free').addEventListener('click', () => setMode('free'));
+document.getElementById('btn_damped').addEventListener('click', () => setMode('damped'));
+document.getElementById('btn_forced').addEventListener('click', () => setMode('forced'));
+document.getElementById('btn_resonance').addEventListener('click', () => setMode('resonance'));
+document.getElementById('btn_pause').addEventListener('click', function() {
+  paused = !paused;
+  this.textContent = paused ? '▶ 播放' : '⏯ 暂停';
+});
+document.getElementById('btn_reset').addEventListener('click', reset);
+
+// 滑块事件
+Object.keys(sliders).forEach(key => {
+  sliders[key].addEventListener('input', () => {
+    const v = parseFloat(sliders[key].value);
+    params[key] = v;
+    vals[key].textContent = v;
+    updateDerived();
+  });
+});
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const rawDt = clock.getDelta();
+  const dt = Math.min(rawDt, 0.05);
+
+  if (!paused && dt > 0) {
+    const h = dt / SUBSTEPS;
+    for (let i = 0; i < SUBSTEPS; i++) {
+      state = rk4Step(state, simTime, h);
+      simTime += h;
+    }
+  }
+
+  const [x, xd] = state;
+
+  // 质量块位置（世界坐标）
+  const massX = EQUIL_X + x * RENDER_SCALE;
+  massBlock.position.set(massX, 0, 0);
+  massBlock.rotation.z = Math.sin(simTime * 5) * 0.02; // 轻微视觉抖动
+
+  // 弹簧几何
+  const springStart = WALL_X + 10;
+  const springEnd = massX - 16;
+  const springLen = Math.max(springEnd - springStart, 20);
+  const pts = buildSpringGeom(springStart, springStart + springLen);
+  springGeom.setFromPoints(pts);
+
+  // 阻尼器活塞杆长度
+  const damperLen = Math.max(massX - (WALL_X + 45 + 30), 10);
+  damperRod.scale.y = damperLen / 80; // 圆柱高度沿 Y，旋转后对应世界 X
+  damperRod.position.x = WALL_X + 45 + 30 + damperLen / 2;
+
+  // 激振力箭头
+  if (params.F0 > 0.01) {
+    forceArrow.visible = true;
+    const forceVal = params.F0 * Math.sin(params.wf * simTime);
+    forceArrow.setDirection(new THREE.Vector3(Math.sign(forceVal), 0, 0));
+    forceArrow.setLength(Math.min(Math.abs(forceVal) * 3, 60), 4, 3);
+    forceArrow.position.set(massX + (forceVal >= 0 ? 18 : -18), 20, 0);
+  } else {
+    forceArrow.visible = false;
+  }
+
+  // 导出量
+  const wn = Math.sqrt(params.k / params.m);
+  const zeta = params.c / (2 * Math.sqrt(params.m * params.k));
+
+  // 受迫振动稳态振幅
+  let X_ss = 0;
+  if (params.F0 > 0.01) {
+    const denom = Math.sqrt(
+      Math.pow(params.k - params.m * params.wf * params.wf, 2) +
+      Math.pow(params.c * params.wf, 2)
+    );
+    X_ss = params.F0 / denom;
+  }
+  document.getElementById('info_res').style.display = params.F0 > 0.01 ? 'block' : 'none';
+
+  ui.x.textContent    = (x * 100).toFixed(1) + ' cm';
+  ui.v.textContent    = (xd * 100).toFixed(2) + ' cm/s';
+  ui.t.textContent    = simTime.toFixed(3) + ' s';
+  ui.wn.textContent   = wn.toFixed(2) + ' rad/s';
+  ui.zeta.textContent = zeta.toFixed(3);
+  ui.X.textContent    = (X_ss * 100).toFixed(2) + ' cm';
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+updateDerived();
+animate();
+</script>
+
+</body>
+</html>

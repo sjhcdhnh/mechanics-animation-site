@@ -1,0 +1,2041 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中国空间站交会对接 — 天宫 · 神舟</title>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #000011;
+    overflow: hidden;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas { display: block; }
+
+  /* 顶部标题栏 */
+  .title-bar {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    pointer-events: none; z-index: 10;
+    text-align: center;
+  }
+  .title-bar h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: 4px;
+    color: #e8e8f0; text-shadow: 0 0 20px rgba(120,160,255,0.5);
+  }
+  .title-bar .subtitle {
+    font-size: 12px; color: #8899bb; letter-spacing: 2px; margin-top: 4px;
+  }
+
+  /* HUD面板 */
+  .hud {
+    position: absolute; bottom: 24px; left: 24px; z-index: 10;
+    background: rgba(12,14,28,0.78); border: 1px solid rgba(80,100,160,0.35);
+    border-radius: 8px; padding: 14px 18px;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    min-width: 280px;
+  }
+  .hud .section-title {
+    font-size: 11px; letter-spacing: 2px; color: #8899cc;
+    text-transform: uppercase; margin-bottom: 8px;
+    border-bottom: 1px solid rgba(80,100,160,0.25); padding-bottom: 6px;
+  }
+  .hud .row { display: flex; justify-content: space-between; align-items: baseline; margin: 3px 0; font-size: 13px; }
+  .hud .row .label { color: #8899bb; }
+  .hud .row .value { color: #e0e8f8; font-family: "Consolas", "Cascadia Code", "SF Mono", monospace; font-weight: 500; }
+  .hud .row .value.highlight { color: #6ee7b7; font-size: 16px; }
+  .hud .row .value.warn { color: #fbbf24; }
+  .hud .phase-indicator {
+    margin-top: 8px; padding: 6px 10px; border-radius: 4px;
+    font-size: 12px; font-weight: 600; letter-spacing: 1px;
+    text-align: center; transition: all 0.4s;
+  }
+  .phase-indicator.approach { background: rgba(59,130,246,0.25); color: #60a5fa; border: 1px solid rgba(59,130,246,0.4); }
+  .phase-indicator.final   { background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid rgba(245,158,11,0.4); }
+  .phase-indicator.docking { background: rgba(239,68,68,0.25);  color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+  .phase-indicator.success { background: rgba(34,197,94,0.25);  color: #4ade80; border: 1px solid rgba(34,197,94,0.4); }
+
+  /* 图例 */
+  .legend {
+    position: absolute; bottom: 24px; right: 24px; z-index: 10;
+    background: rgba(12,14,28,0.65); border: 1px solid rgba(80,100,160,0.25);
+    border-radius: 6px; padding: 10px 14px;
+    backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    font-size: 11px; color: #8899bb; line-height: 1.8;
+  }
+  .legend .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+  /* 底部提示 */
+  .hint {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: rgba(150,170,200,0.5); z-index: 5;
+    pointer-events: none; letter-spacing: 1px;
+  }
+
+  @media (max-width: 768px) {
+    .hud { bottom: 12px; left: 8px; padding: 10px 14px; min-width: 240px; font-size: 11px; }
+    .legend { display: none; }
+    .title-bar h1 { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="title-bar">
+  <h1>天 宫 空 间 站  ·  交 会 对 接</h1>
+  <div class="subtitle">中国载人航天  ·  神舟飞船 × 天和核心舱前向端口</div>
+</div>
+
+<div class="hud" id="hud">
+  <div class="section-title">◆ 对接状态</div>
+  <div class="row"><span class="label">相对距离</span><span class="value highlight" id="val-dist">100.0 m</span></div>
+  <div class="row"><span class="label">接近速度</span><span class="value" id="val-vel">0.50 m/s</span></div>
+  <div class="row"><span class="label">对接阶段</span><span class="value" id="val-phase">远程接近</span></div>
+  <div class="phase-indicator approach" id="phase-badge">▸ 远程接近段</div>
+  <div style="margin-top:8px;border-top:1px solid rgba(80,100,160,0.2);padding-top:6px;"></div>
+  <div class="row"><span class="label">轨道高度</span><span class="value">393.1 km</span></div>
+  <div class="row"><span class="label">轨道速度</span><span class="value">7.67 km/s</span></div>
+  <div class="row"><span class="label">姿态偏差</span><span class="value" id="val-att">Δ0.02°</span></div>
+</div>
+
+<div class="legend">
+  <div><span class="dot" style="background:#c8ccd8;"></span>天和核心舱</div>
+  <div><span class="dot" style="background:#8899aa;"></span>实验舱（问天/梦天）</div>
+  <div><span class="dot" style="background:#1a4a8a;"></span>大型太阳翼</div>
+  <div><span class="dot" style="background:#e8c876;"></span>神舟载人飞船</div>
+  <div><span class="dot" style="background:#ff8c42;"></span>对接机构</div>
+  <div><span class="dot" style="background:#44cc88;"></span>对接指示灯</div>
+</div>
+
+<div class="hint">🖱 鼠标拖拽旋转 &nbsp;|&nbsp; 滚轮缩放 &nbsp;|&nbsp; 右键平移</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ==================== 常量与色彩方案 ====================
+const COLOR = {
+  BG: 0x000011,
+  TIANHE_BODY: 0xc8ccd8,
+  TIANHE_ACCENT: 0xe0e4ec,
+  LAB_BODY: 0x8899aa,
+  LAB_ACCENT: 0xa0aab8,
+  SOLAR_FRAME: 0x334455,
+  SOLAR_CELL: 0x1a3a6a,
+  SOLAR_CELL_BRIGHT: 0x2a5aaa,
+  SHENZHOU_ORBITAL: 0xd8dce4,
+  SHENZHOU_REENTRY: 0xb8bcc4,
+  SHENZHOU_PROPULSION: 0xc0c4cc,
+  SHENZHOU_SOLAR: 0x1a3a6a,
+  DOCKING_RING: 0x888888,
+  DOCKING_PETAL: 0xff8c42,
+  DOCKING_PORT: 0x666677,
+  ENGINE: 0x333338,
+  EARTH_OCEAN: 0x113366,
+  GOLD_FOIL: 0xcc9944,
+  INDICATOR_GREEN: 0x44cc88,
+  INDICATOR_RED: 0xff4444,
+};
+
+// ── 程序化纹理生成 ──
+function createQuiltedMLITexture(baseColor, gridColor, tileSize, canvasSize) {
+  const c = document.createElement('canvas');
+  c.width = canvasSize; c.height = canvasSize;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  const tiles = Math.floor(canvasSize / tileSize);
+  for (let row = 0; row < tiles; row++) {
+    for (let col = 0; col < tiles; col++) {
+      const x = col * tileSize, y = row * tileSize;
+      const brightness = 0.92 + Math.random() * 0.08;
+      ctx.fillStyle = gridColor;
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x + 1, y + 1, tileSize - 2, 2);
+      ctx.fillRect(x + 1, y + 1, 2, tileSize - 2);
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + tileSize - 3, y + 1, 2, tileSize - 2);
+      ctx.globalAlpha = 1.0;
+    }
+  }
+  // Diagonal stitching
+  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < tiles * 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * tileSize, 0);
+    ctx.lineTo(i * tileSize - canvasSize, canvasSize);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createPanelTexture(baseR, baseG, baseB) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 256;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = `rgb(${baseR},${baseG},${baseB})`;
+  ctx.fillRect(0, 0, 512, 256);
+  // Subtle panel lines
+  for (let x = 0; x < 512; x += 32) {
+    ctx.fillStyle = `rgba(${baseR-15},${baseG-15},${baseB-15},0.3)`;
+    ctx.fillRect(x, 0, 1, 256);
+  }
+  for (let y = 0; y < 256; y += 32) {
+    ctx.fillStyle = `rgba(${baseR-15},${baseG-15},${baseB-15},0.3)`;
+    ctx.fillRect(0, y, 512, 1);
+  }
+  // Random equipment markings
+  ctx.fillStyle = `rgba(${baseR-30},${baseG-30},${baseB-30},0.15)`;
+  for (let i = 0; i < 20; i++) {
+    const px = 16 + Math.floor(Math.random() * 480);
+    const py = 16 + Math.floor(Math.random() * 224);
+    ctx.fillRect(px, py, 12 + Math.random() * 24, 6 + Math.random() * 12);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+const TEX_MLI_WHITE = createQuiltedMLITexture('#e8e8ec', '#d8d8dc', 20, 512);
+const TEX_MLI_GOLD = createQuiltedMLITexture('#cc9944', '#b88833', 18, 512);
+const TEX_MLI_SILVER = createQuiltedMLITexture('#c0c4cc', '#a8acb4', 20, 512);
+const TEX_PANEL_WHITE = createPanelTexture(220, 224, 232);
+const TEX_PANEL_GRAY = createPanelTexture(160, 168, 180);
+
+// 对接运动学参数
+const DOCKING = {
+  START_DISTANCE: 100,       // m, 神舟初始距离
+  CONTACT_DISTANCE: 0.3,    // m, 对接环接触距离
+  DOCKED_DISTANCE: 0.0,     // m, 完全锁紧后的等效距离
+  MIN_SAFE_GAP: 0.02,       // m, 最小安全间隙（防穿模硬钳制）
+  V_AT_100M: 0.50,          // m/s
+  V_AT_30M: 0.20,           // m/s
+  V_AT_5M: 0.08,            // m/s
+  V_AT_CONTACT: 0.05,       // m/s, 软对接接触速度
+  TIME_APPROACH: 30,        // s, 100m→接触 (动画时间，含时间加速)
+  TIME_LOCKING: 5,          // s(动画时间), 锁紧过程
+  TIME_HOLD: 160,           // s(动画时间), 对接完成展示 (~10s实时)
+  TIME_RESET: 2,            // s(动画时间), 快速复位
+  TOTAL_CYCLE: 49,          // s(动画时间), 总循环周期
+  TIME_SCALE: 16,           // 动画时间加速因子（使100m接近在~30s实时完成）
+};
+
+// 物理参数
+const PHYSICS = {
+  ORBIT_ALTITUDE: 393.1e3, // m
+  EARTH_RADIUS: 6371e3,    // m
+  ORBIT_RADIUS: 6371e3 + 393.1e3, // m
+  MU: 3.986004418e14,      // m³/s², 地球引力常数
+  ORBIT_VELOCITY: 7.67e3,  // m/s
+  ORBIT_ANGULAR_VEL: 0.001135, // rad/s
+};
+
+// Tiangong dimensions (meters, scale 1:1)
+const TG = {
+  TIANHE_LARGE_R: 2.1,     // 大柱段半径
+  TIANHE_LARGE_L: 8.0,     // 大柱段长度
+  TIANHE_SMALL_R: 1.4,     // 小柱段半径
+  TIANHE_SMALL_L: 4.0,     // 小柱段长度
+  TIANHE_NODE_R: 1.5,      // 节点舱半径
+  TIANHE_TOTAL_L: 16.6,
+  LAB_R: 2.1,              // 实验舱半径
+  LAB_L: 15.0,             // 实验舱主体长度 (~17.88m with end caps)
+  LAB_SOLAR_L: 27.0,       // 实验舱太阳翼长度
+  LAB_SOLAR_W: 6.0,        // 实验舱太阳翼宽度
+  LAB_OFFSET_X: 1.0,       // 实验舱对接点偏离天和中心的X偏移
+  LAB_OFFSET_Y: 0.0,
+  PORT_FORWARD_X: 8.3,     // 前向对接口X坐标 (天和前端)
+};
+
+// Shenzhou dimensions
+const SZ = {
+  ORBITAL_R: 1.125,        // 轨道舱半径
+  ORBITAL_L: 2.8,          // 轨道舱长度
+  REENTRY_R_TOP: 1.25,     // 返回舱顶部半径
+  REENTRY_R_BOT: 1.25,     // 返回舱底部半径
+  REENTRY_L: 2.5,          // 返回舱长度
+  PROPULSION_R: 1.4,       // 推进舱半径
+  PROPULSION_L: 3.0,       // 推进舱长度
+  SOLAR_L: 7.5,            // 推进舱太阳翼长度
+  SOLAR_W: 2.0,            // 推进舱太阳翼宽度
+  TOTAL_L: 8.9,
+  DOCKING_RING_R: 0.9,     // 对接环半径
+  DOCKING_RING_TUBE: 0.12, // 对接环管径
+  PETAL_COUNT: 3,
+  PETAL_R: 0.55,
+  PETAL_L: 0.7,
+};
+
+// ==================== 场景初始化 ====================
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.5;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR.BG);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 2000);
+camera.position.set(45, 22, 55);
+camera.lookAt(TG.PORT_FORWARD_X - 2, 0, 0);
+
+// ==================== 后处理 ====================
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.4, 0.2
+);
+bloomPass.threshold = 0.55;
+bloomPass.strength = 0.8;
+bloomPass.radius = 0.5;
+composer.addPass(bloomPass);
+// Note: OutputPass not needed as renderer.outputColorSpace handles encoding
+
+// ==================== OrbitControls ====================
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(TG.PORT_FORWARD_X - 3, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 8;
+controls.maxDistance = 250;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.update();
+
+// ==================== 光照 ====================
+// 环境光 — 模拟地球反照与深空散射
+const ambientLight = new THREE.AmbientLight(0x223355, 0.6);
+scene.add(ambientLight);
+
+// 半球光
+const hemiLight = new THREE.HemisphereLight(0x334466, 0x000811, 0.5);
+scene.add(hemiLight);
+
+// 主方向光 — 太阳
+const sunLight = new THREE.DirectionalLight(0xfff8e8, 3.5);
+sunLight.position.set(80, 30, -40);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 2048;
+sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 400;
+sunLight.shadow.camera.left = -80;
+sunLight.shadow.camera.right = 80;
+sunLight.shadow.camera.top = 80;
+sunLight.shadow.camera.bottom = -80;
+sunLight.shadow.bias = -0.0001;
+scene.add(sunLight);
+
+// ==================== 星空背景 ====================
+function createStarfield() {
+  const count = 3000;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const radius = 800;
+
+  for (let i = 0; i < count; i++) {
+    // 真随机球面分布
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = radius * (0.85 + Math.random() * 0.15); // slight depth variation
+
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i * 3 + 2] = r * Math.cos(phi);
+
+    // 恒星色温分布（基于真实天文比例）
+    const temp = Math.random();
+    if (temp < 0.003) {
+      // O/B型 蓝白巨星（极少）
+      colors[i * 3] = 0.6; colors[i * 3 + 1] = 0.7; colors[i * 3 + 2] = 1.0;
+      sizes[i] = 1.5 + Math.random() * 2.5;
+    } else if (temp < 0.06) {
+      // A型 白色恒星
+      colors[i * 3] = 0.85; colors[i * 3 + 1] = 0.9; colors[i * 3 + 2] = 1.0;
+      sizes[i] = 0.8 + Math.random() * 1.8;
+    } else if (temp < 0.20) {
+      // F型 黄白恒星
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.95; colors[i * 3 + 2] = 0.8;
+      sizes[i] = 0.5 + Math.random() * 1.5;
+    } else if (temp < 0.55) {
+      // G型 黄矮星（类似太阳）
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.88; colors[i * 3 + 2] = 0.65;
+      sizes[i] = 0.3 + Math.random() * 1.2;
+    } else if (temp < 0.85) {
+      // K型 橙黄恒星
+      colors[i * 3] = 1.0; colors[i * 3 + 1] = 0.7; colors[i * 3 + 2] = 0.4;
+      sizes[i] = 0.2 + Math.random() * 0.9;
+    } else {
+      // M型 红矮星（最多，最暗）
+      colors[i * 3] = 0.9; colors[i * 3 + 1] = 0.5; colors[i * 3 + 2] = 0.3;
+      sizes[i] = 0.15 + Math.random() * 0.6;
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.7,
+    vertexColors: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.9,
+    sizeAttenuation: true,
+    fog: false,
+  });
+
+  const stars = new THREE.Points(geo, mat);
+  stars.name = 'starfield';
+  scene.add(stars);
+}
+createStarfield();
+
+// ==================== 地球 ====================
+function createEarth() {
+  const earthGroup = new THREE.Group();
+  const textureLoader = new THREE.TextureLoader();
+
+  // NASA Blue Marble 真实纹理
+  const earthTex = textureLoader.load(
+    'https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg',
+    undefined, undefined,
+    () => {
+      // 加载失败时回退到程序化纹理
+      console.warn('Earth texture failed to load, using procedural fallback');
+      earthTex.dispose();
+      applyProceduralTexture();
+    }
+  );
+  earthTex.colorSpace = THREE.SRGBColorSpace;
+
+  function applyProceduralTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // 海洋渐变
+    const oceanGrad = ctx.createRadialGradient(512, 200, 50, 512, 256, 600);
+    oceanGrad.addColorStop(0, '#1a5276');
+    oceanGrad.addColorStop(0.5, '#154360');
+    oceanGrad.addColorStop(0.8, '#0d3460');
+    oceanGrad.addColorStop(1, '#0a1a3a');
+    ctx.fillStyle = oceanGrad;
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // 简化大陆形状
+    const continents = [
+      { cx: 550, cy: 130, r: 130, color: '#2d6a2d' }, // 欧亚
+      { cx: 500, cy: 150, r: 90, color: '#357535' },
+      { cx: 650, cy: 110, r: 85, color: '#3a7a30' },
+      { cx: 700, cy: 140, r: 60, color: '#2d6a2d' },
+      { cx: 560, cy: 250, r: 55, color: '#3d7a3d' }, // 非洲
+      { cx: 555, cy: 300, r: 40, color: '#2d6a2d' },
+      { cx: 180, cy: 110, r: 95, color: '#3a7530' }, // 北美
+      { cx: 150, cy: 130, r: 65, color: '#408040' },
+      { cx: 240, cy: 280, r: 45, color: '#2d7a2d' }, // 南美
+      { cx: 250, cy: 330, r: 30, color: '#3a7a30' },
+      { cx: 780, cy: 310, r: 38, color: '#b88a3a' }, // 澳洲
+      { cx: 720, cy: 130, r: 45, color: '#3a7a30' }, // 东亚
+    ];
+    continents.forEach(c => {
+      ctx.fillStyle = c.color;
+      ctx.beginPath();
+      ctx.arc(c.cx, c.cy, c.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 地形变异
+    for (let i = 0; i < 80; i++) {
+      const cx = Math.random() * 1024;
+      const cy = 100 + Math.random() * 300;
+      if (cx > 100 && cx < 850 && cy > 60 && cy < 380) {
+        ctx.fillStyle = Math.random() < 0.5 ? '#1d5a1d' : '#4a8a3a';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8 + Math.random() * 25, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 沙漠
+    for (let i = 0; i < 15; i++) {
+      const cx = Math.random() * 1024;
+      const cy = 150 + Math.random() * 200;
+      if (cx > 100 && cx < 850) {
+        ctx.fillStyle = '#c4a860';
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10 + Math.random() * 35, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // 云层
+    for (let i = 0; i < 250; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.3})`;
+      const cx = Math.random() * 1024;
+      const cy = Math.random() * 512;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 5 + Math.random() * 45, (5 + Math.random() * 35) * (0.2 + Math.random() * 0.6), Math.random() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 极地冰盖
+    ctx.fillStyle = 'rgba(240,248,255,0.5)';
+    ctx.fillRect(0, 0, 1024, 28);
+    ctx.fillRect(0, 480, 1024, 32);
+
+    const procTex = new THREE.CanvasTexture(canvas);
+    procTex.colorSpace = THREE.SRGBColorSpace;
+    earth.material.map = procTex;
+  }
+
+  // 地球球体
+  const earthGeo = new THREE.SphereGeometry(200, 128, 64);
+  const earthMat = new THREE.MeshStandardMaterial({
+    map: earthTex,
+    roughness: 0.6,
+    metalness: 0.03,
+  });
+  const earth = new THREE.Mesh(earthGeo, earthMat);
+  earth.position.set(40, -240, 120);
+  earth.receiveShadow = true;
+  earth.name = 'earth';
+  earthGroup.add(earth);
+
+  // 大气光晕 (Fresnel glow)
+  const atmoGeo = new THREE.SphereGeometry(203, 96, 48);
+  const atmoMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uColor1: { value: new THREE.Color(0x4488ff) },
+      uColor2: { value: new THREE.Color(0x1144aa) },
+      uCameraPos: { value: new THREE.Vector3() },
+    },
+    vertexShader: /*glsl*/`
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(mat3(modelMatrix) * normal);
+        vPosition = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /*glsl*/`
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec3 vWorldPos;
+      uniform vec3 uColor1;
+      uniform vec3 uColor2;
+      uniform vec3 uCameraPos;
+      void main() {
+        vec3 viewDir = normalize(uCameraPos - vWorldPos);
+        float fresnel = 1.0 - abs(dot(viewDir, vNormal));
+        fresnel = pow(fresnel, 3.5);
+        float alpha = fresnel * 0.55;
+        vec3 color = mix(uColor2, uColor1, fresnel);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const atmosphere = new THREE.Mesh(atmoGeo, atmoMat);
+  atmosphere.position.copy(earth.position);
+  atmosphere.name = 'atmosphere';
+  earthGroup.add(atmosphere);
+
+  // 外层微弱辉光
+  const outerAtmoGeo = new THREE.SphereGeometry(208, 72, 36);
+  const outerAtmoMat = new THREE.ShaderMaterial({
+    uniforms: {
+      uCameraPos: { value: new THREE.Vector3() },
+    },
+    vertexShader: /*glsl*/`
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      void main() {
+        vec4 worldPos = modelMatrix * vec4(position, 1.0);
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /*glsl*/`
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      uniform vec3 uCameraPos;
+      void main() {
+        vec3 viewDir = normalize(uCameraPos - vWorldPos);
+        float fresnel = 1.0 - abs(dot(viewDir, vNormal));
+        fresnel = pow(fresnel, 6.0);
+        float alpha = fresnel * 0.2;
+        gl_FragColor = vec4(0.3, 0.5, 0.9, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const outerAtmo = new THREE.Mesh(outerAtmoGeo, outerAtmoMat);
+  outerAtmo.position.copy(earth.position);
+  outerAtmo.name = 'outerAtmosphere';
+  earthGroup.add(outerAtmo);
+
+  scene.add(earthGroup);
+  return { group: earthGroup, atmoMat, outerAtmoMat, earth };
+}
+const earthRefs = createEarth();
+
+// ==================== 天宫空间站 ====================
+function createTiangong() {
+  const station = new THREE.Group();
+  station.name = 'tiangong';
+  station.castShadow = true;
+  station.receiveShadow = true;
+
+  // 材质定义
+  const matTianheBody = new THREE.MeshStandardMaterial({ color: COLOR.TIANHE_BODY, roughness: 0.35, metalness: 0.15 });
+  const matTianheLight = new THREE.MeshStandardMaterial({ color: COLOR.TIANHE_ACCENT, roughness: 0.3, metalness: 0.2 });
+  const matLabBody = new THREE.MeshStandardMaterial({ color: COLOR.LAB_BODY, roughness: 0.4, metalness: 0.15 });
+  const matSolarCell = new THREE.MeshStandardMaterial({ color: COLOR.SOLAR_CELL, roughness: 0.7, metalness: 0.3, emissive: COLOR.SOLAR_CELL, emissiveIntensity: 0.15 });
+  const matSolarCellBright = new THREE.MeshStandardMaterial({ color: COLOR.SOLAR_CELL_BRIGHT, roughness: 0.7, metalness: 0.3, emissive: COLOR.SOLAR_CELL_BRIGHT, emissiveIntensity: 0.25 });
+  const matSolarFrame = new THREE.MeshStandardMaterial({ color: COLOR.SOLAR_FRAME, roughness: 0.5, metalness: 0.5 });
+  const matGold = new THREE.MeshStandardMaterial({ color: COLOR.GOLD_FOIL, roughness: 0.3, metalness: 0.6 });
+
+  // ── 天和核心舱（沿 X 轴）──
+  const tianhe = new THREE.Group();
+  tianhe.name = 'tianhe';
+
+  // 大柱段 (large diameter, rear)
+  const largeColGeo = new THREE.CylinderGeometry(TG.TIANHE_LARGE_R, TG.TIANHE_LARGE_R, TG.TIANHE_LARGE_L, 40, 1, false);
+  const largeCol = new THREE.Mesh(largeColGeo, matTianheBody);
+  largeCol.rotation.z = Math.PI / 2;
+  largeCol.position.x = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L / 2;
+  largeCol.castShadow = true; largeCol.receiveShadow = true;
+  tianhe.add(largeCol);
+
+  // 小柱段 (small diameter, crew quarters)
+  const smallColGeo = new THREE.CylinderGeometry(TG.TIANHE_SMALL_R, TG.TIANHE_SMALL_R, TG.TIANHE_SMALL_L, 32, 1, false);
+  const smallCol = new THREE.Mesh(smallColGeo, matTianheLight);
+  smallCol.rotation.z = Math.PI / 2;
+  smallCol.position.x = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L / 2;
+  smallCol.castShadow = true; smallCol.receiveShadow = true;
+  tianhe.add(smallCol);
+
+  // 大小柱段过渡锥段
+  const taperGeo = new THREE.CylinderGeometry(TG.TIANHE_SMALL_R, TG.TIANHE_LARGE_R, 1.2, 32, 1, false);
+  const taper = new THREE.Mesh(taperGeo, matTianheBody);
+  taper.rotation.z = Math.PI / 2;
+  taper.position.x = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - 0.6;
+  taper.castShadow = true;
+  tianhe.add(taper);
+
+  // 后端对接锥段
+  const aftTaperGeo = new THREE.CylinderGeometry(TG.TIANHE_LARGE_R, 1.8, 1.5, 32, 1, false);
+  const aftTaper = new THREE.Mesh(aftTaperGeo, matTianheBody);
+  aftTaper.rotation.z = Math.PI / 2;
+  aftTaper.position.x = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L - 0.75;
+  aftTaper.castShadow = true;
+  tianhe.add(aftTaper);
+
+  // 节点舱 (spherical node at forward end)
+  const nodeGeo = new THREE.SphereGeometry(TG.TIANHE_NODE_R, 40, 30);
+  const node = new THREE.Mesh(nodeGeo, matTianheLight);
+  node.position.x = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R;
+  node.castShadow = true; node.receiveShadow = true;
+  tianhe.add(node);
+
+  // 节点舱顶部/底部/侧向对接口（天顶、天底、左侧、右侧共4个）
+  const nodePortDirs = [
+    { x: 0, y: 1, z: 0, label: 'zenith' },
+    { x: 0, y: -1, z: 0, label: 'nadir' },
+    { x: 0, y: 0, z: 1, label: 'port' },
+    { x: 0, y: 0, z: -1, label: 'starboard' },
+  ];
+  nodePortDirs.forEach(dir => {
+    const npGeo = new THREE.TorusGeometry(0.7, 0.06, 12, 28);
+    const np = new THREE.Mesh(npGeo, new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_PORT, roughness: 0.3, metalness: 0.7 }));
+    np.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R + dir.x * TG.TIANHE_NODE_R * 0.95,
+      dir.y * TG.TIANHE_NODE_R * 0.95,
+      dir.z * TG.TIANHE_NODE_R * 0.95
+    );
+    if (dir.y !== 0) np.rotation.x = Math.PI / 2;
+    tianhe.add(np);
+  });
+
+  // 节点舱十字靶标（对接口定位标记）
+  nodePortDirs.forEach(dir => {
+    for (let ct = 0; ct < 4; ct++) {
+      const ctAngle = (ct / 4) * Math.PI * 2 + Math.PI / 4;
+      const tickLen = 0.3;
+      const tickGeo = new THREE.BoxGeometry(0.04, 0.04, tickLen);
+      const tick = new THREE.Mesh(tickGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.4, emissive: 0x222222, emissiveIntensity: 0.15 }));
+      tick.position.set(
+        TG.PORT_FORWARD_X - TG.TIANHE_NODE_R + dir.x * TG.TIANHE_NODE_R * 0.7 + Math.cos(ctAngle) * 0.5,
+        dir.y * TG.TIANHE_NODE_R * 0.7 + Math.sin(ctAngle) * 0.5,
+        dir.z * TG.TIANHE_NODE_R * 0.7
+      );
+      tick.rotation.z = ctAngle;
+      if (dir.y !== 0) tick.rotation.x = Math.PI / 2;
+      tianhe.add(tick);
+    }
+  });
+
+  // 前向对接口（被动端 — 接收环，异体同构周边式）
+  const portGroup = new THREE.Group();
+  portGroup.name = 'forwardPort';
+  const PORT_RING_R = 0.92;       // 接收环半径（匹配主动对接环0.90）
+  const PORT_RING_TUBE = 0.10;
+
+  // 外环（主接收环）
+  const portRingGeo = new THREE.TorusGeometry(PORT_RING_R, PORT_RING_TUBE, 16, 48);
+  const portRing = new THREE.Mesh(portRingGeo, new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_PORT, roughness: 0.2, metalness: 0.75 }));
+  portRing.position.x = TG.PORT_FORWARD_X;
+  portRing.name = 'portRing';
+  portGroup.add(portRing);
+
+  // 内导环（稍前移，形成接收锥效果）
+  const portInnerRingGeo = new THREE.TorusGeometry(PORT_RING_R - 0.12, 0.06, 12, 40);
+  const portInnerRing = new THREE.Mesh(portInnerRingGeo, new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.15, metalness: 0.8 }));
+  portInnerRing.position.x = TG.PORT_FORWARD_X + 0.06;
+  portGroup.add(portInnerRing);
+
+  // 接收锥面（浅锥形，引导主动环进入）
+  const coneGeo = new THREE.CylinderGeometry(PORT_RING_R + 0.06, PORT_RING_R - 0.15, 0.30, 32, 1, true);
+  const cone = new THREE.Mesh(coneGeo, new THREE.MeshStandardMaterial({ color: 0x777788, roughness: 0.25, metalness: 0.6, side: THREE.DoubleSide }));
+  cone.rotation.z = Math.PI / 2;
+  cone.position.x = TG.PORT_FORWARD_X + 0.18;
+  portGroup.add(cone);
+
+  // 12把对接锁机构标记（均匀分布在接收环外侧）
+  for (let li = 0; li < 12; li++) {
+    const lAngle = (li / 12) * Math.PI * 2;
+    const lockGeo = new THREE.BoxGeometry(0.04, 0.07, 0.18);
+    const lock = new THREE.Mesh(lockGeo, new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_PORT, roughness: 0.2, metalness: 0.8 }));
+    lock.position.set(
+      TG.PORT_FORWARD_X + 0.02,
+      Math.cos(lAngle) * (PORT_RING_R + 0.07),
+      Math.sin(lAngle) * (PORT_RING_R + 0.07)
+    );
+    lock.rotation.z = -lAngle;
+    portGroup.add(lock);
+  }
+
+  // 卡板器接收槽（3个120°分布，对应导向板锁舌）
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2 - Math.PI / 6;
+    // 接收槽（凹入标记）
+    const slotGeo = new THREE.BoxGeometry(0.06, 0.14, 0.22);
+    const slot = new THREE.Mesh(slotGeo, new THREE.MeshStandardMaterial({ color: 0x444455, roughness: 0.3, metalness: 0.5 }));
+    slot.position.set(
+      TG.PORT_FORWARD_X - 0.01,
+      Math.cos(angle) * (PORT_RING_R - 0.03),
+      Math.sin(angle) * (PORT_RING_R - 0.03)
+    );
+    slot.rotation.z = -angle;
+    portGroup.add(slot);
+  }
+
+  // 对接口十字对准标记（4个）
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const tickGeo = new THREE.BoxGeometry(0.04, 0.03, 0.30);
+    const tick = new THREE.Mesh(tickGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.3, emissive: 0x333333, emissiveIntensity: 0.2 }));
+    tick.position.set(TG.PORT_FORWARD_X + 0.04, Math.cos(angle) * (PORT_RING_R + 0.01), Math.sin(angle) * (PORT_RING_R + 0.01));
+    tick.rotation.z = -angle;
+    portGroup.add(tick);
+  }
+
+  // 环形靶标条纹（黑白交替，视觉对准辅助）
+  for (let si = 0; si < 16; si++) {
+    const sAngle = (si / 16) * Math.PI * 2;
+    const isWhite = si % 2 === 0;
+    const stripeGeo = new THREE.BoxGeometry(0.02, 0.04, 0.10);
+    const stripe = new THREE.Mesh(stripeGeo, new THREE.MeshStandardMaterial({ color: isWhite ? 0xffffff : 0x333333, roughness: 0.3, metalness: 0.2 }));
+    stripe.position.set(TG.PORT_FORWARD_X + 0.03, Math.cos(sAngle) * (PORT_RING_R - 0.05), Math.sin(sAngle) * (PORT_RING_R - 0.05));
+    stripe.rotation.z = -sAngle;
+    portGroup.add(stripe);
+  }
+  tianhe.add(portGroup);
+
+  // 径向对接口（-Y方向，天和底部）
+  const radialPortGeo = new THREE.TorusGeometry(0.8, 0.08, 12, 30);
+  const radialPort = new THREE.Mesh(radialPortGeo, new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_PORT, roughness: 0.4, metalness: 0.6 }));
+  radialPort.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - 1.5, -1.35, 0);
+  radialPort.rotation.x = Math.PI / 2;
+  tianhe.add(radialPort);
+
+  // 天和隔热瓦条纹（白色条纹环绕大柱段）
+  for (let i = 0; i < 6; i++) {
+    const stripeGeo = new THREE.TorusGeometry(TG.TIANHE_LARGE_R + 0.02, 0.04, 8, 40);
+    const stripe = new THREE.Mesh(stripeGeo, matTianheLight);
+    const stripeX = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.1 * (i + 1);
+    stripe.position.set(stripeX, 0, 0);
+    stripe.rotation.y = Math.PI / 2;
+    tianhe.add(stripe);
+  }
+
+  // 金色多层隔热组件（大柱段局部）
+  for (let i = 0; i < 3; i++) {
+    const mliGeo = new THREE.BoxGeometry(1.5, TG.TIANHE_LARGE_R * 1.6, 0.05);
+    const mli = new THREE.Mesh(mliGeo, matGold);
+    const mliX = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.25 * (i + 1);
+    mli.position.set(mliX, 0, 0);
+    mli.rotation.z = Math.PI / 2;
+    tianhe.add(mli);
+  }
+
+  // ── 天和表面细节 ──
+  // 结构加强环（大柱段，5个，带铆钉效果）
+  for (let i = 0; i < 5; i++) {
+    const ringGeo = new THREE.TorusGeometry(TG.TIANHE_LARGE_R + 0.06, 0.05, 8, 40);
+    const ring = new THREE.Mesh(ringGeo, new THREE.MeshStandardMaterial({ color: 0x889099, roughness: 0.4, metalness: 0.4 }));
+    const ringX = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * (i + 0.5) / 5;
+    ring.position.set(ringX, 0, 0);
+    ring.rotation.y = Math.PI / 2;
+    tianhe.add(ring);
+    // 铆钉点（每个环8个）
+    for (let r = 0; r < 8; r++) {
+      const rAngle = (r / 8) * Math.PI * 2;
+      const rivetGeo = new THREE.SphereGeometry(0.04, 4, 4);
+      const rivet = new THREE.Mesh(rivetGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.2, metalness: 0.6 }));
+      rivet.position.set(ringX, Math.cos(rAngle) * (TG.TIANHE_LARGE_R + 0.08), Math.sin(rAngle) * (TG.TIANHE_LARGE_R + 0.08));
+      tianhe.add(rivet);
+    }
+  }
+
+  // MLI金色隔热层（大柱段局部覆盖，±Y方向各1块）
+  const mliGoldMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_GOLD, roughness: 0.4, metalness: 0.1, color: 0xccaa66 });
+  for (let gy = -1; gy <= 1; gy += 2) {
+    const mliGeo = new THREE.BoxGeometry(2.0, TG.TIANHE_LARGE_R * 1.4, 0.04);
+    const mli = new THREE.Mesh(mliGeo, mliGoldMat);
+    mli.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.5,
+      gy * (TG.TIANHE_LARGE_R + 0.06),
+      0
+    );
+    mli.rotation.z = Math.PI / 2;
+    tianhe.add(mli);
+  }
+
+  // MLI白色隔热层（大柱段±Z方向）
+  const mliWhiteMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_WHITE, roughness: 0.35, metalness: 0.08, color: 0xeeeeee });
+  for (let wz = -1; wz <= 1; wz += 2) {
+    const mliGeo = new THREE.BoxGeometry(3.0, 0.04, TG.TIANHE_LARGE_R * 1.3);
+    const mli = new THREE.Mesh(mliGeo, mliWhiteMat);
+    mli.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.55,
+      0,
+      wz * (TG.TIANHE_LARGE_R + 0.06)
+    );
+    tianhe.add(mli);
+  }
+
+  // 热控辐射器（大柱段±Z两侧，各1块，银色）
+  const radTexMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_SILVER, roughness: 0.25, metalness: 0.15, color: 0xd0d4dc });
+  for (let tr = 0; tr < 2; tr++) {
+    const trZ = tr === 0 ? 1 : -1;
+    const thermGeo = new THREE.BoxGeometry(2.5, 0.06, 3.5);
+    const therm = new THREE.Mesh(thermGeo, radTexMat);
+    therm.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.4,
+      0,
+      trZ * (TG.TIANHE_LARGE_R + 0.30)
+    );
+    therm.castShadow = true;
+    tianhe.add(therm);
+    // 辐射器边框
+    for (let fx = -1; fx <= 1; fx += 2) {
+      const frameGeo = new THREE.BoxGeometry(0.06, 0.08, 3.5);
+      const frame = new THREE.Mesh(frameGeo, matSolarFrame);
+      frame.position.set(
+        TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.4 + fx * 1.25,
+        0,
+        trZ * (TG.TIANHE_LARGE_R + 0.30)
+      );
+      tianhe.add(frame);
+    }
+  }
+
+  // 小柱段设备面板（白色MLI，×4均布）
+  for (let epi = 0; epi < 4; epi++) {
+    const epAngle = (epi / 4) * Math.PI * 2;
+    const epGeo = new THREE.BoxGeometry(0.8, 0.04, 1.8);
+    const epPanel = new THREE.Mesh(epGeo, mliWhiteMat);
+    epPanel.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L / 2,
+      Math.cos(epAngle) * (TG.TIANHE_SMALL_R + 0.08),
+      Math.sin(epAngle) * (TG.TIANHE_SMALL_R + 0.08)
+    );
+    epPanel.rotation.z = -epAngle + Math.PI / 2;
+    tianhe.add(epPanel);
+  }
+
+  // 星敏感器（小柱段顶部，小型光学设备）
+  const starTrackerGeo = new THREE.CylinderGeometry(0.12, 0.18, 0.3, 8);
+  const starTracker = new THREE.Mesh(starTrackerGeo, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.2, metalness: 0.7 }));
+  starTracker.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L * 0.6, TG.TIANHE_SMALL_R + 0.2, 0);
+  starTracker.rotation.z = Math.PI / 2;
+  tianhe.add(starTracker);
+  // 遮光罩
+  const hoodGeo = new THREE.CylinderGeometry(0.1, 0.14, 0.25, 8);
+  const hood = new THREE.Mesh(hoodGeo, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.5 }));
+  hood.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L * 0.6, TG.TIANHE_SMALL_R + 0.5, 0);
+  hood.rotation.z = Math.PI / 2;
+  tianhe.add(hood);
+
+  // ── 天线阵列 ──
+
+  // ── 多用途天线阵列 ──
+  // 主通信天线（顶部+Y）
+  const antGeo = new THREE.CylinderGeometry(0.12, 0.25, 1.2, 12);
+  const ant = new THREE.Mesh(antGeo, new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.6 }));
+  ant.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - 3, TG.TIANHE_SMALL_R + 0.5, 0);
+  tianhe.add(ant);
+  const antDishGeo = new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+  const antDish = new THREE.Mesh(antDishGeo, new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.3, metalness: 0.5 }));
+  antDish.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - 3, TG.TIANHE_SMALL_R + 1.0, 0);
+  antDish.rotation.z = Math.PI;
+  tianhe.add(antDish);
+
+  // GPS/导航天线（节点舱顶部）
+  const gpsGeo = new THREE.CylinderGeometry(0.06, 0.1, 0.3, 8);
+  const gps = new THREE.Mesh(gpsGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.7 }));
+  gps.position.set(TG.PORT_FORWARD_X - TG.TIANHE_NODE_R + 0.2, TG.TIANHE_NODE_R + 0.1, 0);
+  tianhe.add(gps);
+
+  // S波段天线（大柱段侧向）
+  for (let sa = -1; sa <= 1; sa += 2) {
+    const sAntGroup = new THREE.Group();
+    const sStemGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.6, 8);
+    const sStem = new THREE.Mesh(sStemGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.5 }));
+    sStem.position.y = 0.3;
+    sAntGroup.add(sStem);
+    const sDishGeo = new THREE.CylinderGeometry(0.3, 0.1, 0.12, 12);
+    const sDish = new THREE.Mesh(sDishGeo, new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.25, metalness: 0.6 }));
+    sDish.position.y = 0.66;
+    sAntGroup.add(sDish);
+    sAntGroup.position.set(
+      TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.55,
+      sa * (TG.TIANHE_LARGE_R + 0.4),
+      0
+    );
+    tianhe.add(sAntGroup);
+  }
+
+  station.add(tianhe);
+
+  // ── 停泊连接段与实验舱定位计算 ──
+  const berthX = TG.PORT_FORWARD_X - TG.TIANHE_NODE_R * 2 - TG.TIANHE_SMALL_L - TG.TIANHE_LARGE_L * 0.35;
+  const CONNECTOR_LEN = 3.5;         // 停泊连接段长度
+  const CONNECTOR_R = 1.2;           // 连接段半径
+  const CONNECTOR_INNER_Z = TG.TIANHE_LARGE_R + 0.3;  // 连接段起始Z（天和表面外）
+  const CONNECTOR_OUTER_Z = CONNECTOR_INNER_Z + CONNECTOR_LEN;  // 连接段末端Z
+
+  // 停泊连接段 — 从天和侧壁延伸到实验舱
+  function addBerthingConnector(x, side) {
+    const connGroup = new THREE.Group();
+    connGroup.name = 'berthing_' + (side > 0 ? 'wentian' : 'mengtian');
+
+    // 主连接隧道
+    const connGeo = new THREE.CylinderGeometry(CONNECTOR_R, CONNECTOR_R, CONNECTOR_LEN, 28, 1, false);
+    const conn = new THREE.Mesh(connGeo, matTianheBody);
+    conn.rotation.x = Math.PI / 2;
+    conn.position.set(0, 0, side * (CONNECTOR_INNER_Z + CONNECTOR_LEN / 2));
+    conn.castShadow = true;
+    connGroup.add(conn);
+
+    // 连接段结构环 ×3
+    for (let r = 0; r < 3; r++) {
+      const ringGeo = new THREE.TorusGeometry(CONNECTOR_R + 0.06, 0.06, 8, 32);
+      const ring = new THREE.Mesh(ringGeo, matSolarFrame);
+      ring.position.set(0, 0, side * (CONNECTOR_INNER_Z + CONNECTOR_LEN * (r + 1) / 4));
+      connGroup.add(ring);
+    }
+
+    // 波纹管细节
+    for (let b = 0; b < 5; b++) {
+      const bellowsGeo = new THREE.TorusGeometry(CONNECTOR_R + 0.02, 0.03, 6, 32);
+      const bellows = new THREE.Mesh(bellowsGeo, matTianheLight);
+      bellows.position.set(0, 0, side * (CONNECTOR_INNER_Z + 0.5 + b * 0.5));
+      connGroup.add(bellows);
+    }
+
+    connGroup.position.set(x, 0, 0);
+    station.add(connGroup);
+    return connGroup;
+  }
+  const berthWentian = addBerthingConnector(berthX, 1);
+  const berthMengtian = addBerthingConnector(berthX, -1);
+
+  // 实验舱定位：前端锥段尖端恰好对接连接段末端
+  // createLabModule中前端锥段尖端在local Y = TG.LAB_L/2 + 0.75
+  // wentian旋转-π/2 → local+Y→world-Z（前锥面朝天和），前端Z = pos.z - (LAB_L/2 + 0.75)
+  // mengtian旋转+π/2 → local+Y→world+Z（前锥面朝天和），前端Z = pos.z + (LAB_L/2 + 0.75)
+  const LAB_FRONT_TIP_DIST = TG.LAB_L / 2 + 0.75; // 8.25m
+
+  // ── 问天实验舱（+Z方向）──
+  const wentian = createLabModule('wentian', 1);
+  wentian.position.set(berthX, 0, CONNECTOR_OUTER_Z + LAB_FRONT_TIP_DIST);
+  wentian.rotation.x = -Math.PI / 2; // 前端朝-Z（天和方向）
+  station.add(wentian);
+
+  // ── 梦天实验舱（-Z方向）──
+  const mengtian = createLabModule('mengtian', -1);
+  mengtian.position.set(berthX, 0, -(CONNECTOR_OUTER_Z + LAB_FRONT_TIP_DIST));
+  mengtian.rotation.x = Math.PI / 2; // 前端朝+Z（天和方向）
+  station.add(mengtian);
+
+  function createLabModule(name, zDir) {
+    const lab = new THREE.Group();
+    lab.name = name;
+
+    // 主体圆柱（沿Y轴），外部旋转使其沿Z轴展开
+    const bodyGeo = new THREE.CylinderGeometry(TG.LAB_R, TG.LAB_R, TG.LAB_L, 40, 1, false);
+    const body = new THREE.Mesh(bodyGeo, matLabBody);
+    body.castShadow = true; body.receiveShadow = true;
+    lab.add(body);
+
+    // 前端锥段（Y+侧 → 朝向天和核心舱）
+    const frontTaperGeo = new THREE.CylinderGeometry(1.2, TG.LAB_R, 2.0, 32, 1, false);
+    const frontTaper = new THREE.Mesh(frontTaperGeo, matLabBody);
+    frontTaper.position.y = TG.LAB_L / 2 + 1.0;
+    frontTaper.castShadow = true;
+    lab.add(frontTaper);
+
+    // 后端锥段（Y-侧 → 远离核心舱）
+    const rearTaperGeo = new THREE.CylinderGeometry(TG.LAB_R, 1.3, 2.2, 32, 1, false);
+    const rearTaper = new THREE.Mesh(rearTaperGeo, matLabBody);
+    rearTaper.position.y = -TG.LAB_L / 2 - 1.1;
+    rearTaper.castShadow = true;
+    lab.add(rearTaper);
+
+    // 末端球体
+    const endSphereGeo = new THREE.SphereGeometry(1.3, 28, 20);
+    const endSphere = new THREE.Mesh(endSphereGeo, matLabBody);
+    endSphere.position.y = -TG.LAB_L / 2 - 2.2;
+    endSphere.castShadow = true;
+    lab.add(endSphere);
+
+    // ── 结构环（5个均布，带铆钉）──
+    const ringMat = new THREE.MeshStandardMaterial({ color: 0x889099, roughness: 0.4, metalness: 0.4 });
+    for (let i = 0; i < 5; i++) {
+      const ringGeo = new THREE.TorusGeometry(TG.LAB_R + 0.06, 0.05, 8, 36);
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.position.y = -TG.LAB_L / 2 + 0.5 + TG.LAB_L * i / 4;
+      lab.add(ring);
+      for (let r = 0; r < 6; r++) {
+        const rAngle = (r / 6) * Math.PI * 2;
+        const rivetGeo = new THREE.SphereGeometry(0.04, 4, 4);
+        const rivet = new THREE.Mesh(rivetGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.2, metalness: 0.6 }));
+        rivet.position.set(Math.cos(rAngle) * (TG.LAB_R + 0.09), ring.position.y, Math.sin(rAngle) * (TG.LAB_R + 0.09));
+        lab.add(rivet);
+      }
+    }
+
+    // ── MLI白色隔热层（主体覆盖，×4条）──
+    const mliLabWhiteMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_WHITE, roughness: 0.35, metalness: 0.08, color: 0xeeeeee });
+    for (let mw = 0; mw < 4; mw++) {
+      const mwAngle = (mw / 4) * Math.PI * 2 + Math.PI / 4;
+      const mliGeo = new THREE.BoxGeometry(0.04, 4.0, TG.LAB_R * 1.3);
+      const mli = new THREE.Mesh(mliGeo, mliLabWhiteMat);
+      mli.position.set(
+        Math.cos(mwAngle) * (TG.LAB_R + 0.08),
+        TG.LAB_L * 0.15,
+        Math.sin(mwAngle) * (TG.LAB_R + 0.08)
+      );
+      mli.rotation.z = mwAngle + Math.PI / 2;
+      lab.add(mli);
+    }
+
+    // ── MLI金色隔热层（局部，×2条）──
+    const mliLabGoldMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_GOLD, roughness: 0.4, metalness: 0.1, color: 0xccaa66 });
+    for (let mg = 0; mg < 2; mg++) {
+      const mgAngle = (mg / 2) * Math.PI + Math.PI / 2;
+      const mliGeo = new THREE.BoxGeometry(0.04, 2.5, TG.LAB_R * 1.2);
+      const mli = new THREE.Mesh(mliGeo, mliLabGoldMat);
+      mli.position.set(
+        Math.cos(mgAngle) * (TG.LAB_R + 0.08),
+        -TG.LAB_L * 0.1,
+        Math.sin(mgAngle) * (TG.LAB_R + 0.08)
+      );
+      mli.rotation.z = mgAngle + Math.PI / 2;
+      lab.add(mli);
+    }
+
+    // ── 热控辐射器（左右各1块，银色纹理）──
+    const radTexMat = new THREE.MeshStandardMaterial({ map: TEX_MLI_SILVER, roughness: 0.25, metalness: 0.15, color: 0xd0d4dc });
+    for (let rs = -1; rs <= 1; rs += 2) {
+      const radGeo = new THREE.BoxGeometry(3.0, 0.06, 4.0);
+      const rad = new THREE.Mesh(radGeo, radTexMat);
+      rad.position.set(0, 0, rs * (TG.LAB_R + 0.30));
+      rad.castShadow = true;
+      lab.add(rad);
+      // 边框
+      for (let fx = -1; fx <= 1; fx += 2) {
+        const frameGeo = new THREE.BoxGeometry(0.05, 0.08, 4.0);
+        const frame = new THREE.Mesh(frameGeo, matSolarFrame);
+        frame.position.set(fx * 1.5, 0, rs * (TG.LAB_R + 0.30));
+        lab.add(frame);
+      }
+    }
+
+    // ── 大型太阳翼（左右各1块大矩形板）──
+    const solarGroup = new THREE.Group();
+    solarGroup.name = name + '_solar';
+
+    function createLabSolarTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#0d2a5a';
+      ctx.fillRect(0, 0, 512, 256);
+      const cellW = 512 / 16, cellH = 256 / 32;
+      for (let row = 0; row < 32; row++) {
+        for (let col = 0; col < 16; col++) {
+          ctx.fillStyle = (row + col) % 2 === 0 ? '#1a3a6a' : '#224a7a';
+          ctx.fillRect(col * cellW + 1, row * cellH + 1, cellW - 2, cellH - 2);
+        }
+      }
+      ctx.fillStyle = '#333344';
+      ctx.fillRect(256 - 3, 0, 6, 256);
+      for (let row = 0; row < 32; row++) {
+        ctx.fillStyle = '#0a1a3a';
+        ctx.fillRect(0, row * cellH + cellH - 1, 512, 2);
+      }
+      return new THREE.CanvasTexture(c);
+    }
+
+    const labSolarTex = createLabSolarTexture();
+    labSolarTex.colorSpace = THREE.SRGBColorSpace;
+    const matLabSolarPanel = new THREE.MeshStandardMaterial({
+      map: labSolarTex,
+      roughness: 0.55,
+      metalness: 0.3,
+      emissive: COLOR.SOLAR_CELL,
+      emissiveIntensity: 0.2,
+      side: THREE.DoubleSide,
+    });
+
+    // 左右各1块面板，总共4块（问天2块 + 梦天2块 = 全站4块）
+    for (let panelSide = -1; panelSide <= 1; panelSide += 2) {
+      const panelGroup = new THREE.Group();
+
+      const panelGeo = new THREE.PlaneGeometry(TG.LAB_SOLAR_L, TG.LAB_SOLAR_W);
+      const panel = new THREE.Mesh(panelGeo, matLabSolarPanel);
+      panel.position.x = panelSide * (TG.LAB_SOLAR_W / 2 + 0.6);
+      panel.castShadow = true;
+      panelGroup.add(panel);
+
+      // 边框
+      const fh = TG.LAB_SOLAR_L + 0.1, fw = TG.LAB_SOLAR_W + 0.1;
+      for (let fy = -1; fy <= 1; fy += 2) {
+        const fGeo = new THREE.BoxGeometry(fh, 0.05, 0.05);
+        const f = new THREE.Mesh(fGeo, matSolarFrame);
+        f.position.set(panelSide * (TG.LAB_SOLAR_W / 2 + 0.6), fy * (TG.LAB_SOLAR_W / 2 + 0.05), 0);
+        panelGroup.add(f);
+      }
+      for (let fx = -1; fx <= 1; fx += 2) {
+        const fGeo = new THREE.BoxGeometry(0.05, fw, 0.05);
+        const f = new THREE.Mesh(fGeo, matSolarFrame);
+        f.position.set(panelSide * (TG.LAB_SOLAR_W / 2 + 0.6) + fx * (TG.LAB_SOLAR_L / 2 + 0.05), 0, 0);
+        panelGroup.add(f);
+      }
+
+      solarGroup.add(panelGroup);
+    }
+
+    // 连接桁架
+    const trussGeo = new THREE.CylinderGeometry(0.1, 0.1, TG.LAB_SOLAR_W + 1.2, 10);
+    const truss = new THREE.Mesh(trussGeo, matSolarFrame);
+    truss.rotation.z = Math.PI / 2;
+    solarGroup.add(truss);
+
+    solarGroup.position.y = TG.LAB_L * 0.2;
+    lab.add(solarGroup);
+    lab.userData.solarGroup = solarGroup;
+
+    // 注：rotation.x 由外部调用者设置
+    return lab;
+  }
+
+  scene.add(station);
+  return station;
+}
+const tiangong = createTiangong();
+
+// ==================== 神舟飞船 ====================
+function createShenzhou() {
+  const ship = new THREE.Group();
+  ship.name = 'shenzhou';
+  ship.castShadow = true;
+
+  const matOrbital = new THREE.MeshStandardMaterial({ color: COLOR.SHENZHOU_ORBITAL, roughness: 0.35, metalness: 0.15 });
+  const matReentry = new THREE.MeshStandardMaterial({ color: COLOR.SHENZHOU_REENTRY, roughness: 0.45, metalness: 0.1 });
+  const matReentryDark = new THREE.MeshStandardMaterial({ color: 0x8a8a90, roughness: 0.55, metalness: 0.08 });
+  const matPropulsion = new THREE.MeshStandardMaterial({ color: COLOR.SHENZHOU_PROPULSION, roughness: 0.35, metalness: 0.2 });
+  const matEngine = new THREE.MeshStandardMaterial({ color: COLOR.ENGINE, roughness: 0.6, metalness: 0.5 });
+  const matDockingRing = new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_RING, roughness: 0.2, metalness: 0.8 });
+  const matPetal = new THREE.MeshStandardMaterial({ color: COLOR.DOCKING_PETAL, roughness: 0.25, metalness: 0.5, emissive: COLOR.DOCKING_PETAL, emissiveIntensity: 0.08 });
+  const matSolarShip = new THREE.MeshStandardMaterial({ color: COLOR.SHENZHOU_SOLAR, roughness: 0.7, metalness: 0.3, emissive: COLOR.SHENZHOU_SOLAR, emissiveIntensity: 0.15 });
+  const matSolarFrame = new THREE.MeshStandardMaterial({ color: COLOR.SOLAR_FRAME, roughness: 0.5, metalness: 0.5 });
+  const matGold = new THREE.MeshStandardMaterial({ color: COLOR.GOLD_FOIL, roughness: 0.3, metalness: 0.6 });
+
+  // 飞船沿X轴对齐，+X方向为对接端（朝向天和前向端口）
+  // 舱段排列（+X → -X）：对接机构 → 轨道舱 → 返回舱 → 推进舱
+  // 接口坐标（用于无缝连接）：
+  //   DOCKING_FACE = +3.10  (对接环面)
+  //   ORB_FRONT     = +2.80  (轨道舱前端面)
+  //   ORB_REAR      = 0.00   (轨道舱后端面 = 返回舱前端)
+  //   REENTRY_REAR  = -2.50  (返回舱后端面 = 推进舱前端)
+  //   PROP_REAR     = -5.80  (推进舱后端面)
+
+  const ORB_FRONT = 2.80;
+  const ORB_REAR = 0.00;
+  const REENTRY_REAR = -2.50;
+  const PROP_REAR = -5.80;
+  const DOCKING_FACE_X = 3.15;  // 对接环面在飞船局部坐标中的X位置 (2.80 + 0.35)
+
+  // ── 轨道舱 (x=0 ~ 2.80) ──
+  const orbitalGeo = new THREE.CylinderGeometry(SZ.ORBITAL_R, SZ.ORBITAL_R, SZ.ORBITAL_L, 28, 1, false);
+  const orbital = new THREE.Mesh(orbitalGeo, matOrbital);
+  orbital.rotation.z = Math.PI / 2;
+  orbital.position.x = ORB_REAR + SZ.ORBITAL_L / 2;  // center at 1.4, spans 0→2.8
+  orbital.castShadow = true;
+  ship.add(orbital);
+
+  // ── 对接机构（主动端，异体同构周边式）──
+  // 结构：对接环底座 → 对接环 → 3片内翻式导向板(120°均布) → 中央人孔通道
+  // 导向板在对接时向外展开引导，锁紧时向内翻合扣住被动环
+  const dockingGroup = new THREE.Group();
+  dockingGroup.name = 'dockingMechanism';
+  dockingGroup.position.x = ORB_FRONT;  // 对接环底座起点 = 轨道舱前端面
+
+  // 对接环底座锥段（从轨道舱前端渐变到对接环直径）
+  const dockBaseGeo = new THREE.CylinderGeometry(SZ.DOCKING_RING_R, SZ.ORBITAL_R, 0.35, 24, 1, false);
+  const dockBase = new THREE.Mesh(dockBaseGeo, matOrbital);
+  dockBase.rotation.z = Math.PI / 2;
+  dockBase.position.x = 0;
+  dockingGroup.add(dockBase);
+
+  // 对接环面（扁环，这是与被动端接触的面）
+  const dockFaceGeo = new THREE.TorusGeometry(SZ.DOCKING_RING_R, SZ.DOCKING_RING_TUBE, 16, 48);
+  const dockFace = new THREE.Mesh(dockFaceGeo, matDockingRing);
+  dockFace.position.x = 0.35;
+  dockFace.name = 'dockFace';
+  dockingGroup.add(dockFace);
+
+  // 对接环外侧加强筋（6组均布）
+  for (let ri = 0; ri < 6; ri++) {
+    const rAngle = (ri / 6) * Math.PI * 2;
+    const ribGeo = new THREE.BoxGeometry(0.08, 0.04, SZ.DOCKING_RING_TUBE * 1.5);
+    const rib = new THREE.Mesh(ribGeo, matDockingRing);
+    rib.position.set(0.35, Math.cos(rAngle) * (SZ.DOCKING_RING_R + 0.06), Math.sin(rAngle) * (SZ.DOCKING_RING_R + 0.06));
+    rib.rotation.z = -rAngle;
+    dockingGroup.add(rib);
+  }
+
+  // 中央人孔通道（直径~800mm，对接后航天员通过的隧道）
+  const hatchR = 0.40;
+  const hatchGeo = new THREE.CylinderGeometry(hatchR, hatchR, 0.5, 20, 1, true);
+  const hatch = new THREE.Mesh(hatchGeo, new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.3, metalness: 0.6, side: THREE.DoubleSide }));
+  hatch.rotation.z = Math.PI / 2;
+  hatch.position.x = 0.30;
+  dockingGroup.add(hatch);
+  // 人孔内环
+  const hatchRingGeo = new THREE.TorusGeometry(hatchR, 0.04, 10, 28);
+  const hatchRing = new THREE.Mesh(hatchRingGeo, matDockingRing);
+  hatchRing.position.x = 0.55;
+  dockingGroup.add(hatchRing);
+
+  // 3片内翻式导向板（120°均布，弧形板+锁舌）
+  const petalHingeR = SZ.DOCKING_RING_R + 0.04; // 铰链安装半径
+  for (let i = 0; i < SZ.PETAL_COUNT; i++) {
+    const angle = (i / SZ.PETAL_COUNT) * Math.PI * 2 - Math.PI / 6; // 起始偏转30°
+    const petalGroup = new THREE.Group();
+    petalGroup.name = `petal_${i}`;
+
+    // 导向板主体 — 弧形板(从对接环向前伸出，略微外扩)
+    const petalLen = 0.65;
+    const petalWidth = 0.35; // 弧宽
+    const petalShape = new THREE.Shape();
+    petalShape.moveTo(0, -petalWidth / 2);
+    petalShape.lineTo(petalLen, -petalWidth / 2 + 0.06);
+    petalShape.lineTo(petalLen, petalWidth / 2 - 0.06);
+    petalShape.lineTo(0, petalWidth / 2);
+    petalShape.closePath();
+    const petalExtrudeSettings = { steps: 1, depth: 0.06, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3 };
+    const petalGeo = new THREE.ExtrudeGeometry(petalShape, petalExtrudeSettings);
+    const petalMesh = new THREE.Mesh(petalGeo, matPetal);
+    petalMesh.position.set(-0.02, 0, SZ.DOCKING_RING_R * 0.93);
+    petalGroup.add(petalMesh);
+
+    // 锁舌（导向板前端内翻小钩）
+    const latchGeo = new THREE.BoxGeometry(0.12, 0.08, 0.10);
+    const latchMat = new THREE.MeshStandardMaterial({ color: 0xdd7730, roughness: 0.2, metalness: 0.6, emissive: 0x331100, emissiveIntensity: 0.15 });
+    const latch = new THREE.Mesh(latchGeo, latchMat);
+    latch.position.set(petalLen + 0.02, 0, SZ.DOCKING_RING_R * 0.82);
+    latch.name = 'latch';
+    petalGroup.add(latch);
+
+    // 铰链座（导向板根部）
+    const hingeGeo = new THREE.CylinderGeometry(0.05, 0.05, petalWidth * 0.7, 8);
+    const hinge = new THREE.Mesh(hingeGeo, matDockingRing);
+    hinge.rotation.x = Math.PI / 2;
+    hinge.position.set(0, 0, petalHingeR);
+    petalGroup.add(hinge);
+
+    petalGroup.rotation.z = angle;
+    petalGroup.position.x = 0.30;
+    petalGroup.userData = { baseAngle: angle, openOffset: SZ.DOCKING_RING_R * 0.93, closedOffset: SZ.DOCKING_RING_R * 0.40 };
+    dockingGroup.add(petalGroup);
+  }
+
+  // 导向板根部环（装饰/保护环）
+  const guardRingGeo = new THREE.TorusGeometry(SZ.DOCKING_RING_R + 0.02, 0.04, 8, 40);
+  const guardRing = new THREE.Mesh(guardRingGeo, matDockingRing);
+  guardRing.position.x = 0.28;
+  dockingGroup.add(guardRing);
+
+  ship.add(dockingGroup);
+
+  // ── 返回舱 (x=0 ~ -2.5, 钟形）──
+  const reentryGroup = new THREE.Group();
+  const lathePoints = [];
+  const latheSegs = 48;
+  for (let i = 0; i <= latheSegs; i++) {
+    const t = i / latheSegs;
+    const y = -SZ.REENTRY_L / 2 + t * SZ.REENTRY_L;
+    let r;
+    if (t < 0.08) {
+      // 前端窄口，半径匹配轨道舱 (1.125)
+      r = SZ.ORBITAL_R * 0.95 + t * (SZ.REENTRY_R_TOP - SZ.ORBITAL_R * 0.95) / 0.08;
+    } else if (t < 0.3) {
+      // 膨胀到最大半径
+      r = SZ.REENTRY_R_TOP + (t - 0.08) * (SZ.REENTRY_R_BOT - SZ.REENTRY_R_TOP) * 0.3 / 0.22;
+    } else if (t < 0.65) {
+      // 钟形主体
+      const curve = Math.sin((t - 0.3) / 0.35 * Math.PI);
+      r = SZ.REENTRY_R_TOP + curve * (SZ.REENTRY_R_BOT - SZ.REENTRY_R_TOP) * 0.8;
+    } else {
+      // 后端收缩，匹配推进舱过渡段
+      r = SZ.REENTRY_R_BOT * (1 - (t - 0.65) / 0.35);
+      r = Math.max(r, SZ.PROPULSION_R * 0.75);
+    }
+    lathePoints.push(new THREE.Vector2(Math.max(r, 0.25), y));
+  }
+  const reentryGeo = new THREE.LatheGeometry(lathePoints, 32);
+  const reentry = new THREE.Mesh(reentryGeo, matReentry);
+  reentry.castShadow = true;
+  reentryGroup.add(reentry);
+
+  // 隔热罩环（返回舱后端）
+  const heatShieldGeo = new THREE.TorusGeometry(SZ.PROPULSION_R * 0.82, 0.1, 12, 32);
+  const heatShield = new THREE.Mesh(heatShieldGeo, matReentryDark);
+  heatShield.position.set(0, SZ.REENTRY_L / 2, 0);
+  reentryGroup.add(heatShield);
+
+  // 旋转使钟形沿X轴，-Y(local)→+X(world)
+  // 窄口(t=0, local Y=-1.25)→world X=center+1.25
+  // 宽口(t=1, local Y=+1.25)→world X=center-1.25
+  // 窄口应对齐ORB_REAR=0: center+1.25=0 → center=-1.25
+  // 宽口应对齐REENTRY_REAR=-2.5: center-1.25=-2.5 → center=-1.25 ✓
+  reentryGroup.rotation.z = -Math.PI / 2;
+  reentryGroup.position.x = -SZ.REENTRY_L / 2;
+  ship.add(reentryGroup);
+
+  // ── 推进舱 (x=-2.5 ~ -5.8) ──
+  const PROP_FRONT = REENTRY_REAR;  // -2.5
+  const propulsionGeo = new THREE.CylinderGeometry(SZ.PROPULSION_R, SZ.PROPULSION_R, SZ.PROPULSION_L, 28, 1, false);
+  const propulsion = new THREE.Mesh(propulsionGeo, matPropulsion);
+  propulsion.rotation.z = Math.PI / 2;
+  propulsion.position.x = PROP_FRONT - SZ.PROPULSION_L / 2;  // center=-4.0, spans -2.5→-5.5
+  propulsion.castShadow = true;
+  ship.add(propulsion);
+
+  // 返回舱→推进舱过渡锥段
+  const midTaperGeo = new THREE.CylinderGeometry(SZ.PROPULSION_R, SZ.PROPULSION_R * 0.85, 0.45, 24, 1, false);
+  const midTaper = new THREE.Mesh(midTaperGeo, matPropulsion);
+  midTaper.rotation.z = Math.PI / 2;
+  midTaper.position.x = PROP_FRONT;  // 紧贴推进舱前端
+  midTaper.castShadow = true;
+  ship.add(midTaper);
+
+  // 推进舱→发动机过渡锥段
+  const rearTaperGeo = new THREE.CylinderGeometry(0.9, SZ.PROPULSION_R, 0.9, 24, 1, false);
+  const rearTaper = new THREE.Mesh(rearTaperGeo, matPropulsion);
+  rearTaper.rotation.z = Math.PI / 2;
+  rearTaper.position.x = PROP_REAR + 0.3;
+  rearTaper.castShadow = true;
+  ship.add(rearTaper);
+
+  // 中心主发动机喷口
+  const mainNozzleGeo = new THREE.CylinderGeometry(0.25, 0.55, 1.0, 16);
+  const mainNozzle = new THREE.Mesh(mainNozzleGeo, matEngine);
+  mainNozzle.position.x = PROP_REAR + 0.5;
+  ship.add(mainNozzle);
+
+  // 姿控发动机喷口 ×4
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const nozzleGeo = new THREE.CylinderGeometry(0.12, 0.22, 0.4, 10);
+    const nozzle = new THREE.Mesh(nozzleGeo, matEngine);
+    nozzle.position.set(
+      PROP_REAR + 0.35,
+      Math.cos(angle) * 0.55,
+      Math.sin(angle) * 0.55
+    );
+    nozzle.castShadow = true;
+    ship.add(nozzle);
+  }
+
+  // ── 对接指示灯 ──
+  const indicatorGroup = new THREE.Group();
+  indicatorGroup.name = 'indicators';
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const dotGeo = new THREE.SphereGeometry(0.04, 8, 6);
+    const dot = new THREE.Mesh(dotGeo, new THREE.MeshStandardMaterial({ color: COLOR.INDICATOR_GREEN, roughness: 0.2, emissive: COLOR.INDICATOR_GREEN, emissiveIntensity: 0.7 }));
+    dot.position.set(DOCKING_FACE_X - 0.05, Math.cos(angle) * 0.55, Math.sin(angle) * 0.55);
+    dot.name = 'indicator_' + i;
+    indicatorGroup.add(dot);
+  }
+  ship.add(indicatorGroup);
+
+  // 对接环面偏移（用于定位飞船整体位置）
+  const DOCKING_FACE_OFFSET = DOCKING_FACE_X;
+  ship.userData.dockingFaceOffset = DOCKING_FACE_OFFSET;
+
+  // 初始位置（对接环面在V-bar正前方100m处）
+  ship.position.set(TG.PORT_FORWARD_X + DOCKING.START_DISTANCE - DOCKING_FACE_OFFSET, 0, 0);
+  ship.userData.dockingGroup = dockingGroup;
+  ship.userData.indicatorGroup = indicatorGroup;
+
+  // 收集所有材质引用（用于对接完成后虚化）
+  const allMats = new Set();
+  ship.traverse(child => {
+    if (child.isMesh && child.material && !child.material.isShaderMaterial) {
+      allMats.add(child.material);
+    }
+  });
+  ship.userData.allMaterials = [...allMats];
+  // 记录原始opacity（部分材质可能已有transparent设置）
+  ship.userData.allMaterials.forEach(m => {
+    m.userData = m.userData || {};
+    m.userData._origOpacity = m.opacity !== undefined ? m.opacity : 1.0;
+    m.userData._origTransparent = m.transparent || false;
+    m.userData._origDepthWrite = m.depthWrite !== undefined ? m.depthWrite : true;
+  });
+
+  scene.add(ship);
+  return ship;
+}
+const shenzhou = createShenzhou();
+const SHENZHOU_DOCKING_FACE = 3.15;  // DOCKING_FACE_X — 对接环面(主动端接触面)
+
+// ==================== RCS推进器粒子 ====================
+function createRCSParticles() {
+  const count = 80;
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = 0;
+    positions[i * 3 + 1] = 0;
+    positions[i * 3 + 2] = 0;
+    sizes[i] = 0;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  const mat = new THREE.PointsMaterial({
+    color: 0x88bbff,
+    size: 0.15,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.7,
+    sizeAttenuation: true,
+  });
+  const particles = new THREE.Points(geo, mat);
+  particles.name = 'rcs';
+  particles.visible = false;
+  scene.add(particles);
+  return { particles, positions, sizes };
+}
+const rcs = createRCSParticles();
+
+// ==================== 灯光指示器 ====================
+const indicatorLights = [];
+for (let i = 0; i < 3; i++) {
+  const light = new THREE.PointLight(COLOR.INDICATOR_GREEN, 0, 8);
+  light.position.set(0, 0, 0);
+  scene.add(light);
+  indicatorLights.push(light);
+}
+
+// ==================== 对接密封视觉特效 ====================
+const dockingSeal = new THREE.Group();
+dockingSeal.name = 'dockingSeal';
+dockingSeal.visible = false;
+
+// 密封光环（3层同心渐变环）
+const sealRingMats = [];
+for (let layer = 0; layer < 3; layer++) {
+  const radius = 0.88 + layer * 0.06;
+  const tube = 0.03 + layer * 0.02;
+  const opacity = 0.9 - layer * 0.25;
+  const ringGeo = new THREE.TorusGeometry(radius, tube, 16, 64);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: layer === 0 ? 0x44ff88 : layer === 1 ? 0x88ffbb : 0xaaffdd,
+    transparent: true,
+    opacity: opacity,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  sealRingMats.push(ringMat);
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  dockingSeal.add(ring);
+}
+
+// 密封粒子环（24个小光点绕对接面旋转）
+const sealParticleCount = 24;
+const sealParticleGeo = new THREE.BufferGeometry();
+const sealParticlePositions = new Float32Array(sealParticleCount * 3);
+const sealParticleSizes = new Float32Array(sealParticleCount);
+for (let i = 0; i < sealParticleCount; i++) {
+  const angle = (i / sealParticleCount) * Math.PI * 2;
+  const r = 0.90;
+  sealParticlePositions[i * 3] = 0;
+  sealParticlePositions[i * 3 + 1] = Math.cos(angle) * r;
+  sealParticlePositions[i * 3 + 2] = Math.sin(angle) * r;
+  sealParticleSizes[i] = 0.6 + Math.random() * 0.8;
+}
+sealParticleGeo.setAttribute('position', new THREE.BufferAttribute(sealParticlePositions, 3));
+sealParticleGeo.setAttribute('size', new THREE.BufferAttribute(sealParticleSizes, 1));
+const sealParticleMat = new THREE.PointsMaterial({
+  color: 0x66ffaa,
+  size: 0.12,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+  transparent: true,
+  opacity: 0.8,
+  sizeAttenuation: true,
+});
+const sealParticles = new THREE.Points(sealParticleGeo, sealParticleMat);
+sealParticles.name = 'sealParticles';
+dockingSeal.add(sealParticles);
+
+// 中心对接完成光斑
+const sealGlowGeo = new THREE.SphereGeometry(0.25, 16, 16);
+const sealGlowMat = new THREE.MeshBasicMaterial({
+  color: 0x44ff88,
+  transparent: true,
+  opacity: 0.35,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending,
+});
+const sealGlow = new THREE.Mesh(sealGlowGeo, sealGlowMat);
+sealGlow.name = 'sealGlow';
+dockingSeal.add(sealGlow);
+
+dockingSeal.position.set(TG.PORT_FORWARD_X, 0, 0);
+scene.add(dockingSeal);
+
+let sealAnimTime = 0;
+let sealVisible = false;
+let sealAlpha = 0;
+
+// ==================== HUD DOM 引用 ====================
+const hudDist = document.getElementById('val-dist');
+const hudVel = document.getElementById('val-vel');
+const hudPhase = document.getElementById('val-phase');
+const hudBadge = document.getElementById('phase-badge');
+const hudAtt = document.getElementById('val-att');
+
+// ==================== 对接状态机 ====================
+const clock = new THREE.Clock();
+let cycleTime = 0;         // 当前循环时间
+let approachDistance = DOCKING.START_DISTANCE;
+let currentVelocity = 0;
+let dockingPhase = 'approach';  // 'approach' | 'final' | 'contact' | 'locking' | 'docked' | 'reset'
+let lockingProgress = 0;   // 0→1 锁紧进度
+let dockedEntryTime = 0;   // 进入docked阶段的cycleTime，用于计时展示
+let guidePetalsClosed = false;
+
+function getTargetVelocity(dist) {
+  if (dist > 30) {
+    return DOCKING.V_AT_30M + (DOCKING.V_AT_100M - DOCKING.V_AT_30M) * (dist - 30) / (DOCKING.START_DISTANCE - 30);
+  } else if (dist > 5) {
+    return DOCKING.V_AT_5M + (DOCKING.V_AT_30M - DOCKING.V_AT_5M) * (dist - 5) / 25;
+  } else if (dist > DOCKING.CONTACT_DISTANCE) {
+    return DOCKING.V_AT_CONTACT + (DOCKING.V_AT_5M - DOCKING.V_AT_CONTACT) * (dist - DOCKING.CONTACT_DISTANCE) / (5 - DOCKING.CONTACT_DISTANCE);
+  } else {
+    return 0;
+  }
+}
+
+// 计算神舟对接面与天和前向端口之间的实际世界空间间隙
+function getActualGap() {
+  // 神舟对接环面世界坐标
+  const shipDockFaceWorld = shenzhou.position.x + SHENZHOU_DOCKING_FACE;
+  // 天和前向端口世界坐标（当前tiangong在原点）
+  const portFaceWorld = TG.PORT_FORWARD_X;
+  return shipDockFaceWorld - portFaceWorld;
+}
+
+// 根据世界空间间隙钳制神舟位置，禁止穿模
+function clampShipPosition() {
+  const gap = getActualGap();
+  if (gap < DOCKING.MIN_SAFE_GAP) {
+    // 硬钳制：将飞船推回到安全距离
+    shenzhou.position.x = TG.PORT_FORWARD_X + DOCKING.MIN_SAFE_GAP - SHENZHOU_DOCKING_FACE;
+    return true; // 表示发生了钳制
+  }
+  return false;
+}
+
+function resetDocking() {
+  approachDistance = DOCKING.START_DISTANCE;
+  currentVelocity = 0;
+  dockingPhase = 'approach';
+  lockingProgress = 0;
+  guidePetalsClosed = false;
+  cycleTime = 0;
+  setShenzhouGhost(false);
+
+  // 解除对接绑定，恢复独立运动
+  if (shenzhou.parent === tiangong) {
+    scene.attach(shenzhou);
+  }
+
+  // 恢复神舟位置
+  shenzhou.position.x = TG.PORT_FORWARD_X + DOCKING.START_DISTANCE - SHENZHOU_DOCKING_FACE;
+  shenzhou.rotation.set(0, 0, 0);
+  shenzhou.userData.dockingGroup.position.x = 2.80;
+
+  // 恢复导向板展开
+  togglePetals(false);
+
+  // 恢复指示灯绿色
+  updateIndicatorLights('green');
+}
+
+function updateHUD(dist, vel, phase, lockProg) {
+  hudDist.textContent = dist > 1 ? dist.toFixed(1) + ' m' : (dist * 100).toFixed(1) + ' cm';
+  hudDist.className = 'value highlight';
+  if (dist < 5) hudDist.className = 'value warn';
+
+  hudVel.textContent = vel.toFixed(3) + ' m/s';
+  hudVel.className = 'value';
+  if (vel < 0.02 && vel > 0) hudVel.className = 'value warn';
+
+  const phaseTexts = {
+    'approach': '远程接近段',
+    'final': '近程逼近段',
+    'contact': '软对接接触',
+    'locking': '锁紧密封中',
+    'docked': '对接完成',
+    'reset': '复位中',
+  };
+  hudPhase.textContent = phaseTexts[phase] || phase;
+
+  // 阶段徽章
+  hudBadge.textContent = '▸ ' + (phaseTexts[phase] || phase);
+  hudBadge.className = 'phase-indicator';
+  if (phase === 'approach') hudBadge.classList.add('approach');
+  else if (phase === 'final' || phase === 'contact') hudBadge.classList.add('final');
+  else if (phase === 'locking') hudBadge.classList.add('docking');
+  else if (phase === 'docked') hudBadge.classList.add('success');
+
+  hudAtt.textContent = 'Δ' + (Math.sin(cycleTime * 2.5) * 0.03).toFixed(2) + '°';
+}
+
+function togglePetals(closed) {
+  shenzhou.userData.dockingGroup.children.forEach(child => {
+    if (child.name && child.name.startsWith('petal_')) {
+      const targetRotY = closed ? -0.65 : 0.0;
+      const targetZ = closed ? SZ.DOCKING_RING_R * 0.35 : SZ.DOCKING_RING_R * 0.93;
+      // Animate the main plate (first child with ExtrudeGeometry)
+      child.children.forEach(c => {
+        if (c.isMesh && c.geometry.type === 'ExtrudeGeometry') {
+          c.rotation.y = targetRotY;
+        }
+        if (c.isMesh && c.name === 'latch') {
+          c.position.z = closed ? SZ.DOCKING_RING_R * 0.25 : SZ.DOCKING_RING_R * 0.82;
+        }
+      });
+      // Also update the hinge position
+      child.children.forEach(c => {
+        if (c.isMesh && c.geometry.type === 'CylinderGeometry' && !c.name) {
+          c.position.z = closed ? SZ.DOCKING_RING_R * 0.20 : SZ.DOCKING_RING_R + 0.04;
+        }
+      });
+    }
+  });
+  guidePetalsClosed = closed;
+}
+
+// Gradual petal folding during locking
+function updatePetalFold(progress) {
+  shenzhou.userData.dockingGroup.children.forEach(child => {
+    if (child.name && child.name.startsWith('petal_')) {
+      const rotY = -0.65 * progress;
+      const zOffset = SZ.DOCKING_RING_R * 0.93 - progress * (SZ.DOCKING_RING_R * 0.93 - SZ.DOCKING_RING_R * 0.35);
+      child.children.forEach(c => {
+        if (c.isMesh && c.geometry.type === 'ExtrudeGeometry') {
+          c.rotation.y = rotY;
+        }
+        if (c.isMesh && c.name === 'latch') {
+          c.position.z = SZ.DOCKING_RING_R * 0.82 - progress * (SZ.DOCKING_RING_R * 0.82 - SZ.DOCKING_RING_R * 0.25);
+        }
+      });
+      child.children.forEach(c => {
+        if (c.isMesh && c.geometry.type === 'CylinderGeometry' && !c.name) {
+          c.position.z = SZ.DOCKING_RING_R + 0.04 - progress * (SZ.DOCKING_RING_R + 0.04 - SZ.DOCKING_RING_R * 0.20);
+        }
+      });
+    }
+  });
+}
+
+let shenzhouGhosted = false;
+function setShenzhouGhost(ghost, alpha = 0.35) {
+  if (ghost === shenzhouGhosted) return;
+  shenzhouGhosted = ghost;
+  shenzhou.userData.allMaterials.forEach(m => {
+    if (ghost) {
+      m.transparent = true;
+      m.opacity = alpha;
+      m.depthWrite = false;
+      m.needsUpdate = true;
+    } else {
+      m.transparent = m.userData._origTransparent;
+      m.opacity = m.userData._origOpacity;
+      m.depthWrite = m.userData._origDepthWrite;
+      m.needsUpdate = true;
+    }
+  });
+}
+
+function updateIndicatorLights(color) {
+  const colorHex = color === 'green' ? COLOR.INDICATOR_GREEN : color === 'yellow' ? 0xffaa00 : COLOR.INDICATOR_RED;
+  shenzhou.userData.indicatorGroup.children.forEach(dot => {
+    dot.material.color.setHex(colorHex);
+    dot.material.emissive.setHex(colorHex);
+  });
+  indicatorLights.forEach(l => { l.color.setHex(colorHex); });
+}
+
+function updateDocking(dt) {
+  cycleTime += dt;
+
+  // ── 状态转换 ──
+  if (dockingPhase === 'approach' && approachDistance <= 30) {
+    dockingPhase = 'final';
+  }
+  if (dockingPhase === 'final' && approachDistance <= 5) {
+    dockingPhase = 'contact';
+  }
+  if (dockingPhase === 'contact' && approachDistance <= DOCKING.CONTACT_DISTANCE + 0.01) {
+    dockingPhase = 'locking';
+    lockingProgress = 0;
+    approachDistance = DOCKING.CONTACT_DISTANCE;
+  }
+  if (dockingPhase === 'locking') {
+    lockingProgress += dt / DOCKING.TIME_LOCKING;
+    if (lockingProgress >= 1.0) {
+      lockingProgress = 1.0;
+      dockingPhase = 'docked';
+      dockedEntryTime = cycleTime;
+      approachDistance = DOCKING.DOCKED_DISTANCE;
+      togglePetals(true);
+      // 对接完成 → 神舟绑定为核心舱子对象，两者联动
+      tiangong.attach(shenzhou);
+    }
+  }
+  // docked → 保持展示 → reset
+  if (dockingPhase === 'docked') {
+    if (cycleTime - dockedEntryTime > DOCKING.TIME_HOLD) {
+      dockingPhase = 'reset';
+      resetDocking();
+    }
+  }
+
+  // ── 运动更新 ──
+  if (dockingPhase === 'approach' || dockingPhase === 'final' || dockingPhase === 'contact') {
+    currentVelocity = getTargetVelocity(approachDistance);
+    approachDistance -= currentVelocity * dt;
+    if (approachDistance < DOCKING.CONTACT_DISTANCE && dockingPhase === 'contact') {
+      approachDistance = DOCKING.CONTACT_DISTANCE;
+    }
+    // 安全钳制：距离不得小于对接完成距离
+    if (approachDistance < DOCKING.DOCKED_DISTANCE) {
+      approachDistance = DOCKING.DOCKED_DISTANCE;
+    }
+  } else if (dockingPhase === 'locking') {
+    currentVelocity = 0;
+    approachDistance = Math.max(DOCKING.DOCKED_DISTANCE, DOCKING.CONTACT_DISTANCE * (1 - lockingProgress));
+  } else if (dockingPhase === 'docked') {
+    currentVelocity = 0;
+    approachDistance = DOCKING.DOCKED_DISTANCE;
+  } else if (dockingPhase === 'reset') {
+    currentVelocity = 0;
+    approachDistance = DOCKING.START_DISTANCE;
+    dockingPhase = 'approach';
+  }
+
+  // ── 神舟位置更新（补偿对接环在飞船局部坐标中的偏移）──
+  // 先按运动学公式计算目标位置，再经世界空间间隙钳制防止穿模
+  const targetShipX = TG.PORT_FORWARD_X + approachDistance - SHENZHOU_DOCKING_FACE;
+  shenzhou.position.x = targetShipX;
+  // 若已对接绑定，跳过钳制（位置由父对象管理）
+  if (dockingPhase !== 'docked') {
+    const clamped = clampShipPosition();
+    if (clamped && dockingPhase !== 'locking') {
+      // 被钳制说明运动学距离已突破安全线，强制同步
+      approachDistance = DOCKING.MIN_SAFE_GAP;
+      currentVelocity = 0;
+    }
+  }
+
+  // ── 对接机构动画（锁紧阶段：导向板逐步内翻扣住被动环）──
+  if (dockingPhase === 'locking') {
+    updatePetalFold(lockingProgress);
+    updateIndicatorLights('yellow');
+    setShenzhouGhost(false);
+    // 密封光环渐显
+    sealVisible = true;
+    sealAlpha = lockingProgress;
+  } else if (dockingPhase === 'docked') {
+    shenzhou.userData.dockingGroup.position.x = 2.80;
+    updateIndicatorLights('green');
+    setShenzhouGhost(true, 0.30);
+    // 密封光环保持可见 + 脉冲
+    sealVisible = true;
+    sealAlpha = 1.0;
+    sealAnimTime += dt;
+  } else if (dockingPhase === 'contact') {
+    updateIndicatorLights('yellow');
+    setShenzhouGhost(false);
+    sealVisible = false;
+    sealAlpha = 0;
+  } else {
+    updateIndicatorLights('green');
+    shenzhou.userData.dockingGroup.position.x = 2.80;
+    setShenzhouGhost(false);
+    sealVisible = false;
+    sealAlpha = 0;
+  }
+
+  // ── RCS粒子（近程段偶尔喷射）──
+  if ((dockingPhase === 'final' || dockingPhase === 'contact') && Math.random() < 0.3) {
+    triggerRCS(approachDistance);
+  }
+
+  // ── 飞船姿态微调（模拟姿控）──
+  if (dockingPhase !== 'docked' && dockingPhase !== 'reset') {
+    const attJitter = Math.sin(cycleTime * 3.7) * 0.015;
+    shenzhou.rotation.y = attJitter;
+    shenzhou.rotation.z = Math.cos(cycleTime * 2.9) * 0.01;
+  } else {
+    shenzhou.rotation.y += (0 - shenzhou.rotation.y) * 0.2;
+    shenzhou.rotation.z += (0 - shenzhou.rotation.z) * 0.2;
+  }
+
+  // ── 更新HUD ──
+  updateHUD(approachDistance, currentVelocity, dockingPhase, lockingProgress);
+}
+
+function triggerRCS(dist) {
+  const arr = rcs.positions;
+  const sizes = rcs.sizes;
+  const count = arr.length / 3;
+  const numActive = Math.floor(5 + Math.random() * 10);
+
+  for (let i = 0; i < count; i++) {
+    if (i < numActive) {
+      // 从神舟尾部喷出（推进舱末端）
+      const shipRear = shenzhou.position.x + SZ.ORBITAL_L + SZ.REENTRY_L + SZ.PROPULSION_L + 2.0;
+      const spreadY = (Math.random() - 0.5) * 0.8;
+      const spreadZ = (Math.random() - 0.5) * 0.8;
+      arr[i * 3] = shipRear + (Math.random() - 0.5) * 1.5;
+      arr[i * 3 + 1] = shenzhou.position.y + spreadY;
+      arr[i * 3 + 2] = shenzhou.position.z + spreadZ;
+      sizes[i] = 0.05 + Math.random() * 0.3;
+    } else {
+      arr[i * 3] = 0;
+      arr[i * 3 + 1] = 0;
+      arr[i * 3 + 2] = 0;
+      sizes[i] = 0;
+    }
+  }
+  rcs.particles.geometry.attributes.position.needsUpdate = true;
+  rcs.particles.geometry.attributes.size.needsUpdate = true;
+  rcs.particles.visible = true;
+
+  // 自动消退
+  setTimeout(() => {
+    for (let i = 0; i < rcs.sizes.length; i++) rcs.sizes[i] *= 0.85;
+    rcs.particles.geometry.attributes.size.needsUpdate = true;
+    if (dockingPhase === 'docked' || dockingPhase === 'approach') {
+      rcs.particles.visible = false;
+    }
+  }, 150);
+}
+
+// ==================== 动画循环 ====================
+let paused = false;
+function animate(timestamp) {
+  requestAnimationFrame(animate);
+
+  const rawDt = Math.min(clock.getDelta(), 0.05);
+  const dt = paused ? 0 : rawDt;
+
+  controls.update();
+  updateDocking(dt * DOCKING.TIME_SCALE);
+
+  // 更新大气层shader中的相机位置
+  if (earthRefs.atmoMat) {
+    earthRefs.atmoMat.uniforms.uCameraPos.value.copy(camera.position);
+  }
+  if (earthRefs.outerAtmoMat) {
+    earthRefs.outerAtmoMat.uniforms.uCameraPos.value.copy(camera.position);
+  }
+
+  // 更新指示灯位置（跟随神舟）
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const worldPos = new THREE.Vector3(
+      SZ.ORBITAL_L + 0.25,
+      Math.cos(angle) * 0.65,
+      Math.sin(angle) * 0.65
+    );
+    shenzhou.localToWorld(worldPos);
+    indicatorLights[i].position.copy(worldPos);
+    // 接近时增强亮度；对接完成时脉冲
+    let intensity;
+    if (dockingPhase === 'docked') {
+      intensity = 1.0 + Math.sin(sealAnimTime * 3.0) * 0.5;
+    } else if (approachDistance < 10) {
+      intensity = 0.8 * (1 - approachDistance / 10) + 0.1;
+    } else {
+      intensity = 0.1;
+    }
+    indicatorLights[i].intensity = intensity;
+  }
+
+  // ── 更新对接密封特效 ──
+  if (sealVisible && sealAlpha > 0.01) {
+    dockingSeal.visible = true;
+    const pulse = dockingPhase === 'docked' ? 1.0 + Math.sin(sealAnimTime * 2.5) * 0.2 : 1.0;
+    const alpha = sealAlpha * pulse;
+    sealRingMats.forEach((mat, idx) => {
+      mat.opacity = (0.9 - idx * 0.25) * alpha;
+    });
+    sealGlowMat.opacity = 0.35 * alpha;
+    sealGlow.scale.setScalar(1.0 + Math.sin(sealAnimTime * 3.0) * 0.15);
+    sealParticleMat.opacity = 0.8 * alpha;
+    // 粒子旋转
+    sealParticles.rotation.x += 0.02;
+    // 更新粒子大小
+    const sizes = sealParticles.geometry.attributes.size.array;
+    for (let i = 0; i < sizes.length; i++) {
+      sizes[i] = (0.6 + Math.sin(sealAnimTime * 5.0 + i * 0.5) * 0.3) * alpha;
+    }
+    sealParticles.geometry.attributes.size.needsUpdate = true;
+  } else {
+    dockingSeal.visible = false;
+  }
+
+  composer.render();
+}
+
+// ==================== 响应式处理 ====================
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ==================== 键盘操作 ====================
+window.addEventListener('keydown', (e) => {
+  switch (e.key.toLowerCase()) {
+    case 'r':
+      resetDocking();
+      break;
+    case 'f':
+      // 前向对接口特写视角
+      controls.target.set(TG.PORT_FORWARD_X - 1, 0, 0);
+      camera.position.set(TG.PORT_FORWARD_X + 8, 2, 5);
+      controls.update();
+      break;
+    case 'o':
+      // 全景视角
+      controls.target.set(TG.PORT_FORWARD_X - 3, 0, 0);
+      camera.position.set(45, 22, 55);
+      controls.update();
+      break;
+    case ' ':
+    case 'p':
+      // 暂停 / 播放
+      e.preventDefault();
+      paused = !paused;
+      console.log(paused ? '⏸ 动画暂停' : '▶ 动画播放');
+      if (!paused) clock.getDelta(); // 消耗累积的时间差
+      break;
+  }
+});
+
+// ==================== 启动 ====================
+console.log('🚀 天宫空间站 · 神舟飞船交会对接演示');
+console.log('  视角控制：鼠标拖拽旋转 | 滚轮缩放 | 右键平移');
+console.log('  快捷键：R=重置对接 | F=对接口特写 | O=全景视角 | 空格/P=暂停');
+console.log('  轨道参数：高度393.1km | 速度7.67km/s | 周期92.2min');
+console.log('  对接模式：自主快速交会对接 V-bar approach');
+
+// 开始渲染
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>

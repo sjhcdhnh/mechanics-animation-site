@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>平面串联四连杆机器人 · 运动学演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #0a0a14;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 1px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 6px #000;
+    white-space: nowrap;
+  }
+  #subtitle {
+    position: absolute; top: 38px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none;
+    white-space: nowrap;
+  }
+  .panel {
+    position: absolute;
+    background: rgba(20, 22, 38, 0.78);
+    border: 1px solid #2a2f4a;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+  }
+  #hud {
+    top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 230px;
+    font-size: 13px; line-height: 1.85;
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #hud .mode-tag {
+    display: inline-block; padding: 1px 8px; margin-left: 4px;
+    border-radius: 3px; font-size: 11px;
+    background: #4ecdc4; color: #0a0a14; font-weight: 600;
+  }
+
+  #params {
+    top: 12px; right: 12px;
+    padding: 12px 14px; width: 280px;
+    font-size: 12px; line-height: 1.55;
+    max-height: calc(100vh - 30px); overflow-y: auto;
+  }
+  #params b { color: #f5e0dc; font-weight: 600; }
+  .mode-btns { display: flex; gap: 4px; margin: 6px 0 10px; }
+  .mode-btns button {
+    flex: 1;
+    padding: 5px 0; font-size: 11px;
+    background: #1c1f33; color: #8b95b8;
+    border: 1px solid #2a2f4a; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .mode-btns button:hover { background: #262a44; color: #cdd6f4; }
+  .mode-btns button.active {
+    background: #4ecdc4; color: #0a0a14; border-color: #4ecdc4;
+    font-weight: 600;
+  }
+  .ctrl-group { margin: 8px 0; padding-top: 6px; border-top: 1px dashed #2a2f4a; }
+  .ctrl-group:first-of-type { border-top: none; padding-top: 0; }
+  .ctrl-row {
+    display: flex; align-items: center; gap: 6px;
+    margin: 3px 0;
+  }
+  .ctrl-row label {
+    width: 56px; font-size: 11px; color: #a8b1cc;
+    font-family: "Consolas", monospace;
+  }
+  .ctrl-row input[type=range] {
+    flex: 1; height: 4px;
+    accent-color: #4ecdc4;
+  }
+  .ctrl-row .val {
+    width: 56px; text-align: right; font-size: 11px;
+    color: #a6e3a1; font-family: "Consolas", monospace;
+  }
+  .ctrl-group.hidden { display: none; }
+  #demoBtn {
+    width: 100%; margin-top: 4px; padding: 6px 0;
+    background: #ff6b35; color: #0a0a14;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-weight: 600; font-size: 12px;
+  }
+  #demoBtn:hover { background: #ff8657; }
+
+  #legend {
+    bottom: 14px; left: 12px;
+    padding: 10px 14px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #legend b { color: #f5e0dc; font-weight: 600; }
+
+  #hint {
+    bottom: 14px; right: 12px;
+    padding: 8px 12px;
+    font-size: 11px; color: #8b95b8;
+    max-width: 300px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<div id="title">平面串联四连杆机器人 · 运动学演示</div>
+<div id="subtitle">4R Planar Serial Manipulator — 正/逆运动学</div>
+
+<!-- 左上：实时运动量 -->
+<div id="hud" class="panel">
+  <div><b>实时运动量</b><span id="modeTag" class="mode-tag">D</span></div>
+  <div>θ<sub>1</sub> : <span id="v_t1" class="v">—</span></div>
+  <div>θ<sub>2</sub> : <span id="v_t2" class="v">—</span></div>
+  <div>θ<sub>3</sub> : <span id="v_t3" class="v">—</span></div>
+  <div>θ<sub>4</sub> : <span id="v_t4" class="v">—</span></div>
+  <div>末端 E : <span id="v_E" class="v">—</span></div>
+  <div>|v<sub>E</sub>| : <span id="v_vE" class="v">—</span></div>
+  <div>误差 Δ : <span id="v_err" class="v">—</span></div>
+</div>
+
+<!-- 右上：模式 + 参数面板 -->
+<div id="params" class="panel">
+  <div><b>工作模式</b></div>
+  <div class="mode-btns">
+    <button data-mode="A">A 静态</button>
+    <button data-mode="B">B 转动</button>
+    <button data-mode="C">C 跟踪</button>
+    <button data-mode="D" class="active">D 演示</button>
+  </div>
+
+  <!-- 模式 A：关节角滑块 -->
+  <div id="grpA" class="ctrl-group hidden">
+    <div><b>关节角度（度）</b></div>
+    <div class="ctrl-row"><label>θ₁</label><input type="range" id="t1" min="-170" max="170" step="0.5" value="30"><span class="val" id="t1v">30°</span></div>
+    <div class="ctrl-row"><label>θ₂</label><input type="range" id="t2" min="-170" max="170" step="0.5" value="-40"><span class="val" id="t2v">-40°</span></div>
+    <div class="ctrl-row"><label>θ₃</label><input type="range" id="t3" min="-170" max="170" step="0.5" value="50"><span class="val" id="t3v">50°</span></div>
+    <div class="ctrl-row"><label>θ₄</label><input type="range" id="t4" min="-170" max="170" step="0.5" value="-30"><span class="val" id="t4v">-30°</span></div>
+  </div>
+
+  <!-- 模式 B：关节角速度滑块 -->
+  <div id="grpB" class="ctrl-group hidden">
+    <div><b>关节角速度（rad/s）</b></div>
+    <div class="ctrl-row"><label>ω₁</label><input type="range" id="w1" min="-3" max="3" step="0.05" value="0.5"><span class="val" id="w1v">0.50</span></div>
+    <div class="ctrl-row"><label>ω₂</label><input type="range" id="w2" min="-3" max="3" step="0.05" value="-0.7"><span class="val" id="w2v">-0.70</span></div>
+    <div class="ctrl-row"><label>ω₃</label><input type="range" id="w3" min="-3" max="3" step="0.05" value="1.1"><span class="val" id="w3v">1.10</span></div>
+    <div class="ctrl-row"><label>ω₄</label><input type="range" id="w4" min="-3" max="3" step="0.05" value="0"><span class="val" id="w4v">0.00</span></div>
+  </div>
+
+  <!-- 模式 C：末端目标点 -->
+  <div id="grpC" class="ctrl-group hidden">
+    <div><b>末端目标点（mm）</b></div>
+    <div class="ctrl-row"><label>x</label><input type="range" id="tx" min="-200" max="200" step="1" value="120"><span class="val" id="txv">120</span></div>
+    <div class="ctrl-row"><label>y</label><input type="range" id="ty" min="-200" max="200" step="1" value="60"><span class="val" id="tyv">60</span></div>
+    <div style="font-size:10px;color:#8b95b8;margin-top:2px">CCD 迭代 · 也可用 ← ↑ ↓ → 微调</div>
+  </div>
+
+  <!-- 模式 D：演示按钮 -->
+  <div id="grpD" class="ctrl-group">
+    <div><b>抓取-搬运演示</b></div>
+    <div style="font-size:10px;color:#8b95b8;margin:3px 0 6px">取料点 (100, 25) ↔ 放料点 (-100, 25)，顶部 (0, 140) 高弧跨越，周期 ≈ 8 s</div>
+    <button id="demoBtn">重新开始循环</button>
+  </div>
+
+  <!-- 通用：连杆长度 -->
+  <div class="ctrl-group">
+    <div><b>连杆长度（mm）</b></div>
+    <div class="ctrl-row"><label>L₁</label><input type="range" id="L1" min="20" max="100" step="1" value="60"><span class="val" id="L1v">60</span></div>
+    <div class="ctrl-row"><label>L₂</label><input type="range" id="L2" min="20" max="100" step="1" value="55"><span class="val" id="L2v">55</span></div>
+    <div class="ctrl-row"><label>L₃</label><input type="range" id="L3" min="20" max="100" step="1" value="45"><span class="val" id="L3v">45</span></div>
+    <div class="ctrl-row"><label>L₄</label><input type="range" id="L4" min="15" max="80"  step="1" value="35"><span class="val" id="L4v">35</span></div>
+  </div>
+</div>
+
+<!-- 左下：图例 -->
+<div id="legend" class="panel">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#6b7280"></span>基座 / 机架</div>
+  <div><span class="sw" style="background:#ff6b35"></span>连杆 L₁</div>
+  <div><span class="sw" style="background:#ffe66d"></span>连杆 L₂</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连杆 L₃</div>
+  <div><span class="sw" style="background:#a78bfa"></span>连杆 L₄</div>
+  <div><span class="sw" style="background:#cdd6f4"></span>末端夹爪</div>
+  <div><span class="sw" style="background:#f87171"></span>目标点 / 取放料</div>
+</div>
+
+<!-- 右下：操作提示 -->
+<div id="hint" class="panel">
+  鼠标左键：旋转视角　|　滚轮：缩放　|　右键：平移<br>
+  模式 C 下：← ↑ ↓ → 微调目标点（5 mm/键）
+</div>
+
+<!-- Three.js 通过 importmap 加载 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  色彩规范
+ * ============================================================ */
+const COLOR_BG    = 0x0a0a14;
+const COLOR_FRAME = 0x6b7280;
+const COLOR_LINK  = [0xff6b35, 0xffe66d, 0x4ecdc4, 0xa78bfa]; // L1..L4
+const COLOR_PIN   = 0xf5e0dc;
+const COLOR_GRIP  = 0xcdd6f4;
+const COLOR_TGT   = 0xf87171;
+const COLOR_TRAIL = 0x4ecdc4;
+
+/* ============================================================
+ *  全局状态
+ * ============================================================ */
+const state = {
+  mode: 'D',                                  // A/B/C/D
+  theta: [0.5, -0.7, 0.9, -0.4],              // 当前关节角 (rad)
+  omega: [0.5, -0.7, 1.1, 0.0],               // 模式 B 角速度 (rad/s)
+  L: [60, 55, 45, 35],                        // 连杆长度 (mm)
+  target: new THREE.Vector2(120, 60),         // 模式 C 目标
+  demoT: 0,                                   // 模式 D 时间
+  prevE: new THREE.Vector2(),                 // 上一帧末端，用于估速度
+  gripperOpen: 0.6,                           // 夹爪开度 0..1
+};
+
+/* ============================================================
+ *  场景 / 相机 / 渲染器
+ * ============================================================ */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COLOR_BG);
+scene.fog = new THREE.Fog(COLOR_BG, 600, 1800);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 1, 5000
+);
+camera.position.set(150, 220, 320);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ============================================================
+ *  OrbitControls
+ * ============================================================ */
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 80;
+controls.maxDistance = 1000;
+controls.update();
+
+/* ============================================================
+ *  灯光
+ * ============================================================ */
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.85);
+keyLight.position.set(200, 350, 400);
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0x88aaff, 0.35);
+fillLight.position.set(-200, -120, -200);
+scene.add(fillLight);
+
+/* ============================================================
+ *  网格地面 + 坐标轴
+ * ============================================================ */
+const grid = new THREE.GridHelper(400, 20, 0x303456, 0x202238);
+grid.position.y = -0.5;       // 略微下沉，避免和构件 z-fighting
+scene.add(grid);
+
+const axes = new THREE.AxesHelper(60);
+scene.add(axes);
+
+/* ============================================================
+ *  基座（机架）
+ * ============================================================ */
+const frameMat = new THREE.MeshStandardMaterial({
+  color: COLOR_FRAME, metalness: 0.4, roughness: 0.55
+});
+const baseDisk = new THREE.Mesh(
+  new THREE.CylinderGeometry(22, 26, 12, 28), frameMat
+);
+baseDisk.position.y = -6;
+scene.add(baseDisk);
+const baseHub = new THREE.Mesh(
+  new THREE.CylinderGeometry(11, 11, 14, 24), frameMat
+);
+baseHub.position.y = 6;
+scene.add(baseHub);
+
+/* ============================================================
+ *  机械臂层级：scene → joint1 → link1 → joint2 → link2 ...
+ *
+ *  说明：本演示在 XY 平面运动（绕 Z 轴旋转）。每个 joint Group
+ *  绕自身 Z 轴旋转 θ_i；其子 link 几何沿 +X 方向，长度 L_i。
+ *  下一关节 group 放在当前 link 末端（x = L_i），从而层级矩阵
+ *  自动完成正运动学，无需逐帧手算 P_k。
+ * ============================================================ */
+const joints   = [];   // 4 个 Group
+const linkMesh = [];   // 4 个长方体 mesh（用 onUpdate 缩放表示 L 变化）
+const jointHub = [];   // 4 个关节圆柱
+
+function makeLinkMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color, metalness: 0.45, roughness: 0.4
+  });
+}
+function makeHubMaterial(color) {
+  return new THREE.MeshStandardMaterial({
+    color, metalness: 0.55, roughness: 0.3,
+    emissive: color, emissiveIntensity: 0.08
+  });
+}
+
+let parent = scene;
+for (let i = 0; i < 4; i++) {
+  const g = new THREE.Group();
+  parent.add(g);
+  joints.push(g);
+
+  // 关节销轴（圆柱，轴沿 Z）
+  const hub = new THREE.Mesh(
+    new THREE.CylinderGeometry(7, 7, 16, 20),
+    makeHubMaterial(COLOR_LINK[i])
+  );
+  hub.rotation.x = Math.PI / 2;     // 默认沿 Y → 转到沿 Z
+  g.add(hub);
+  jointHub.push(hub);
+
+  // 连杆几何：单位长 1 沿 +X，构造时 BoxGeometry(1,8,8)，
+  // 通过 scale.x = L_i 控制实际长度，position.x = L_i/2 居中。
+  const link = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 8, 8),
+    makeLinkMaterial(COLOR_LINK[i])
+  );
+  link.scale.x = state.L[i];
+  link.position.x = state.L[i] / 2;
+  g.add(link);
+  linkMesh.push(link);
+
+  // 下一关节挂在当前 link 末端（x = L_i）— 用一个空 Group 占位，
+  // 这样下一轮迭代里 parent = endHolder，子关节就附在末端
+  const endHolder = new THREE.Group();
+  endHolder.position.x = state.L[i];
+  g.add(endHolder);
+  parent = endHolder;
+}
+
+/* ============================================================
+ *  末端夹爪（挂在第 4 关节的末端 Holder 上，亦即 parent）
+ * ============================================================ */
+const eeGroup = new THREE.Group();
+parent.add(eeGroup);
+
+const gripBase = new THREE.Mesh(
+  new THREE.BoxGeometry(8, 12, 12),
+  new THREE.MeshStandardMaterial({ color: COLOR_GRIP, metalness: 0.5, roughness: 0.4 })
+);
+gripBase.position.x = 4;
+eeGroup.add(gripBase);
+
+const fingerMat = new THREE.MeshStandardMaterial({
+  color: COLOR_GRIP, metalness: 0.5, roughness: 0.35
+});
+const fingerL = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 3), fingerMat);
+const fingerR = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 3), fingerMat);
+fingerL.position.set(13, 0,  4);
+fingerR.position.set(13, 0, -4);
+eeGroup.add(fingerL, fingerR);
+
+/* ============================================================
+ *  末端轨迹（环形缓冲）
+ * ============================================================ */
+const TRAIL_N = 600;
+const trailGeom = new THREE.BufferGeometry();
+const trailPos = new Float32Array(TRAIL_N * 3);
+trailGeom.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
+trailGeom.setDrawRange(0, 0);
+const trail = new THREE.Line(
+  trailGeom,
+  new THREE.LineBasicMaterial({ color: COLOR_TRAIL, transparent: true, opacity: 0.55 })
+);
+scene.add(trail);
+let trailIdx = 0;
+let trailLen = 0;
+
+/* ============================================================
+ *  目标点可视化（模式 C/D 显示，模式 A/B 隐藏）
+ * ============================================================ */
+const targetMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(5, 18, 18),
+  new THREE.MeshStandardMaterial({
+    color: COLOR_TGT, emissive: COLOR_TGT, emissiveIntensity: 0.4,
+    transparent: true, opacity: 0.85
+  })
+);
+scene.add(targetMarker);
+
+// 模式 D 的取/放料点指示
+const pickMark = targetMarker.clone();
+pickMark.material = pickMark.material.clone();
+pickMark.material.opacity = 0.35;
+pickMark.position.set(100, 25, 0);
+scene.add(pickMark);
+
+const placeMark = pickMark.clone();
+placeMark.material = placeMark.material.clone();
+placeMark.position.set(-100, 25, 0);
+scene.add(placeMark);
+
+/* ============================================================
+ *  正运动学：返回 [P0, P1, P2, P3, P4]，每个为 Vector2
+ * ============================================================ */
+function forwardKin(theta = state.theta, L = state.L) {
+  const pts = [new THREE.Vector2(0, 0)];
+  let phi = 0;
+  for (let i = 0; i < 4; i++) {
+    phi += theta[i];
+    const p = pts[i].clone();
+    p.x += L[i] * Math.cos(phi);
+    p.y += L[i] * Math.sin(phi);
+    pts.push(p);
+  }
+  return pts;
+}
+
+/* ============================================================
+ *  CCD 逆运动学
+ *      从末端关节 i = 3 → 0 迭代：将关节 i 旋转 Δ，
+ *      使从 P_i 出发的远端 P_4 尽量指向 target。
+ *      Δ = atan2(...) - atan2(...)。重复 iterCount 轮直至收敛。
+ * ============================================================ */
+function clampAngle(a) {
+  // 软限位 ±170°
+  const lim = 170 * Math.PI / 180;
+  if (a >  Math.PI) a -= 2 * Math.PI;
+  if (a < -Math.PI) a += 2 * Math.PI;
+  return Math.max(-lim, Math.min(lim, a));
+}
+
+function ccdSolve(target, iterCount = 12) {
+  const eps2 = 1.0;       // 收敛阈值 1 mm²
+  for (let it = 0; it < iterCount; it++) {
+    const pts = forwardKin();
+    const E = pts[4];
+    if (E.distanceToSquared(target) < eps2) break;
+
+    for (let i = 3; i >= 0; i--) {
+      const pivot = pts[i];
+      const toE   = new THREE.Vector2(pts[4].x - pivot.x, pts[4].y - pivot.y);
+      const toT   = new THREE.Vector2(target.x  - pivot.x, target.y  - pivot.y);
+      if (toE.lengthSq() < 1e-6 || toT.lengthSq() < 1e-6) continue;
+      const aE = Math.atan2(toE.y, toE.x);
+      const aT = Math.atan2(toT.y, toT.x);
+      let d = aT - aE;
+      if (d >  Math.PI) d -= 2 * Math.PI;
+      if (d < -Math.PI) d += 2 * Math.PI;
+      // 缓和系数 — 让动画过渡更平滑
+      d *= 0.6;
+      state.theta[i] = clampAngle(state.theta[i] + d);
+      // 重新前向计算后续点（仅本轮 IK 内部）
+      const refreshed = forwardKin();
+      pts[4] = refreshed[4];
+      // 注意：此处只需更新 pts[4]；pivot 上游不会被本次旋转影响。
+    }
+  }
+}
+
+/* ============================================================
+ *  模式 D：抓取-搬运关键帧脚本
+ *      每段 1.0 s，8 段 = 8.0 s 周期
+ *      路径设计：取/放料点抬到 y=25（避开地面网格 y=-0.5），
+ *      横向迁移走顶部 (0, 140) 高弧过桥，避开基座 / 地面 / 自缠绕
+ * ============================================================ */
+const SEG_T = 1.0;
+const KEYFRAMES = [
+  { p: new THREE.Vector2( 110,  90), grip: 0.6 },  // S0 Home（右上待机）
+  { p: new THREE.Vector2( 100,  25), grip: 0.0 },  // S1 Pickup A（下降闭爪）
+  { p: new THREE.Vector2( 100,  90), grip: 0.0 },  // S2 Lift A（携物上提）
+  { p: new THREE.Vector2(   0, 140), grip: 0.0 },  // S3 Top Arc（高位跨越基座）
+  { p: new THREE.Vector2(-100,  90), grip: 0.0 },  // S4 Approach B（左侧上方）
+  { p: new THREE.Vector2(-100,  25), grip: 0.6 },  // S5 Place B（下降开爪）
+  { p: new THREE.Vector2(-100,  90), grip: 0.6 },  // S6 Up B（空爪上提）
+  { p: new THREE.Vector2(   0, 140), grip: 0.6 },  // S7 Top Arc 返程
+];
+const PERIOD = SEG_T * KEYFRAMES.length;
+
+function easeInOut(u) {        // 余弦缓动 0→1
+  return 0.5 - 0.5 * Math.cos(Math.PI * u);
+}
+
+function demoTarget(t) {
+  const tt  = ((t % PERIOD) + PERIOD) % PERIOD;
+  const seg = Math.floor(tt / SEG_T);
+  const u   = easeInOut((tt - seg * SEG_T) / SEG_T);
+  const a   = KEYFRAMES[seg];
+  const b   = KEYFRAMES[(seg + 1) % KEYFRAMES.length];
+  const p = new THREE.Vector2().lerpVectors(a.p, b.p, u);
+  const grip = a.grip * (1 - u) + b.grip * u;
+  return { p, grip };
+}
+
+/* ============================================================
+ *  UI 绑定
+ * ============================================================ */
+const $ = id => document.getElementById(id);
+
+function setMode(m) {
+  state.mode = m;
+  document.querySelectorAll('.mode-btns button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === m);
+  });
+  ['A','B','C','D'].forEach(k => {
+    $('grp' + k).classList.toggle('hidden', k !== m && k !== 'L');
+  });
+  $('modeTag').textContent = m;
+  // 模式切换时同步 UI 滑块到当前 θ（避免下次进入 A 模式跳变）
+  if (m === 'A') {
+    for (let i = 0; i < 4; i++) {
+      const deg = state.theta[i] * 180 / Math.PI;
+      $('t' + (i+1)).value = deg.toFixed(1);
+      $('t' + (i+1) + 'v').textContent = deg.toFixed(1) + '°';
+    }
+  }
+  // 进入 C 模式时把目标点初始化为当前末端位置
+  if (m === 'C') {
+    const E = forwardKin()[4];
+    state.target.set(E.x, E.y);
+    $('tx').value = Math.round(E.x);
+    $('ty').value = Math.round(E.y);
+    $('txv').textContent = Math.round(E.x);
+    $('tyv').textContent = Math.round(E.y);
+  }
+  if (m === 'D') {
+    state.demoT = 0;
+  }
+  // 切换模式时清空轨迹
+  trailLen = 0; trailIdx = 0;
+  trailGeom.setDrawRange(0, 0);
+}
+
+document.querySelectorAll('.mode-btns button').forEach(b => {
+  b.addEventListener('click', () => setMode(b.dataset.mode));
+});
+
+// 模式 A 角度滑块
+['1','2','3','4'].forEach((k, i) => {
+  const el = $('t' + k);
+  el.addEventListener('input', () => {
+    const deg = parseFloat(el.value);
+    state.theta[i] = deg * Math.PI / 180;
+    $('t' + k + 'v').textContent = deg.toFixed(1) + '°';
+  });
+});
+
+// 模式 B 角速度滑块
+['1','2','3','4'].forEach((k, i) => {
+  const el = $('w' + k);
+  el.addEventListener('input', () => {
+    state.omega[i] = parseFloat(el.value);
+    $('w' + k + 'v').textContent = state.omega[i].toFixed(2);
+  });
+});
+
+// 模式 C 目标点滑块
+['x','y'].forEach((k, i) => {
+  const el = $('t' + k);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    if (i === 0) state.target.x = v;
+    else         state.target.y = v;
+    $('t' + k + 'v').textContent = v.toFixed(0);
+  });
+});
+
+// 模式 C 键盘微调
+window.addEventListener('keydown', (e) => {
+  if (state.mode !== 'C') return;
+  const STEP = 5;
+  let dx = 0, dy = 0;
+  if (e.key === 'ArrowLeft')  dx = -STEP;
+  if (e.key === 'ArrowRight') dx =  STEP;
+  if (e.key === 'ArrowUp')    dy =  STEP;
+  if (e.key === 'ArrowDown')  dy = -STEP;
+  if (dx || dy) {
+    state.target.x = Math.max(-200, Math.min(200, state.target.x + dx));
+    state.target.y = Math.max(-200, Math.min(200, state.target.y + dy));
+    $('tx').value = state.target.x;  $('txv').textContent = state.target.x.toFixed(0);
+    $('ty').value = state.target.y;  $('tyv').textContent = state.target.y.toFixed(0);
+    e.preventDefault();
+  }
+});
+
+// 连杆长度滑块（任何模式可调）
+['1','2','3','4'].forEach((k, i) => {
+  const el = $('L' + k);
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    state.L[i] = v;
+    $('L' + k + 'v').textContent = v.toFixed(0);
+    // 同步几何：连杆缩放与下一关节定位
+    linkMesh[i].scale.x = v;
+    linkMesh[i].position.x = v / 2;
+    if (i < 3) joints[i+1].parent.position.x = v;       // 末端 holder 在 link 末端
+    else       eeGroup.parent.position.x = v;
+  });
+});
+
+$('demoBtn').addEventListener('click', () => { state.demoT = 0; });
+
+/* ============================================================
+ *  HUD 元素引用
+ * ============================================================ */
+const ui = {
+  t:   [$('v_t1'), $('v_t2'), $('v_t3'), $('v_t4')],
+  E:   $('v_E'),
+  vE:  $('v_vE'),
+  err: $('v_err'),
+};
+
+/* ============================================================
+ *  主循环
+ * ============================================================ */
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  /* ----- 1. 按当前模式更新 state.theta（运动学驱动） ----- */
+  switch (state.mode) {
+    case 'A': /* 滑块 input 已直接写入 state.theta，无需额外操作 */ break;
+    case 'B':
+      for (let i = 0; i < 4; i++) {
+        state.theta[i] += state.omega[i] * dt;
+        // 归一到 (-π, π]
+        while (state.theta[i] >  Math.PI) state.theta[i] -= 2 * Math.PI;
+        while (state.theta[i] < -Math.PI) state.theta[i] += 2 * Math.PI;
+      }
+      break;
+    case 'C':
+      ccdSolve(state.target, 10);
+      targetMarker.position.set(state.target.x, state.target.y, 0);
+      break;
+    case 'D': {
+      state.demoT += dt;
+      const { p, grip } = demoTarget(state.demoT);
+      state.target.copy(p);
+      state.gripperOpen += (grip - state.gripperOpen) * Math.min(1, dt * 8);
+      ccdSolve(state.target, 10);
+      targetMarker.position.set(state.target.x, state.target.y, 0);
+      break;
+    }
+  }
+
+  /* ----- 2. 把 θ 写到 Three.js 层级（绕 Z 轴）----- */
+  for (let i = 0; i < 4; i++) {
+    joints[i].rotation.z = state.theta[i];
+  }
+
+  /* ----- 3. 末端夹爪开合可视化 ----- */
+  const sep = 4 + state.gripperOpen * 6;     // 闭合 4 → 张开 10
+  fingerL.position.z =  sep;
+  fingerR.position.z = -sep;
+
+  /* ----- 4. 取/放料点仅在演示模式可见 ----- */
+  pickMark.visible  = (state.mode === 'D');
+  placeMark.visible = (state.mode === 'D');
+  targetMarker.visible = (state.mode === 'C' || state.mode === 'D');
+
+  /* ----- 5. 末端坐标 + 速度 + 误差 + HUD ----- */
+  const pts = forwardKin();
+  const E = pts[4];
+  const vE = E.clone().sub(state.prevE).divideScalar(Math.max(dt, 1e-4)).length();
+  state.prevE.copy(E);
+
+  // 末端轨迹环形缓冲
+  trailPos[trailIdx * 3 + 0] = E.x;
+  trailPos[trailIdx * 3 + 1] = E.y;
+  trailPos[trailIdx * 3 + 2] = 0;
+  trailIdx = (trailIdx + 1) % TRAIL_N;
+  trailLen = Math.min(trailLen + 1, TRAIL_N);
+  trailGeom.attributes.position.needsUpdate = true;
+  // 简化：直接画 0..trailLen，旧点会在缓冲覆盖后渐隐于位移
+  trailGeom.setDrawRange(0, trailLen);
+
+  for (let i = 0; i < 4; i++) {
+    ui.t[i].textContent = (state.theta[i] * 180 / Math.PI).toFixed(1) + ' °';
+  }
+  ui.E.textContent  = `(${E.x.toFixed(1)}, ${E.y.toFixed(1)}) mm`;
+  ui.vE.textContent = (vE / 1000).toFixed(3) + ' m/s';
+  if (state.mode === 'C' || state.mode === 'D') {
+    const d = E.distanceTo(state.target);
+    ui.err.textContent = (d < 1.0 ? 'Δ < 1.0 mm ✓' : d.toFixed(2) + ' mm');
+  } else {
+    ui.err.textContent = '— (无目标)';
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// 默认进入演示模式
+setMode('D');
+animate();
+</script>
+
+</body>
+</html>

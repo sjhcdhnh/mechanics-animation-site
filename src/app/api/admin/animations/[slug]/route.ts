@@ -1,8 +1,7 @@
 import { requireAdmin } from '@/lib/admin-auth';
 import { deleteAnimation, getAnimationBySlug } from '@/lib/animation-registry';
 import { deleteAllComments } from '@/lib/comments-store';
-import { existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { del } from '@vercel/blob';
 
 export async function DELETE(
   request: Request,
@@ -20,21 +19,24 @@ export async function DELETE(
     return Response.json({ error: '动画不存在' }, { status: 404 });
   }
 
-  // Remove file from disk
-  try {
-    const dir = anim.source === 'builtin' ? 'animations' : 'uploads';
-    const filePath = join(process.cwd(), 'public', dir, anim.fileName);
-    if (existsSync(filePath)) {
-      unlinkSync(filePath);
+  // Delete from Vercel Blob (uploaded files only)
+  if (anim.source === 'uploaded' && anim.blobUrl) {
+    try {
+      await del(anim.blobUrl);
+    } catch {
+      // blob may already be gone — non-critical
     }
-  } catch {
-    // File may already be gone — non-critical
+    // Also delete cover image if on blob
+    if (anim.coverImage?.includes('blob.vercel-storage.com')) {
+      try {
+        await del(anim.coverImage);
+      } catch {
+        // non-critical
+      }
+    }
   }
 
-  // Clean up comments
   deleteAllComments(slug);
-
-  // Remove from registry
   deleteAnimation(slug);
 
   return Response.json({ success: true });

@@ -68,5 +68,5 @@ export function getAnimationUrl(anim: AnimationMeta): string {
   if (anim.source === 'builtin') {
     return `/animations/${anim.fileName}`;
   }
-  return `/uploads/${anim.fileName}`;
+  return anim.blobUrl || `/uploads/${anim.fileName}`;
 }

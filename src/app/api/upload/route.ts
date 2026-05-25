@@ -1,10 +1,9 @@
 import { NextRequest } from 'next/server';
+import { put } from '@vercel/blob';
 import { validateAnimationHTML } from '@/lib/validation';
 import { extractMetadata } from '@/lib/metadata-extractor';
 import { addAnimation } from '@/lib/animation-registry';
 import type { AnimationMeta, Category } from '@/types';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,13 +18,12 @@ export async function POST(request: NextRequest) {
     const customCategory = formData.get('category') as string | null;
     const customTags = formData.get('tags') as string | null;
     const coverFile = formData.get('cover') as File | null;
-    const downloadable = formData.get('downloadable') !== 'false'; // 默认允许
+    const downloadable = formData.get('downloadable') !== 'false';
 
     if (!file) {
       return Response.json({ success: false, error: '未上传文件' }, { status: 400 });
     }
 
-    // Check file size (max 5MB)
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       return Response.json(
@@ -34,10 +32,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read file content
     const html = await file.text();
 
-    // Validate
     const validation = validateAnimationHTML(html, file.name);
     if (!validation.valid) {
       return Response.json(
@@ -46,12 +42,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract metadata
     const extracted = extractMetadata(html);
     const title = customTitle || validation.extractedTitle || extracted.title;
     const subtitle = validation.extractedSubtitle || extracted.subtitle;
 
-    // Parse tags
     let tags: string[] = extracted.tags;
     if (customTags) {
       tags = customTags
@@ -60,13 +54,11 @@ export async function POST(request: NextRequest) {
         .filter(Boolean);
     }
 
-    // Category
     const validCategories: Category[] = ['four-bar', 'serial-robot', 'aerospace', 'engineering', 'other'];
     const category: Category = validCategories.includes(customCategory as Category)
       ? (customCategory as Category)
       : extracted.category;
 
-    // Generate slug
     const timestamp = Date.now().toString(36);
     const slugBase = title
       .replace(/[^一-龥a-zA-Z0-9]/g, '-')
@@ -75,34 +67,27 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .slice(0, 40) || 'animation';
     const slug = `${slugBase}-${timestamp}`;
-
-    // Generate safe filename
     const fileName = `${slug}.html`;
 
-    // Save file to public/uploads/
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      mkdirSync(uploadsDir, { recursive: true });
-    }
-    const filePath = join(uploadsDir, fileName);
-    writeFileSync(filePath, html, 'utf-8');
+    // Upload HTML to Vercel Blob
+    const blob = await put(fileName, html, {
+      access: 'public',
+      contentType: 'text/html; charset=utf-8',
+    });
 
-    // Handle cover image upload
+    // Upload cover image to Vercel Blob (if provided)
     let coverPath: string | undefined;
     if (coverFile && coverFile.size > 0) {
-      const coversDir = join(uploadsDir, 'covers');
-      if (!existsSync(coversDir)) {
-        mkdirSync(coversDir, { recursive: true });
-      }
       const coverExt = coverFile.name.split('.').pop() || 'png';
-      const coverFileName = `${slug}.${coverExt}`;
-      const coverFilePath = join(coversDir, coverFileName);
-      const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
-      writeFileSync(coverFilePath, coverBuffer);
-      coverPath = `/uploads/covers/${coverFileName}`;
+      const coverFileName = `covers/${slug}.${coverExt}`;
+      const coverBuffer = await coverFile.arrayBuffer();
+      const coverBlob = await put(coverFileName, Buffer.from(coverBuffer), {
+        access: 'public',
+        contentType: coverFile.type || 'image/png',
+      });
+      coverPath = coverBlob.url;
     }
 
-    // Create metadata entry
     const meta: AnimationMeta = {
       slug,
       title,
@@ -121,9 +106,9 @@ export async function POST(request: NextRequest) {
       modelDescription: customModelDescription || undefined,
       coverImage: coverPath,
       downloadable,
+      blobUrl: blob.url,
     };
 
-    // Add to registry (in-memory only; in production use Vercel Blob/KV)
     addAnimation(meta);
 
     return Response.json({ success: true, slug, animation: meta, validationWarnings: validation.warnings });

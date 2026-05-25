@@ -19,36 +19,37 @@ export function DetailActions({
   const { token } = useAdmin();
   const [downloading, setDownloading] = useState(false);
 
-  const triggerDownload = (url: string, filename: string) => {
+  const blobDownload = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleDownload = async () => {
     if (!token) return;
     setDownloading(true);
     try {
-      const htmlUrl =
-        anim.source === 'builtin'
-          ? `/animations/${anim.fileName}`
-          : `/uploads/${anim.fileName}`;
-
-      // Download HTML directly
-      triggerDownload(htmlUrl, anim.fileName);
-
-      // Download metadata JSON via API
-      const res = await fetch(`/api/admin/download/${slug}`, {
+      // Download HTML
+      const htmlRes = await fetch(`/api/admin/download/${slug}?format=html`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, anim.fileName.replace(/\.html$/, '.json'));
-        URL.revokeObjectURL(url);
+      if (htmlRes.ok) {
+        const htmlBlob = await htmlRes.blob();
+        blobDownload(htmlBlob, anim.fileName);
+      }
+
+      // Download metadata JSON
+      const metaRes = await fetch(`/api/admin/download/${slug}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (metaRes.ok) {
+        const metaBlob = await metaRes.blob();
+        blobDownload(metaBlob, anim.fileName.replace(/\.html$/, '.json'));
       }
     } catch {
       // silent

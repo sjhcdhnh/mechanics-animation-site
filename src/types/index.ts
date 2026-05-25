@@ -19,6 +19,7 @@ export interface AnimationMeta {
   coverImage?: string;
   likes?: number;
   downloadable?: boolean;
+  blobUrl?: string;
 }
 
 export interface CategoryInfo {

@@ -1,4 +1,4 @@
-import { getAnimationBySlugAsync, getAnimationUrl } from '@/lib/animation-registry';
+import { getAnimationBySlugAsync } from '@/lib/animation-registry';
 import { WatchPageWrapper } from './wrapper';
 import { EmptyIcon } from '@/components/ui/Icons';
 import type { Metadata } from 'next';
@@ -42,7 +42,11 @@ export default async function WatchPage({ params }: Props) {
     );
   }
 
-  const src = getAnimationUrl(anim);
+  // Uploaded: proxy through API to strip Content-Disposition
+  // Built-in: direct URL (served by Next.js static files)
+  const src = anim.source === 'builtin'
+    ? `/animations/${anim.fileName}`
+    : `/api/animations/${anim.slug}/view`;
 
   return <WatchPageWrapper anim={anim} src={src} />;
 }

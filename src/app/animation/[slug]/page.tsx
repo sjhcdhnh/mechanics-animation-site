@@ -1,4 +1,4 @@
-import { getAllAnimations } from '@/lib/animation-registry';
+import { getAllAnimationsAsync, getAnimationBySlugAsync } from '@/lib/animation-registry';
 import { Badge } from '@/components/ui/Badge';
 import { DetailActions } from './actions';
 import { DetailThumbnail } from './thumbnail';
@@ -12,8 +12,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const animations = getAllAnimations();
-  const anim = animations.find((a) => a.slug === slug);
+  const anim = await getAnimationBySlugAsync(slug);
 
   if (!anim) {
     return { title: '动画未找到' };
@@ -43,8 +42,7 @@ function formatDate(iso?: string): string {
 
 export default async function AnimationDetailPage({ params }: Props) {
   const { slug } = await params;
-  const animations = getAllAnimations();
-  const anim = animations.find((a) => a.slug === slug);
+  const anim = await getAnimationBySlugAsync(slug);
 
   if (!anim) {
     return (

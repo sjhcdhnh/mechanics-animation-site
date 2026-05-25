@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { AnimationMeta, Category } from '@/types';
 import { AnimationCard } from './AnimationCard';
 import { SearchBar } from './SearchBar';
@@ -15,14 +15,26 @@ export function GalleryGrid({
 }) {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<Category | 'all'>('all');
-  const [loading] = useState(false);
+  const [animations, setAnimations] = useState<AnimationMeta[]>(initialAnimations);
+
+  // Fetch full list (including uploaded) from API on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/animations')
+      .then((res) => res.json())
+      .then((data: AnimationMeta[]) => {
+        if (!cancelled) setAnimations(data);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSearch = useCallback((query: string) => {
     setSearch(query);
   }, []);
 
   const filtered = useMemo(() => {
-    let list = initialAnimations;
+    let list = animations;
 
     if (category !== 'all') {
       list = list.filter((a) => a.category === category);
@@ -40,9 +52,7 @@ export function GalleryGrid({
     }
 
     return list;
-  }, [initialAnimations, category, search]);
-
-  if (loading) return <GallerySkeleton />;
+  }, [animations, category, search]);
 
   return (
     <div className="space-y-8">

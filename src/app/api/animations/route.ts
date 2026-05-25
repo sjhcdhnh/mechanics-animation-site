@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { getAllAnimations } from '@/lib/animation-registry';
+import { getAllAnimationsAsync } from '@/lib/animation-registry';
 import type { Category } from '@/types';
 
 export async function GET(request: NextRequest) {
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get('search');
   const source = searchParams.get('source') as 'builtin' | 'uploaded' | null;
 
-  const animations = getAllAnimations({
+  const animations = await getAllAnimationsAsync({
     category: category || 'all',
     search: search || undefined,
     source: source || undefined,

@@ -1,5 +1,5 @@
 import { requireAdmin } from '@/lib/admin-auth';
-import { getAnimationBySlug } from '@/lib/animation-registry';
+import { getAnimationBySlugAsync } from '@/lib/animation-registry';
 
 export async function GET(
   request: Request,
@@ -11,7 +11,7 @@ export async function GET(
   }
 
   const { slug } = await params;
-  const anim = getAnimationBySlug(slug);
+  const anim = await getAnimationBySlugAsync(slug);
   if (!anim) {
     return Response.json({ error: '动画不存在' }, { status: 404 });
   }

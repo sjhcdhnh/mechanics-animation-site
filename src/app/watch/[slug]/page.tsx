@@ -1,4 +1,4 @@
-import { getAllAnimations, getAnimationUrl } from '@/lib/animation-registry';
+import { getAnimationBySlugAsync, getAnimationUrl } from '@/lib/animation-registry';
 import { WatchPageWrapper } from './wrapper';
 import { EmptyIcon } from '@/components/ui/Icons';
 import type { Metadata } from 'next';
@@ -9,8 +9,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const animations = getAllAnimations();
-  const anim = animations.find((a) => a.slug === slug);
+  const anim = await getAnimationBySlugAsync(slug);
 
   if (!anim) {
     return { title: '动画未找到' };
@@ -24,8 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function WatchPage({ params }: Props) {
   const { slug } = await params;
-  const animations = getAllAnimations();
-  const anim = animations.find((a) => a.slug === slug);
+  const anim = await getAnimationBySlugAsync(slug);
 
   if (!anim) {
     return (

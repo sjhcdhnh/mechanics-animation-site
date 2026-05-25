@@ -1,5 +1,5 @@
 import { requireAdmin } from '@/lib/admin-auth';
-import { deleteAnimation, getAnimationBySlug } from '@/lib/animation-registry';
+import { deleteAnimation, getAnimationBySlugAsync, deleteUploadedMeta } from '@/lib/animation-registry';
 import { deleteAllComments } from '@/lib/comments-store';
 import { del } from '@vercel/blob';
 
@@ -13,27 +13,24 @@ export async function DELETE(
   }
 
   const { slug } = await params;
-  const anim = getAnimationBySlug(slug);
+  const anim = await getAnimationBySlugAsync(slug);
 
   if (!anim) {
     return Response.json({ error: '动画不存在' }, { status: 404 });
   }
 
   // Delete from Vercel Blob (uploaded files only)
-  if (anim.source === 'uploaded' && anim.blobUrl) {
-    try {
-      await del(anim.blobUrl);
-    } catch {
-      // blob may already be gone — non-critical
+  if (anim.source === 'uploaded') {
+    // Delete HTML blob
+    if (anim.blobUrl) {
+      try { await del(anim.blobUrl); } catch { /* non-critical */ }
     }
-    // Also delete cover image if on blob
+    // Delete cover image blob
     if (anim.coverImage?.includes('blob.vercel-storage.com')) {
-      try {
-        await del(anim.coverImage);
-      } catch {
-        // non-critical
-      }
+      try { await del(anim.coverImage); } catch { /* non-critical */ }
     }
+    // Delete metadata from blob registry
+    await deleteUploadedMeta(slug);
   }
 
   deleteAllComments(slug);

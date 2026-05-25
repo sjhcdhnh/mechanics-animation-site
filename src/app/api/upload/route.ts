@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { put } from '@vercel/blob';
 import { validateAnimationHTML } from '@/lib/validation';
 import { extractMetadata } from '@/lib/metadata-extractor';
-import { addAnimation } from '@/lib/animation-registry';
+import { addAnimation, saveUploadedMeta } from '@/lib/animation-registry';
 import type { AnimationMeta, Category } from '@/types';
 
 export async function POST(request: NextRequest) {
@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
     };
 
     addAnimation(meta);
+    await saveUploadedMeta(meta);
 
     return Response.json({ success: true, slug, animation: meta, validationWarnings: validation.warnings });
   } catch (err) {

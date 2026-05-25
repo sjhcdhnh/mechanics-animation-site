@@ -163,8 +163,20 @@ export async function getAnimationBySlugAsync(slug: string): Promise<AnimationMe
   const builtin = getBuiltin().find((a) => a.slug === slug);
   if (builtin) return builtin;
 
-  const uploaded = await getUploadedAnimations();
-  return uploaded.find((a) => a.slug === slug);
+  // Retry once: Blob list() may lag behind put() in other serverless instances
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      // Bust cache and wait before retry
+      uploadedCache = null;
+      registryBlobUrl = null;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    const uploaded = await getUploadedAnimations();
+    const found = uploaded.find((a) => a.slug === slug);
+    if (found) return found;
+  }
+
+  return undefined;
 }
 
 export function addAnimation(meta: AnimationMeta): void {

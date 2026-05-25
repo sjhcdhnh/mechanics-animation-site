@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { LikeButton } from '@/components/ui/LikeButton';
+import { useAdmin } from '@/components/admin/AdminProvider';
+import { useState } from 'react';
 import type { AnimationMeta } from '@/types';
 
 export function DetailActions({
@@ -14,11 +16,46 @@ export function DetailActions({
   initialLikes?: number;
 }) {
   const router = useRouter();
+  const { token } = useAdmin();
+  const [downloading, setDownloading] = useState(false);
 
-  const downloadUrl =
-    anim.source === 'builtin'
-      ? `/animations/${anim.fileName}`
-      : `/uploads/${anim.fileName}`;
+  const triggerDownload = (url: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleDownload = async () => {
+    if (!token) return;
+    setDownloading(true);
+    try {
+      const htmlUrl =
+        anim.source === 'builtin'
+          ? `/animations/${anim.fileName}`
+          : `/uploads/${anim.fileName}`;
+
+      // Download HTML directly
+      triggerDownload(htmlUrl, anim.fileName);
+
+      // Download metadata JSON via API
+      const res = await fetch(`/api/admin/download/${slug}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, anim.fileName.replace(/\.html$/, '.json'));
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // silent
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -35,19 +72,19 @@ export function DetailActions({
       <div className="flex items-center gap-3">
         <LikeButton slug={slug} initialLikes={initialLikes} />
 
-        {anim.downloadable !== false && (
-          <a
-            href={downloadUrl}
-            download={anim.fileName}
-            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 glass-sm text-sm text-muted hover:text-foreground transition-all duration-200"
-            title="下载动画文件"
+        {token && (
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-3.5 glass-sm text-sm text-muted hover:text-foreground transition-all duration-200 disabled:opacity-30"
+            title="下载动画（含元数据）"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            下载
-          </a>
+            {downloading ? '下载中...' : '下载'}
+          </button>
         )}
 
         <a

@@ -112,14 +112,20 @@ export async function POST(request: NextRequest) {
     };
 
     addAnimation(meta);
-    await saveUploadedMeta(meta);
+
+    // Metadata persistence is best-effort — HTML blob already saved
+    try {
+      await saveUploadedMeta(meta);
+    } catch (err) {
+      console.error('Metadata save error:', err);
+    }
 
     return Response.json({ success: true, slug, animation: meta, validationWarnings: validation.warnings });
   } catch (err) {
     console.error('Upload error:', err);
-    return Response.json(
-      { success: false, error: '服务器内部错误，请稍后重试' },
-      { status: 500 }
-    );
+    const message = process.env.NODE_ENV === 'development'
+      ? `服务器内部错误: ${err instanceof Error ? err.message : String(err)}`
+      : '服务器内部错误，请稍后重试';
+    return Response.json({ success: false, error: message }, { status: 500 });
   }
 }

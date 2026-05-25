@@ -53,7 +53,7 @@ async function fetchRegistry(): Promise<AnimationMeta[]> {
   if (!url) return [];
 
   try {
-    const res = await fetch(url, { cache: 'no-cache' });
+    const res = await fetch(url);
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -68,35 +68,36 @@ export async function getUploadedAnimations(): Promise<AnimationMeta[]> {
 }
 
 async function writeRegistry(entries: AnimationMeta[]): Promise<void> {
-  const blob = await put(REGISTRY_KEY, JSON.stringify(entries), {
-    access: 'public',
-    contentType: 'application/json',
-  });
-
-  // Extract and cache the blob store base URL
-  const url = new URL(blob.url);
-  blobStoreBase = `${url.protocol}//${url.host}`;
-  uploadedCache = entries;
+  try {
+    const blob = await put(REGISTRY_KEY, JSON.stringify(entries), {
+      access: 'public',
+      contentType: 'application/json',
+    });
+    const url = new URL(blob.url);
+    blobStoreBase = `${url.protocol}//${url.host}`;
+    uploadedCache = entries;
+  } catch { /* best-effort, individual files are the source of truth */ }
 }
 
-/** Save uploaded metadata: read-modify-write with data-loss guard */
+/** Save uploaded metadata: individual file (primary) + registry update (best-effort) */
 export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
-  // Write individual file as backup (never lost)
+  // Individual file is source of truth
   await put(`registry/${meta.slug}.meta.json`, JSON.stringify(meta), {
     access: 'public',
     contentType: 'application/json',
   });
 
-  // Update the index
-  const entries = await fetchRegistry();
-  // Guard: if list() missed entries, we still have the individual files as backup
-  const idx = entries.findIndex((e) => e.slug === meta.slug);
-  if (idx >= 0) {
-    entries[idx] = meta;
-  } else {
-    entries.unshift(meta);
-  }
-  await writeRegistry(entries);
+  // Registry update is best-effort; never throw
+  try {
+    const entries = await fetchRegistry();
+    const idx = entries.findIndex((e) => e.slug === meta.slug);
+    if (idx >= 0) {
+      entries[idx] = meta;
+    } else {
+      entries.unshift(meta);
+    }
+    await writeRegistry(entries);
+  } catch { /* individual file already saved */ }
 }
 
 export async function deleteUploadedMeta(slug: string): Promise<void> {

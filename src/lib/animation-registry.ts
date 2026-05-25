@@ -6,7 +6,7 @@ const REGISTRY_KEY = '_registry.json';
 
 let cachedBuiltin: AnimationMeta[] | null = null;
 let uploadedCache: AnimationMeta[] | null = null;
-let registryBlobUrl: string | null = null;
+let blobStoreBase: string | null = null;
 
 function getBuiltin(): AnimationMeta[] {
   if (!cachedBuiltin) {
@@ -15,25 +15,45 @@ function getBuiltin(): AnimationMeta[] {
   return cachedBuiltin;
 }
 
-/** Fetch the single _registry.json blob (cache URL and data aggressively) */
-async function fetchRegistry(): Promise<AnimationMeta[]> {
-  // Find the registry blob URL if not cached
-  if (!registryBlobUrl) {
+function registryUrl(): string | null {
+  return blobStoreBase ? `${blobStoreBase}/${REGISTRY_KEY}` : null;
+}
+
+/** Discover blob store base URL: try list() then head() as fallback */
+async function discoverStoreBase(): Promise<void> {
+  // Try list() to find _registry.json
+  try {
+    const { blobs } = await list({ prefix: REGISTRY_KEY });
+    if (blobs.length > 0) {
+      const url = new URL(blobs[0].url);
+      blobStoreBase = `${url.protocol}//${url.host}`;
+      return;
+    }
+  } catch { /* fall through */ }
+
+  // Fallback: try constructing URL from any known blob
+  // If we have uploadedCache entries, use their blobUrl to derive store base
+  if (uploadedCache && uploadedCache.length > 0) {
     try {
-      const { blobs } = await list({ prefix: REGISTRY_KEY, limit: 1 });
-      if (blobs.length > 0) {
-        registryBlobUrl = blobs[0].url;
-      }
-    } catch { /* will try again next time */ }
+      const url = new URL(uploadedCache[0].blobUrl!);
+      blobStoreBase = `${url.protocol}//${url.host}`;
+      return;
+    } catch { /* nop */ }
+  }
+}
+
+/** Fetch the _registry.json blob */
+async function fetchRegistry(): Promise<AnimationMeta[]> {
+  // On cold start, discover the blob store
+  if (!blobStoreBase) {
+    await discoverStoreBase();
   }
 
-  if (!registryBlobUrl) return [];
+  const url = registryUrl();
+  if (!url) return [];
 
   try {
-    const res = await fetch(registryBlobUrl, {
-      // Use no-cache to avoid stale CDN responses
-      cache: 'no-cache',
-    });
+    const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) return [];
     return await res.json();
   } catch {
@@ -41,31 +61,35 @@ async function fetchRegistry(): Promise<AnimationMeta[]> {
   }
 }
 
-/** Uploaded animations — read from single _registry.json blob */
 export async function getUploadedAnimations(): Promise<AnimationMeta[]> {
   if (uploadedCache) return uploadedCache;
   uploadedCache = await fetchRegistry();
   return uploadedCache!;
 }
 
-/** Write updated registry back to Blob */
 async function writeRegistry(entries: AnimationMeta[]): Promise<void> {
-  // Delete old registry blob if URL cached
-  if (registryBlobUrl) {
-    try { await del(registryBlobUrl); } catch { /* non-critical */ }
-  }
-
   const blob = await put(REGISTRY_KEY, JSON.stringify(entries), {
     access: 'public',
     contentType: 'application/json',
   });
-  registryBlobUrl = blob.url;
+
+  // Extract and cache the blob store base URL
+  const url = new URL(blob.url);
+  blobStoreBase = `${url.protocol}//${url.host}`;
   uploadedCache = entries;
 }
 
-/** Save uploaded metadata: read registry, upsert, write back */
+/** Save uploaded metadata: read-modify-write with data-loss guard */
 export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
+  // Write individual file as backup (never lost)
+  await put(`registry/${meta.slug}.meta.json`, JSON.stringify(meta), {
+    access: 'public',
+    contentType: 'application/json',
+  });
+
+  // Update the index
   const entries = await fetchRegistry();
+  // Guard: if list() missed entries, we still have the individual files as backup
   const idx = entries.findIndex((e) => e.slug === meta.slug);
   if (idx >= 0) {
     entries[idx] = meta;
@@ -75,8 +99,14 @@ export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
   await writeRegistry(entries);
 }
 
-/** Delete uploaded metadata: read registry, filter, write back */
 export async function deleteUploadedMeta(slug: string): Promise<void> {
+  // Delete individual backup file
+  try {
+    const { blobs } = await list({ prefix: `registry/${slug}.` });
+    for (const b of blobs) await del(b.url);
+  } catch { /* non-critical */ }
+
+  // Update index
   const entries = await fetchRegistry();
   await writeRegistry(entries.filter((e) => e.slug !== slug));
 }
@@ -163,18 +193,26 @@ export async function getAnimationBySlugAsync(slug: string): Promise<AnimationMe
   const builtin = getBuiltin().find((a) => a.slug === slug);
   if (builtin) return builtin;
 
-  // Retry once: Blob list() may lag behind put() in other serverless instances
+  // Try the registry index first
   for (let attempt = 0; attempt < 2; attempt++) {
     if (attempt > 0) {
-      // Bust cache and wait before retry
       uploadedCache = null;
-      registryBlobUrl = null;
+      blobStoreBase = null;
       await new Promise((r) => setTimeout(r, 800));
     }
     const uploaded = await getUploadedAnimations();
     const found = uploaded.find((a) => a.slug === slug);
     if (found) return found;
   }
+
+  // Fallback: fetch individual metadata file directly by listing its prefix
+  try {
+    const { blobs } = await list({ prefix: `registry/${slug}.` });
+    if (blobs.length > 0) {
+      const res = await fetch(blobs[0].url);
+      if (res.ok) return await res.json();
+    }
+  } catch { /* nop */ }
 
   return undefined;
 }

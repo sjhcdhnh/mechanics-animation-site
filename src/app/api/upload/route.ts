@@ -60,13 +60,15 @@ export async function POST(request: NextRequest) {
       : extracted.category;
 
     const timestamp = Date.now().toString(36);
-    const slugBase = title
-      .replace(/[^一-龥a-zA-Z0-9]/g, '-')
+    const random = Math.random().toString(36).slice(2, 6);
+    // Use only ASCII-safe characters for slug (avoid URL-encoding issues with CJK)
+    const asciiBase = title
+      .replace(/[^a-zA-Z0-9]/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
       .toLowerCase()
-      .slice(0, 40) || 'animation';
-    const slug = `${slugBase}-${timestamp}`;
+      .slice(0, 20) || 'animation';
+    const slug = `${asciiBase}-${timestamp}${random}`;
     const fileName = `${slug}.html`;
 
     // Upload HTML to Vercel Blob

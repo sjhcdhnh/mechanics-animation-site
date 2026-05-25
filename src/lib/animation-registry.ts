@@ -2,67 +2,87 @@ import { list, put, del } from '@vercel/blob';
 import type { AnimationMeta, Category } from '@/types';
 import registryData from '@/data/animations.json';
 
-let cachedRegistry: AnimationMeta[] | null = null;
-let uploadedCache: AnimationMeta[] | null = null;
-let uploadedCacheTime = 0;
+const REGISTRY_KEY = '_registry.json';
 
-const CACHE_TTL = 5000; // 5s
+let cachedBuiltin: AnimationMeta[] | null = null;
+let uploadedCache: AnimationMeta[] | null = null;
+let registryBlobUrl: string | null = null;
 
 function getBuiltin(): AnimationMeta[] {
-  if (!cachedRegistry) {
-    cachedRegistry = registryData as AnimationMeta[];
+  if (!cachedBuiltin) {
+    cachedBuiltin = registryData as AnimationMeta[];
   }
-  return cachedRegistry;
+  return cachedBuiltin;
 }
 
-/** Fetch uploaded animation metadata from Blob */
-export async function getUploadedAnimations(): Promise<AnimationMeta[]> {
-  const now = Date.now();
-  if (uploadedCache && now - uploadedCacheTime < CACHE_TTL) {
-    return uploadedCache;
+/** Fetch the single _registry.json blob (cache URL and data aggressively) */
+async function fetchRegistry(): Promise<AnimationMeta[]> {
+  // Find the registry blob URL if not cached
+  if (!registryBlobUrl) {
+    try {
+      const { blobs } = await list({ prefix: REGISTRY_KEY, limit: 1 });
+      if (blobs.length > 0) {
+        registryBlobUrl = blobs[0].url;
+      }
+    } catch { /* will try again next time */ }
   }
+
+  if (!registryBlobUrl) return [];
 
   try {
-    const { blobs } = await list({ prefix: 'registry/' });
-    const metas: AnimationMeta[] = [];
-    for (const blob of blobs) {
-      if (blob.pathname.endsWith('.meta.json')) {
-        try {
-          const res = await fetch(blob.url);
-          if (res.ok) metas.push(await res.json());
-        } catch { /* corrupted entry, skip */ }
-      }
-    }
-    uploadedCache = metas;
-    uploadedCacheTime = now;
-    return metas;
+    const res = await fetch(registryBlobUrl, {
+      // Use no-cache to avoid stale CDN responses
+      cache: 'no-cache',
+    });
+    if (!res.ok) return [];
+    return await res.json();
   } catch {
-    return uploadedCache || [];
+    return [];
   }
 }
 
-/** Write a single uploaded animation's metadata to Blob */
-export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
-  await put(`registry/${meta.slug}.meta.json`, JSON.stringify(meta), {
+/** Uploaded animations — read from single _registry.json blob */
+export async function getUploadedAnimations(): Promise<AnimationMeta[]> {
+  if (uploadedCache) return uploadedCache;
+  uploadedCache = await fetchRegistry();
+  return uploadedCache!;
+}
+
+/** Write updated registry back to Blob */
+async function writeRegistry(entries: AnimationMeta[]): Promise<void> {
+  // Delete old registry blob if URL cached
+  if (registryBlobUrl) {
+    try { await del(registryBlobUrl); } catch { /* non-critical */ }
+  }
+
+  const blob = await put(REGISTRY_KEY, JSON.stringify(entries), {
     access: 'public',
     contentType: 'application/json',
   });
-  // Bust cache
-  uploadedCache = null;
+  registryBlobUrl = blob.url;
+  uploadedCache = entries;
 }
 
-/** Delete uploaded animation metadata from Blob */
+/** Save uploaded metadata: read registry, upsert, write back */
+export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
+  const entries = await fetchRegistry();
+  const idx = entries.findIndex((e) => e.slug === meta.slug);
+  if (idx >= 0) {
+    entries[idx] = meta;
+  } else {
+    entries.unshift(meta);
+  }
+  await writeRegistry(entries);
+}
+
+/** Delete uploaded metadata: read registry, filter, write back */
 export async function deleteUploadedMeta(slug: string): Promise<void> {
-  try {
-    const { blobs } = await list({ prefix: `registry/${slug}` });
-    for (const b of blobs) {
-      await del(b.url);
-    }
-  } catch { /* non-critical */ }
-  uploadedCache = null;
+  const entries = await fetchRegistry();
+  await writeRegistry(entries.filter((e) => e.slug !== slug));
 }
 
-// Sync functions for built-in only (fast path, works in static generation)
+// ── Sync built-in-only functions (fast) ──
+
 export function getRegistry(): AnimationMeta[] {
   return getBuiltin();
 }
@@ -96,7 +116,6 @@ export function getAllAnimations(filters?: {
   return list;
 }
 
-/** Merged: builtin + uploaded from Blob */
 export async function getAllAnimationsAsync(filters?: {
   category?: Category | 'all';
   search?: string;
@@ -106,7 +125,6 @@ export async function getAllAnimationsAsync(filters?: {
   const uploaded = await getUploadedAnimations();
   let list = [...builtin, ...uploaded];
 
-  // Sort: builtin first, then uploaded by date desc
   list.sort((a, b) => {
     if (a.source !== b.source) return a.source === 'builtin' ? -1 : 1;
     if (a.source === 'uploaded' && b.source === 'uploaded') {
@@ -141,7 +159,6 @@ export function getAnimationBySlug(slug: string): AnimationMeta | undefined {
   return getBuiltin().find((a) => a.slug === slug);
 }
 
-/** Check both builtin and uploaded Blob */
 export async function getAnimationBySlugAsync(slug: string): Promise<AnimationMeta | undefined> {
   const builtin = getBuiltin().find((a) => a.slug === slug);
   if (builtin) return builtin;

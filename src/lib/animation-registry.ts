@@ -19,9 +19,9 @@ function registryUrl(): string | null {
   return blobStoreBase ? `${blobStoreBase}/${REGISTRY_KEY}` : null;
 }
 
-/** Discover blob store base URL: try list() then head() as fallback */
+/** Discover blob store base URL through multiple fallback strategies */
 async function discoverStoreBase(): Promise<void> {
-  // Try list() to find _registry.json
+  // 1. Try list() to find _registry.json
   try {
     const { blobs } = await list({ prefix: REGISTRY_KEY });
     if (blobs.length > 0) {
@@ -31,8 +31,27 @@ async function discoverStoreBase(): Promise<void> {
     }
   } catch { /* fall through */ }
 
-  // Fallback: try constructing URL from any known blob
-  // If we have uploadedCache entries, use their blobUrl to derive store base
+  // 2. Try list() with registry/ prefix to find individual metadata files
+  try {
+    const { blobs } = await list({ prefix: 'registry/' });
+    if (blobs.length > 0) {
+      const url = new URL(blobs[0].url);
+      blobStoreBase = `${url.protocol}//${url.host}`;
+      return;
+    }
+  } catch { /* fall through */ }
+
+  // 3. Try list() without prefix — find ANY blob to extract store host
+  try {
+    const { blobs } = await list();
+    if (blobs.length > 0) {
+      const url = new URL(blobs[0].url);
+      blobStoreBase = `${url.protocol}//${url.host}`;
+      return;
+    }
+  } catch { /* fall through */ }
+
+  // 4. Last resort: use in-memory cache blob URLs
   if (uploadedCache && uploadedCache.length > 0) {
     try {
       const url = new URL(uploadedCache[0].blobUrl!);
@@ -42,23 +61,57 @@ async function discoverStoreBase(): Promise<void> {
   }
 }
 
-/** Fetch the _registry.json blob */
+/** Fetch the _registry.json blob, with fallback reconstruction from individual files */
 async function fetchRegistry(): Promise<AnimationMeta[]> {
-  // On cold start, discover the blob store
-  if (!blobStoreBase) {
-    await discoverStoreBase();
-  }
+  if (!blobStoreBase) await discoverStoreBase();
 
+  // 1. Try constructed URL (works when blob store hostname is stable)
   const url = registryUrl();
-  if (!url) return [];
-
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    return await res.json();
-  } catch {
-    return [];
+  if (url) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return await res.json();
+    } catch { /* fall through */ }
   }
+
+  // 2. Try finding _registry.json directly via list() + fetch its direct URL
+  try {
+    const { blobs } = await list({ prefix: REGISTRY_KEY });
+    if (blobs.length > 0) {
+      const res = await fetch(blobs[0].url);
+      if (res.ok) {
+        const data = await res.json();
+        const parsedUrl = new URL(blobs[0].url);
+        blobStoreBase = `${parsedUrl.protocol}//${parsedUrl.host}`;
+        return data;
+      }
+    }
+  } catch { /* fall through */ }
+
+  // 3. Reconstruct registry from individual metadata files
+  try {
+    const { blobs } = await list({ prefix: 'registry/' });
+    const entries: AnimationMeta[] = [];
+    for (const b of blobs) {
+      if (b.pathname.endsWith('.meta.json')) {
+        try {
+          const r = await fetch(b.url);
+          if (r.ok) entries.push(await r.json());
+        } catch { /* skip broken file */ }
+      }
+    }
+    if (entries.length > 0) {
+      try {
+        const parsedUrl = new URL(blobs[0].url);
+        blobStoreBase = `${parsedUrl.protocol}//${parsedUrl.host}`;
+      } catch { /* nop */ }
+      // Rebuild the _registry.json index for future cold starts
+      try { await writeRegistry(entries); } catch { /* best-effort */ }
+      return entries;
+    }
+  } catch { /* fall through */ }
+
+  return [];
 }
 
 export async function getUploadedAnimations(): Promise<AnimationMeta[]> {
@@ -211,7 +264,22 @@ export async function getAnimationBySlugAsync(slug: string): Promise<AnimationMe
     const { blobs } = await list({ prefix: `registry/${slug}.` });
     if (blobs.length > 0) {
       const res = await fetch(blobs[0].url);
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const meta = await res.json();
+        // Update cache so subsequent lookups don't need to re-list
+        if (uploadedCache) {
+          const idx = uploadedCache.findIndex((e) => e.slug === slug);
+          if (idx >= 0) uploadedCache[idx] = meta;
+          else uploadedCache.push(meta);
+        } else {
+          uploadedCache = [meta];
+        }
+        try {
+          const parsedUrl = new URL(blobs[0].url);
+          blobStoreBase = `${parsedUrl.protocol}//${parsedUrl.host}`;
+        } catch { /* nop */ }
+        return meta;
+      }
     }
   } catch { /* nop */ }
 

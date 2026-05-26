@@ -49,7 +49,7 @@ export function Footer() {
           className="text-xs text-muted/60 select-none cursor-default"
           onClick={handleCopyrightClick}
         >
-          力学拔尖基地班 &middot; 力拔理力集
+          力学拔尖基地班 &middot; 力拔·理力创见
         </p>
       </div>
     </footer>

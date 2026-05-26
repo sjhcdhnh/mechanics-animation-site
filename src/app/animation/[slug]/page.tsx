@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title: `${anim.title} — 力拔理力集`,
+    title: `${anim.title} — 力拔·理力创见`,
     description: anim.description || anim.subtitle,
   };
 }

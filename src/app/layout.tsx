@@ -20,13 +20,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "力拔理力集",
+  title: "力拔·理力创见",
   description:
     "力学拔尖基地班出品 — 将理论力学的抽象知识点转化为交互式三维动画，涵盖平面连杆机构、凸轮传动、串联机器人、航天机构、动力学与振动等方向的运动学演示。",
   keywords: [
     "理论力学",
     "力学拔尖基地班",
-    "力拔理力集",
+    "力拔·理力创见",
     "机构学",
     "运动学",
     "Three.js",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "力学拔尖基地班" }],
   openGraph: {
-    title: "力拔理力集",
+    title: "力拔·理力创见",
     description: "力学拔尖基地班出品 — 将理论力学的抽象知识点转化为交互式三维动画",
     type: "website",
     locale: "zh_CN",

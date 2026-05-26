@@ -28,7 +28,7 @@ export function Header() {
               <LogoIcon className="w-5 h-5" />
             </span>
             <span className="text-sm font-semibold text-foreground tracking-tight">
-              力拔理力集
+              力拔·理力创见
             </span>
           </Link>
 

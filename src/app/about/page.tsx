@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '关于 — 力拔理力集',
+  title: '关于 — 力拔·理力创见',
   description: '力学拔尖基地班出品，将理论力学知识点转化为交互式三维动画。了解项目缘起、目标愿景与网站特色。',
 };
 
@@ -13,7 +13,7 @@ export default function AboutPage() {
         <div className="space-y-4">
           <p className="text-xs tracking-widest text-muted/60 uppercase">About</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-            关于力拔理力集
+            关于力拔·理力创见
           </h1>
           <p className="text-base text-muted leading-relaxed max-w-xl">
             力学拔尖基地班出品 &mdash; 理论力学知识点的交互式三维可视化平台

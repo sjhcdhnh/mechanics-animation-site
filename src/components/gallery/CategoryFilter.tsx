@@ -4,11 +4,11 @@ import type { Category } from '@/types';
 import { CATEGORIES } from '@/lib/constants';
 
 const categoryDots: Record<string, string> = {
-  'four-bar': 'bg-amber-500/70',
+  'planar-linkage': 'bg-amber-500/70',
+  'cam-drive': 'bg-emerald-500/70',
   'serial-robot': 'bg-violet-500/70',
   aerospace: 'bg-sky-500/70',
-  engineering: 'bg-emerald-500/70',
-  other: 'bg-stone-500/70',
+  dynamics: 'bg-rose-500/70',
 };
 
 export function CategoryFilter({

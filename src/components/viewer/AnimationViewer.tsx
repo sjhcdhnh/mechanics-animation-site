@@ -42,7 +42,7 @@ export function AnimationViewer({ src, playing }: { src: string; playing: boolea
         src={src}
         className="w-full h-full border-0"
         onLoad={() => setLoaded(true)}
-        title="机构动画演示"
+        title="力拔理力集"
         allow="accelerometer; autoplay; clipboard-write;"
       />
     </div>

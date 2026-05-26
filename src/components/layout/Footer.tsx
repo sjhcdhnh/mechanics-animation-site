@@ -30,6 +30,9 @@ export function Footer() {
           <Link href="/" className="hover:text-foreground transition-colors duration-200">
             首页
           </Link>
+          <Link href="/about" className="hover:text-foreground transition-colors duration-200">
+            关于
+          </Link>
           <Link href="/upload" className="hover:text-foreground transition-colors duration-200">
             上传
           </Link>
@@ -46,7 +49,7 @@ export function Footer() {
           className="text-xs text-muted/60 select-none cursor-default"
           onClick={handleCopyrightClick}
         >
-          理论力学课程辅助学习平台 &middot; Next.js + Three.js
+          力学拔尖基地班 &middot; 力拔理力集
         </p>
       </div>
     </footer>

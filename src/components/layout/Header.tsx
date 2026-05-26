@@ -11,6 +11,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: '首页' },
+    { href: '/about', label: '关于' },
     { href: '/upload', label: '上传' },
   ];
 
@@ -27,7 +28,7 @@ export function Header() {
               <LogoIcon className="w-5 h-5" />
             </span>
             <span className="text-sm font-semibold text-foreground tracking-tight">
-              机构动画演示
+              力拔理力集
             </span>
           </Link>
 

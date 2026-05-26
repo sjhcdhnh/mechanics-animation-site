@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { UploadForm } from '@/components/upload/UploadForm';
 
 export const metadata: Metadata = {
-  title: '上传动画 — 理论力学机构动画演示',
-  description: '上传你自己的 Three.js 理论力学机构动画',
+  title: '上传动画 — 力拔理力集',
+  description: '上传你自己的 Three.js 机构动画，通过校验后加入画廊展示',
 };
 
 export default function UploadPage() {
@@ -14,7 +14,7 @@ export default function UploadPage() {
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground">上传动画</h1>
           <p className="text-sm text-muted">
-            分享你的 Three.js 理论力学机构动画，上传后将自动检验并添加至画廊
+            上传你的 Three.js 机构动画，通过校验后自动加入画廊展示
           </p>
         </div>
 

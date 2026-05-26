@@ -2,19 +2,19 @@ import type { Category } from '@/types';
 import { CATEGORY_MAP } from '@/lib/constants';
 
 const colors: Record<string, string> = {
-  'four-bar': 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  'planar-linkage': 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  'cam-drive': 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
   'serial-robot': 'bg-violet-500/10 text-violet-600 border-violet-500/20',
   aerospace: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
-  engineering: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-  other: 'bg-stone-500/10 text-stone-600 border-stone-500/20',
+  dynamics: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
 };
 
 const darkColors: Record<string, string> = {
-  'four-bar': 'bg-amber-500/10 text-amber-300 border-amber-500/25',
+  'planar-linkage': 'bg-amber-500/10 text-amber-300 border-amber-500/25',
+  'cam-drive': 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
   'serial-robot': 'bg-violet-500/10 text-violet-300 border-violet-500/25',
   aerospace: 'bg-sky-500/10 text-sky-300 border-sky-500/25',
-  engineering: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
-  other: 'bg-stone-500/10 text-stone-300 border-stone-500/25',
+  dynamics: 'bg-rose-500/10 text-rose-300 border-rose-500/25',
 };
 
 export function Badge({ category }: { category: Category }) {
@@ -22,8 +22,8 @@ export function Badge({ category }: { category: Category }) {
   return (
     <span
       className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${
-        darkColors[category] || darkColors.other
-      } ${colors[category] || colors.other}`}
+        darkColors[category] || darkColors.dynamics
+      } ${colors[category] || colors.dynamics}`}
     >
       {info?.label || category}
     </span>

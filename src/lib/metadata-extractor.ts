@@ -56,8 +56,19 @@ function guessCategory(title: string, subtitle: string, mechanismType: string): 
     return 'serial-robot';
   if (combined.includes('航天') || combined.includes('空间站') || combined.includes('对接') || combined.includes('fast') || combined.includes('馈源') || combined.includes('docking') || combined.includes('cabin'))
     return 'aerospace';
-  if (combined.includes('卷扬') || combined.includes('winch') || combined.includes('工程'))
-    return 'engineering';
+  if (combined.includes('凸轮') || combined.includes('cam') || combined.includes('卷扬') || combined.includes('winch'))
+    return 'cam-drive';
+  if (
+    combined.includes('摆') ||
+    combined.includes('pendulum') ||
+    combined.includes('振子') ||
+    combined.includes('oscillator') ||
+    combined.includes('振动') ||
+    combined.includes('vibration') ||
+    combined.includes('阻尼') ||
+    combined.includes('谐振')
+  )
+    return 'dynamics';
   if (
     combined.includes('曲柄') ||
     combined.includes('连杆') ||
@@ -67,14 +78,16 @@ function guessCategory(title: string, subtitle: string, mechanismType: string): 
     combined.includes('刨床') ||
     combined.includes('抽油') ||
     combined.includes('平行四边形') ||
+    combined.includes('椭圆') ||
+    combined.includes('trammel') ||
     combined.includes('crank') ||
     combined.includes('rocker') ||
     combined.includes('slider') ||
     combined.includes('linkage')
   )
-    return 'four-bar';
+    return 'planar-linkage';
 
-  return 'other';
+  return 'dynamics';
 }
 
 function generateTags(title: string, subtitle: string, mechanismType: string): string[] {

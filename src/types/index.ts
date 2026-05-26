@@ -1,4 +1,4 @@
-export type Category = 'four-bar' | 'serial-robot' | 'aerospace' | 'engineering' | 'other';
+export type Category = 'planar-linkage' | 'cam-drive' | 'serial-robot' | 'aerospace' | 'dynamics';
 
 export interface AnimationMeta {
   slug: string;

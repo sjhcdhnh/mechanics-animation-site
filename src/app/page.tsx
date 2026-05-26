@@ -8,7 +8,7 @@ export default function HomePage() {
   const categoryCount = [...new Set(animations.map((a) => a.category))].length;
 
   const stats = [
-    { value: animations.length, label: '内置动画' },
+    { value: animations.length, label: '机构动画' },
     { value: '3D', label: '可交互' },
     { value: categoryCount, label: '分类' },
   ];
@@ -40,16 +40,16 @@ export default function HomePage() {
             <div className="lg:col-span-2 max-w-xl lg:pt-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-foreground/[0.04] border border-border text-[11px] text-muted font-medium mb-8">
                 <span className="w-1.5 h-1.5 rounded-full bg-accent/60" />
-                理论力学 &middot; 机构运动学可视化
+                力学拔尖基地班 &middot; 理论力学可视化
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight leading-tight text-balance">
-                机构动画<span className="text-accent">演示</span>
+                力拔理力<span className="text-accent">集</span>
               </h1>
 
               <p className="mt-5 text-sm sm:text-base text-muted max-w-lg leading-relaxed">
-                收集曲柄滑块、四杆机构、凸轮推杆、串联机械臂、双摆、弹簧振子、
-                航天器对接等经典机构的交互式运动学动画，辅助理论力学课程的可视化学习。
+                力学拔尖基地班出品。将理论力学的抽象知识点转化为交互式三维动画
+                &mdash; 从曲柄滑块到空间站对接，让每一组公式背后都有一个可以拖拽、旋转、缩放的可视化模型。
               </p>
 
               {/* Stats */}

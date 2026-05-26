@@ -20,11 +20,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "理论力学 · 机构动画演示",
+  title: "力拔理力集",
   description:
-    "交互式平面与空间机构运动学动画演示平台 — 曲柄滑块、曲柄摇杆、牛头刨床、抽油机、机械臂、空间站对接等三维交互动画，辅助理论力学课程学习。",
+    "力学拔尖基地班出品 — 将理论力学的抽象知识点转化为交互式三维动画，涵盖平面连杆机构、凸轮传动、串联机器人、航天机构、动力学与振动等方向的运动学演示。",
   keywords: [
     "理论力学",
+    "力学拔尖基地班",
+    "力拔理力集",
     "机构学",
     "运动学",
     "Three.js",
@@ -33,11 +35,12 @@ export const metadata: Metadata = {
     "四杆机构",
     "机械臂",
     "空间站对接",
+    "动力学",
   ],
-  authors: [{ name: "机构动画演示项目" }],
+  authors: [{ name: "力学拔尖基地班" }],
   openGraph: {
-    title: "理论力学 · 机构动画演示",
-    description: "交互式平面与空间机构运动学动画演示平台",
+    title: "力拔理力集",
+    description: "力学拔尖基地班出品 — 将理论力学的抽象知识点转化为交互式三维动画",
     type: "website",
     locale: "zh_CN",
   },

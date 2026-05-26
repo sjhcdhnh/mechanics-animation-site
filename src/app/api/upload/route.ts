@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         .filter(Boolean);
     }
 
-    const validCategories: Category[] = ['four-bar', 'serial-robot', 'aerospace', 'engineering', 'other'];
+    const validCategories: Category[] = ['planar-linkage', 'cam-drive', 'serial-robot', 'aerospace', 'dynamics'];
     const category: Category = validCategories.includes(customCategory as Category)
       ? (customCategory as Category)
       : extracted.category;

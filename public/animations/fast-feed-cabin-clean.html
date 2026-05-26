@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FAST 馈源舱 · 姿态模拟与控制</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { overflow:hidden; background:#050510; font-family:'Segoe UI','PingFang SC',sans-serif; color:#cdd6f4; }
+canvas { display:block; }
+</style>
+</head>
+<body>
+
+<!-- Importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+// ============================================================
+// SECTION 1: Imports
+// ============================================================
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ============================================================
+// SECTION 2: Constants
+// ============================================================
+const DEG = Math.PI / 180;
+const DEG2RAD = DEG;
+const RAD2DEG = 180 / Math.PI;
+
+// FAST physical parameters (meters, kN, etc.)
+const DISH_RADIUS = 300;       // sphere radius of reflector
+const DISH_APERTURE = 250;     // aperture radius (500m diameter / 2)
+const DISH_DEPTH = DISH_RADIUS - Math.sqrt(DISH_RADIUS*DISH_RADIUS - DISH_APERTURE*DISH_APERTURE); // ~134m
+const TOWER_HEIGHT = 260;      // tower height (cables slope downward ~11° to cabin)
+const TOWER_RADIUS = 300;      // tower distance from center
+const CABIN_HEIGHT = 200;      // cabin center Y (above dish rim 134m, near focus 150m)
+const ARM_RADIUS = 6.5;        // star-frame arm length
+const CABIN_MASS = 30;         // tons
+const CABIN_WEIGHT = CABIN_MASS * 9.81; // kN (~294 kN)
+const STEWART_BASE_R = 1.2;
+const STEWART_TOP_R = 0.8;
+const STEWART_HOME_L = 1.5;
+const T_MIN = 10;   // kN, minimum cable tension
+const T_MAX = 200;  // kN, maximum cable tension
+
+// Colors
+const COL = {
+  bg: 0x050510,
+  dish: 0x2a4a6a,
+  dishGrid: 0x3a5a7a,
+  tower: 0x6b7280,
+  towerBeacon: 0xff4444,
+  frame: 0xc0c8e0,
+  frameAccent: 0x4ecdc4,
+  body: 0xb0b8d0,
+  aAxis: 0xff6b35,
+  bAxis: 0xff8aa7,
+  stewart: 0xa78bfa,
+  stewartLeg: 0x4ecdc4,
+  horn: 0xf5e0dc,
+  cableLow: 0x4ecdc4,
+  cableHigh: 0xff6b35,
+};
+
+// Tower angles (hexagon)
+const TOWER_THETA = [0, 60, 120, 180, 240, 300].map(d => d * DEG);
+const N_CABLES = 6;
+
+// ============================================================
+// SECTION 3: State
+// ============================================================
+const state = {
+  mode: 'A',
+  target: { pitch: 0, roll: 0, yaw: 0 },
+  current: { pitch: 0, roll: 0, yaw: 0 },
+  start: { pitch: 0, roll: 0, yaw: 0 },
+  abA: 0, abB: 0,
+  legLengths: [STEWART_HOME_L, STEWART_HOME_L, STEWART_HOME_L, STEWART_HOME_L, STEWART_HOME_L, STEWART_HOME_L],
+  tensions: [50, 50, 50, 50, 50, 50],
+  animating: false,
+  animT: 1,
+  animDuration: 1.8,
+  status: '就绪',
+  statusPopup: '',
+  popupTimer: 0,
+  demoClock: 0,
+  trackingAngle: 0,
+  cableColors: [0x4ecdc4, 0x4ecdc4, 0x4ecdc4, 0x4ecdc4, 0x4ecdc4, 0x4ecdc4],
+};
+
+// ============================================================
+// SECTION 4: Scene Setup
+// ============================================================
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(COL.bg);
+
+const camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 3000);
+camera.position.set(120, 260, 160);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.prepend(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 200, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 10;
+controls.maxDistance = 2000;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+
+// Pause auto-rotate on user interaction, resume after idle
+let userInteractTimer = 0;
+controls.addEventListener('start', () => { controls.autoRotate = false; userInteractTimer = 3.0; });
+
+// ---- Lights ----
+scene.add(new THREE.AmbientLight(0x446688, 0.35));
+const key = new THREE.DirectionalLight(0xffeedd, 1.4);
+key.position.set(300, 900, 400);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0x4488ff, 0.5);
+fill.position.set(-400, 100, -300);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0x6688ff, 0.4);
+rim.position.set(-200, 300, -600);
+scene.add(rim);
+const top = new THREE.DirectionalLight(0xffffff, 0.3);
+top.position.set(0, 1000, 0);
+scene.add(top);
+
+// ---- Post-processing ----
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.5, 0.15);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+// ============================================================
+// SECTION 5: Starfield
+// ============================================================
+function createStarfield() {
+  const n = 10000;
+  const pos = new Float32Array(n * 3);
+  const colors = new Float32Array(n * 3);
+  const nB = 3000; // bright stars
+  const nD = 7000; // dim background stars
+
+  // Bright colorful stars (top layer)
+  for (let i = 0; i < nB; i++) {
+    const r = 900 + Math.random() * 1000;
+    const theta = Math.random() * 2 * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = Math.abs(r * Math.cos(phi));
+    pos[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+    // Color temperature: white --> yellow --> blue-white
+    const temp = Math.random();
+    if (temp < 0.3) { colors.set([1.0, 1.0, 1.0], i*3); }       // 30% white
+    else if (temp < 0.55) { colors.set([0.9, 0.85, 1.0], i*3); } // 25% blue-white
+    else if (temp < 0.75) { colors.set([1.0, 0.95, 0.8], i*3); } // 20% yellow-white
+    else if (temp < 0.9)  { colors.set([0.7, 0.8, 1.0], i*3); }  // 15% blue
+    else { colors.set([1.0, 0.8, 0.6], i*3); }                   // 10% orange
+  }
+  // Dim background fill stars
+  for (let i = nB; i < n; i++) {
+    const r = 1000 + Math.random() * 1300;
+    const theta = Math.random() * 2 * Math.PI;
+    const phi = Math.acos(2 * Math.random() - 1);
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = Math.abs(r * Math.cos(phi));
+    pos[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+    const dim = 0.3 + Math.random() * 0.4;
+    colors.set([dim, dim, 0.9 + Math.random() * 0.1], i*3); // blue-dim stars
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 2.0,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+  });
+  return new THREE.Points(geom, mat);
+}
+scene.add(createStarfield());
+
+// ============================================================
+// SECTION 6: FAST Dish (Reflector)
+// ============================================================
+function buildDish() {
+  const group = new THREE.Group();
+
+  // Spherical cap via LatheGeometry
+  const maxAngle = Math.asin(DISH_APERTURE / DISH_RADIUS);
+  const pts = [];
+  for (let i = 0; i <= 50; i++) {
+    const t = i / 50;
+    const a = t * maxAngle;
+    const x = DISH_RADIUS * Math.sin(a);
+    const y = DISH_RADIUS * (1 - Math.cos(a));
+    pts.push(new THREE.Vector2(x, y));
+  }
+  // Add an extra point slightly inside for thickness feel
+  const geom = new THREE.LatheGeometry(pts, 64);
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: COL.dish,
+    metalness: 0.4,
+    roughness: 0.5,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.7,
+    envMapIntensity: 0.6,
+  });
+  const mesh = new THREE.Mesh(geom, mat);
+  group.add(mesh);
+
+  // Grid lines: concentric rings + radial lines
+  const gridPts = [];
+  const nRing = 12;
+  const nRadial = 36;
+  const segs = 48;
+
+  // Concentric rings (each as closed loop of segments)
+  for (let ri = 1; ri <= nRing; ri++) {
+    const frac = ri / nRing;
+    const a = frac * maxAngle;
+    const r = DISH_RADIUS * Math.sin(a);
+    const y = DISH_RADIUS * (1 - Math.cos(a));
+    for (let j = 0; j < segs; j++) {
+      const th0 = (j / segs) * 2 * Math.PI;
+      const th1 = ((j + 1) / segs) * 2 * Math.PI;
+      gridPts.push(r * Math.cos(th0), y, r * Math.sin(th0));
+      gridPts.push(r * Math.cos(th1), y, r * Math.sin(th1));
+    }
+  }
+  // Radial lines (center to rim)
+  for (let ri = 0; ri < nRadial; ri++) {
+    const th = (ri / nRadial) * 2 * Math.PI;
+    for (let j = 0; j < 50; j++) {
+      const frac0 = j / 50;
+      const frac1 = (j + 1) / 50;
+      const a0 = frac0 * maxAngle, a1 = frac1 * maxAngle;
+      const r0 = DISH_RADIUS * Math.sin(a0), r1 = DISH_RADIUS * Math.sin(a1);
+      const y0 = DISH_RADIUS * (1 - Math.cos(a0)), y1 = DISH_RADIUS * (1 - Math.cos(a1));
+      gridPts.push(r0 * Math.cos(th), y0, r0 * Math.sin(th));
+      gridPts.push(r1 * Math.cos(th), y1, r1 * Math.sin(th));
+    }
+  }
+
+  const gridGeom = new THREE.BufferGeometry();
+  gridGeom.setAttribute('position', new THREE.Float32BufferAttribute(gridPts, 3));
+  const gridMat = new THREE.LineBasicMaterial({
+    color: COL.dishGrid, transparent: true, opacity: 0.35,
+  });
+  const gridLines = new THREE.LineSegments(gridGeom, gridMat);
+  group.add(gridLines);
+
+  // Dish rim ring
+  const rimMat = new THREE.MeshPhysicalMaterial({
+    color: 0x4a6a8a, metalness: 0.4, roughness: 0.6,
+  });
+  const rimRing = new THREE.Mesh(new THREE.TorusGeometry(DISH_APERTURE, 0.5, 8, 64), rimMat);
+  rimRing.rotation.x = Math.PI / 2;
+  rimRing.position.y = DISH_DEPTH;
+  group.add(rimRing);
+
+  // Glow ring on rim
+  const glowRingMat = new THREE.MeshPhysicalMaterial({
+    color: 0x4ecdc4, emissive: 0x4ecdc4, emissiveIntensity: 0.05,
+    transparent: true, opacity: 0.15,
+  });
+  const glowRing = new THREE.Mesh(new THREE.TorusGeometry(DISH_APERTURE + 1, 0.3, 6, 64), glowRingMat);
+  glowRing.rotation.x = Math.PI / 2;
+  glowRing.position.y = DISH_DEPTH;
+  group.add(glowRing);
+
+  return group;
+}
+const dish = buildDish();
+scene.add(dish);
+
+// ============================================================
+// SECTION 7: Towers
+// ============================================================
+const towerPositions = [];
+const towerAnchors = []; // world-space cable anchor points
+
+function buildTowers() {
+  const group = new THREE.Group();
+  for (let i = 0; i < N_CABLES; i++) {
+    const th = TOWER_THETA[i];
+    const x = TOWER_RADIUS * Math.cos(th);
+    const z = TOWER_RADIUS * Math.sin(th);
+    towerPositions.push(new THREE.Vector3(x, 0, z));
+
+    // Main tower body
+    const tg = new THREE.Group();
+    const bodyGeom = new THREE.CylinderGeometry(2.5, 4, TOWER_HEIGHT, 8, 6);
+    const bodyMat = new THREE.MeshPhysicalMaterial({
+      color: COL.tower, metalness: 0.4, roughness: 0.6,
+    });
+    const body = new THREE.Mesh(bodyGeom, bodyMat);
+    body.position.y = TOWER_HEIGHT / 2;
+    tg.add(body);
+
+    // Cross braces (decorative rings)
+    for (let h = 20; h < TOWER_HEIGHT; h += 25) {
+      const ringGeom = new THREE.TorusGeometry(2.8 + (1 - h/TOWER_HEIGHT)*1.2, 0.15, 6, 12);
+      const ringMat = new THREE.MeshPhysicalMaterial({
+        color: COL.tower, metalness: 0.5, roughness: 0.5,
+      });
+      const ring = new THREE.Mesh(ringGeom, ringMat);
+      ring.position.y = h;
+      ring.rotation.x = Math.PI / 2;
+      tg.add(ring);
+    }
+
+    // Beacon at top
+    const beaconGeom = new THREE.SphereGeometry(0.8, 12, 12);
+    const beaconMat = new THREE.MeshPhysicalMaterial({
+      color: COL.towerBeacon, emissive: COL.towerBeacon,
+      emissiveIntensity: 0.6,
+    });
+    const beacon = new THREE.Mesh(beaconGeom, beaconMat);
+    beacon.position.y = TOWER_HEIGHT + 1;
+    tg.add(beacon);
+
+    tg.position.set(x, 0, z);
+    group.add(tg);
+
+    // Store anchor point
+    towerAnchors.push(new THREE.Vector3(x, TOWER_HEIGHT, z));
+  }
+  return group;
+}
+scene.add(buildTowers());
+
+// ============================================================
+// SECTION 8: Cabin Model
+// ============================================================
+const cabinGroup = new THREE.Group();
+cabinGroup.position.set(0, CABIN_HEIGHT, 0);
+scene.add(cabinGroup);
+
+// Cable attachment points in cabin local frame
+const armEndsLocal = [];
+for (let i = 0; i < N_CABLES; i++) {
+  const th = TOWER_THETA[i];
+  armEndsLocal.push(new THREE.Vector3(
+    ARM_RADIUS * Math.cos(th),
+    0,
+    ARM_RADIUS * Math.sin(th)
+  ));
+}
+
+// ---- 8a. Star-frame (12-beam dodecagon structure, matching real FAST) ----
+function buildStarFrame() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: COL.frame, metalness: 0.75, roughness: 0.25,
+  });
+  const accMat = new THREE.MeshPhysicalMaterial({
+    color: COL.frameAccent, metalness: 0.6, roughness: 0.3,
+    emissive: COL.frameAccent, emissiveIntensity: 0.06,
+  });
+  const darkMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8890a8, metalness: 0.6, roughness: 0.4,
+  });
+
+  // Central hub (内外环结构)
+  const hubOuter = new THREE.Mesh(new THREE.TorusGeometry(1.8, 0.12, 12, 24), mat);
+  hubOuter.rotation.x = Math.PI / 2;
+  hubOuter.position.y = 0.15;
+  g.add(hubOuter);
+  const hubInner = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.08, 10, 20), darkMat);
+  hubInner.rotation.x = Math.PI / 2;
+  hubInner.position.y = 0.15;
+  g.add(hubInner);
+
+  // Radial spokes in hub
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * 2 * Math.PI;
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.04), darkMat);
+    spoke.position.set(1.5 * Math.cos(a), 0.15, 1.5 * Math.sin(a));
+    spoke.rotation.y = -a;
+    g.add(spoke);
+  }
+
+  // 12 main beams (matching FAST real structure)
+  const N_BEAMS = 12;
+  for (let i = 0; i < N_BEAMS; i++) {
+    const a = (i / N_BEAMS) * 2 * Math.PI;
+    const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
+
+    // Inner beam section (hub to mid-ring)
+    const innerLen = 2.5;
+    const midPt = dir.clone().multiplyScalar(2.5);
+    const beam1 = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.08, innerLen * 2, 6), mat);
+    beam1.position.set(midPt.x, 0.15, midPt.z);
+    beam1.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    g.add(beam1);
+
+    // Outer beam section (mid-ring to arm tip)
+    const outerLen = ARM_RADIUS - 2.5;
+    const outerMid = dir.clone().multiplyScalar(2.5 + outerLen / 2);
+    const beam2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.06, outerLen * 2, 6), mat);
+    beam2.position.set(outerMid.x, 0.15, outerMid.z);
+    beam2.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dir);
+    g.add(beam2);
+
+    // Mid-ring connector (toroidal ring)
+    const midRing = new THREE.Mesh(new THREE.TorusGeometry(2.5, 0.06, 6, 16), accMat);
+    midRing.rotation.x = Math.PI / 2;
+    midRing.position.y = 0.15;
+    g.add(midRing);
+
+    // Cross-bracing between adjacent beams (triangulation)
+    const nextA = ((i + 1) / N_BEAMS) * 2 * Math.PI;
+    const nextDir = new THREE.Vector3(Math.cos(nextA), 0, Math.sin(nextA));
+    // Diagonal brace at inner section
+    for (let k = 0; k < 2; k++) {
+      const frac = 0.3 + k * 0.4;
+      const p1 = dir.clone().multiplyScalar(frac * ARM_RADIUS);
+      const p2 = nextDir.clone().multiplyScalar(frac * ARM_RADIUS);
+      const braceMid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+      const braceDir = new THREE.Vector3().subVectors(p2, p1);
+      const braceLen = braceDir.length();
+      const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, braceLen, 4), darkMat);
+      brace.position.set(braceMid.x, 0.15, braceMid.z);
+      brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), braceDir.clone().normalize());
+      g.add(brace);
+    }
+
+    // Vertical struts (top and bottom chords)
+    for (let s of [-0.15, 0.15]) {
+      const vStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.3, 4), darkMat);
+      const vPos = dir.clone().multiplyScalar(ARM_RADIUS * 0.6);
+      vStrut.position.set(vPos.x, s, vPos.z);
+      g.add(vStrut);
+    }
+
+    // Cable attachment point at arm tip (加强接头)
+    const tipMat = new THREE.MeshPhysicalMaterial({
+      color: 0xff8aa7, metalness: 0.6, roughness: 0.3,
+      emissive: 0xff8aa7, emissiveIntensity: 0.2,
+    });
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), tipMat);
+    const tipPos = dir.clone().multiplyScalar(ARM_RADIUS);
+    tip.position.set(tipPos.x, 0, tipPos.z);
+    g.add(tip);
+
+    // Small equipment box at beam mid-point (装饰用设备盒)
+    if (i % 2 === 0) {
+      const boxMat = new THREE.MeshPhysicalMaterial({
+        color: 0x445566, metalness: 0.3, roughness: 0.7,
+      });
+      const eq = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.2), boxMat);
+      const eqPos = dir.clone().multiplyScalar(ARM_RADIUS * 0.4);
+      eq.position.set(eqPos.x, -0.1, eqPos.z);
+      g.add(eq);
+    }
+  }
+
+  // Outer connecting ring (外环)
+  for (let i = 0; i < N_BEAMS; i++) {
+    const a = (i / N_BEAMS) * 2 * Math.PI;
+    const nextA = ((i + 1) / N_BEAMS) * 2 * Math.PI;
+    const p1 = new THREE.Vector3(ARM_RADIUS * Math.cos(a), 0.15, ARM_RADIUS * Math.sin(a));
+    const p2 = new THREE.Vector3(ARM_RADIUS * Math.cos(nextA), 0.15, ARM_RADIUS * Math.sin(nextA));
+    const ringSeg = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+    const ringDir = new THREE.Vector3().subVectors(p2, p1);
+    const ringLen = ringDir.length();
+    const ringBrace = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, ringLen, 4), darkMat);
+    ringBrace.position.set(ringSeg.x, 0.15, ringSeg.z);
+    ringBrace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), ringDir.clone().normalize());
+    g.add(ringBrace);
+  }
+
+  // Bottom ring (下环)
+  const bottomRing = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.08, 10, 20), mat);
+  bottomRing.rotation.x = Math.PI / 2;
+  bottomRing.position.y = -0.3;
+  g.add(bottomRing);
+
+  // Vertical connection struts
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * 2 * Math.PI;
+    for (let y of [-0.15, 0]) {
+      const vStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.45, 4), darkMat);
+      vStrut.position.set(1.5 * Math.cos(a), y - 0.075, 1.5 * Math.sin(a));
+      g.add(vStrut);
+    }
+  }
+
+  return g;
+}
+cabinGroup.add(buildStarFrame());
+
+// ---- 8aa. Transition structure: star-frame hub --> central body ----
+function buildTransition() {
+  const g = new THREE.Group();
+  const strutMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899aa, metalness: 0.55, roughness: 0.35,
+  });
+  const ringMat = new THREE.MeshPhysicalMaterial({
+    color: 0x99aacc, metalness: 0.65, roughness: 0.25,
+  });
+
+  // Connecting ring at star-frame bottom level
+  const connRing = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.08, 10, 20), ringMat);
+  connRing.rotation.x = Math.PI / 2;
+  connRing.position.y = -0.25;
+  g.add(connRing);
+
+  // Vertical connection struts from star-frame hub to central body top
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * 2 * Math.PI;
+    const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.85, 6), strutMat);
+    strut.position.set(1.3 * Math.cos(a), 0.15, 1.3 * Math.sin(a));
+    g.add(strut);
+  }
+
+  // Diagonal cross-braces
+  for (let i = 0; i < 8; i++) {
+    const a0 = (i / 8) * 2 * Math.PI;
+    const a1 = ((i + 1) / 8) * 2 * Math.PI;
+    const r = 1.15;
+    const top0 = new THREE.Vector3(r * Math.cos(a0), 0.55, r * Math.sin(a0));
+    const bot1 = new THREE.Vector3(r * Math.cos(a1), -0.2, r * Math.sin(a1));
+    const midPt = new THREE.Vector3().addVectors(top0, bot1).multiplyScalar(0.5);
+    const dir = new THREE.Vector3().subVectors(bot1, top0);
+    const len = dir.length();
+    const diag = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, len, 4), strutMat);
+    diag.position.copy(midPt);
+    diag.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    g.add(diag);
+  }
+
+  return g;
+}
+cabinGroup.add(buildTransition());
+
+// ---- 8ab. Protective shroud/dome (enhanced dome with geodesic frame) ----
+function buildShroud() {
+  const g = new THREE.Group();
+
+  // Main transparent shell material
+  const shellMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899b0,
+    metalness: 0.55,
+    roughness: 0.12,
+    transparent: true,
+    opacity: 0.25,
+    envMapIntensity: 0.8,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.15,
+  });
+
+  // Inner shell (second layer for depth)
+  const innerShellMat = new THREE.MeshPhysicalMaterial({
+    color: 0xaabbcc,
+    metalness: 0.3,
+    roughness: 0.3,
+    transparent: true,
+    opacity: 0.12,
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+
+  // Dome frame material (thicker, more visible)
+  const frameMat = new THREE.MeshPhysicalMaterial({
+    color: 0x7a9abb,
+    metalness: 0.75,
+    roughness: 0.4,
+    emissive: 0x334466,
+    emissiveIntensity: 0.08,
+  });
+
+  // ---- Improved dome profile (taller, smoother curve) ----
+  const profile = [];
+  // Bottom cylindrical section
+  profile.push(new THREE.Vector2(ARM_RADIUS + 0.35, -0.85));
+  profile.push(new THREE.Vector2(ARM_RADIUS + 0.35, -0.5));
+  // Taper into dome
+  profile.push(new THREE.Vector2(ARM_RADIUS + 0.3, -0.2));
+  profile.push(new THREE.Vector2(ARM_RADIUS + 0.25, 0.1));
+  profile.push(new THREE.Vector2(ARM_RADIUS + 0.15, 0.35));
+  profile.push(new THREE.Vector2(ARM_RADIUS * 0.85, 0.65));
+  profile.push(new THREE.Vector2(ARM_RADIUS * 0.6, 1.0));
+  profile.push(new THREE.Vector2(ARM_RADIUS * 0.35, 1.3));
+  profile.push(new THREE.Vector2(ARM_RADIUS * 0.15, 1.55));
+  profile.push(new THREE.Vector2(0.08, 1.7));
+
+  // Outer shell
+  const domeGeom = new THREE.LatheGeometry(profile, 36);
+  const dome = new THREE.Mesh(domeGeom, shellMat);
+  g.add(dome);
+
+  // Inner back-shell for double-layer effect
+  const innerProfile = profile.map(p => new THREE.Vector2(p.x * 0.92, p.y));
+  const innerGeom = new THREE.LatheGeometry(innerProfile, 36);
+  const innerShell = new THREE.Mesh(innerGeom, innerShellMat);
+  g.add(innerShell);
+
+  // ---- Structural frame ribs (3D tubes, not just lines) ----
+  const nMeridians = 12;
+  const nRings = 7;
+
+  // Meridian ribs (vertical frame tubes)
+  for (let i = 0; i < nMeridians; i++) {
+    const a = (i / nMeridians) * 2 * Math.PI;
+    // Build a path along the profile
+    const pathPts = [];
+    for (let j = 0; j < profile.length; j++) {
+      const p = profile[j];
+      pathPts.push(new THREE.Vector3(p.x * Math.cos(a), p.y, p.x * Math.sin(a)));
+    }
+    const curve = new THREE.CatmullRomCurve3(pathPts);
+    const tubeGeom = new THREE.TubeGeometry(curve, 20, 0.04, 6, false);
+    const tube = new THREE.Mesh(tubeGeom, frameMat);
+    g.add(tube);
+  }
+
+  // Horizontal ring ribs
+  for (let ri = 1; ri <= nRings; ri++) {
+    const frac = ri / (nRings + 1);
+    const idx = Math.floor(frac * (profile.length - 1));
+    const p = profile[Math.min(idx, profile.length - 1)];
+    const r = p.x * 0.98, y = p.y;
+    const ringGeom = new THREE.TorusGeometry(r, 0.035, 8, 36);
+    const ring = new THREE.Mesh(ringGeom, frameMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = y;
+    g.add(ring);
+  }
+
+  // Diagonal bracing between meridians and rings (geodesic triangulation)
+  const diagMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899aa, metalness: 0.6, roughness: 0.5,
+  });
+  for (let i = 0; i < nMeridians; i++) {
+    const a0 = (i / nMeridians) * 2 * Math.PI;
+    const a1 = ((i + 1) / nMeridians) * 2 * Math.PI;
+    for (let ri = 0; ri < nRings; ri++) {
+      const f0 = (ri + 1) / (nRings + 1);
+      const f1 = (ri + 2) / (nRings + 1);
+      const idx0 = Math.floor(f0 * (profile.length - 1));
+      const idx1 = Math.floor(f1 * (profile.length - 1));
+      const p0 = profile[Math.min(idx0, profile.length - 1)];
+      const p1 = profile[Math.min(idx1, profile.length - 1)];
+      const r0 = p0.x * 0.96, y0 = p0.y;
+      const r1 = p1.x * 0.96, y1 = p1.y;
+      // Diagonal from meridian i at ring ri to meridian i+1 at ring ri+1
+      const startPt = new THREE.Vector3(r0 * Math.cos(a0), y0, r0 * Math.sin(a0));
+      const endPt = new THREE.Vector3(r1 * Math.cos(a1), y1, r1 * Math.sin(a1));
+      const midPt = new THREE.Vector3().addVectors(startPt, endPt).multiplyScalar(0.5);
+      const dir = new THREE.Vector3().subVectors(endPt, startPt);
+      const len = dir.length();
+      const diag = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, len, 4), diagMat);
+      diag.position.copy(midPt);
+      diag.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      g.add(diag);
+    }
+  }
+
+  // ---- Bottom edge rim (structural) ----
+  const rimMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899bb, metalness: 0.75, roughness: 0.3,
+    emissive: 0x4ecdc4, emissiveIntensity: 0.06,
+  });
+  const bottomRim = new THREE.Mesh(new THREE.TorusGeometry(ARM_RADIUS + 0.35, 0.1, 12, 36), rimMat);
+  bottomRim.rotation.x = Math.PI / 2;
+  bottomRim.position.y = -0.85;
+  g.add(bottomRim);
+
+  // Glow ring accent
+  const glowMat2 = new THREE.MeshPhysicalMaterial({
+    color: 0x4ecdc4, emissive: 0x4ecdc4, emissiveIntensity: 0.2,
+    transparent: true, opacity: 0.25,
+  });
+  const glowRing = new THREE.Mesh(new THREE.TorusGeometry(ARM_RADIUS + 0.38, 0.06, 8, 36), glowMat2);
+  glowRing.rotation.x = Math.PI / 2;
+  glowRing.position.y = -0.85;
+  g.add(glowRing);
+
+  // ---- Top cap detail (vent/beacon structure) ----
+  const capMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899bb, metalness: 0.7, roughness: 0.3,
+  });
+  const topCap = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 0.2, 16), capMat);
+  topCap.position.y = 1.7;
+  g.add(topCap);
+
+  // Top beacon
+  const beaconMat = new THREE.MeshPhysicalMaterial({
+    color: 0xff4444, emissive: 0xff4444, emissiveIntensity: 0.6,
+  });
+  const topBeacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), beaconMat);
+  topBeacon.position.y = 1.85;
+  g.add(topBeacon);
+
+  // Small antenna fins on top
+  const finMat = new THREE.MeshPhysicalMaterial({
+    color: 0x99aacc, metalness: 0.6, roughness: 0.3,
+  });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * 2 * Math.PI;
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.25, 0.12), finMat);
+    fin.position.set(0.28 * Math.cos(a), 1.65, 0.28 * Math.sin(a));
+    fin.rotation.y = -a;
+    g.add(fin);
+  }
+
+  return g;
+}
+cabinGroup.add(buildShroud());
+
+// ---- 8b. Central body (enhanced equipment housing) ----
+function buildCentralBody() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshPhysicalMaterial({
+    color: COL.body, metalness: 0.65, roughness: 0.3, clearcoat: 0.1,
+  });
+  const darkMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8890a8, metalness: 0.55, roughness: 0.4,
+  });
+  const accMat = new THREE.MeshPhysicalMaterial({
+    color: 0x99aabb, metalness: 0.7, roughness: 0.25,
+  });
+
+  // Main cylinder housing
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(1.55, 1.6, 2.4, 24), bodyMat);
+  body.position.y = -0.6;
+  g.add(body);
+
+  // Top transition ring (connects to star-frame hub)
+  const topTrans = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.55, 0.25, 24), darkMat);
+  topTrans.position.y = 0.6;
+  g.add(topTrans);
+
+  // Bottom transition ring
+  const botTrans = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.45, 0.2, 24), darkMat);
+  botTrans.position.y = -1.8;
+  g.add(botTrans);
+
+  // Structural rings (horizontal bands)
+  const ringMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899bb, metalness: 0.75, roughness: 0.25,
+  });
+  for (let y of [-1.7, -1.2, -0.6, 0.0, 0.5]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1.62, 0.06, 8, 24), ringMat);
+    ring.position.y = y;
+    ring.rotation.x = Math.PI / 2;
+    g.add(ring);
+  }
+
+  // Vertical panel lines (raised seams)
+  const seamMat = new THREE.MeshPhysicalMaterial({
+    color: 0x7788a0, metalness: 0.5, roughness: 0.5,
+  });
+  const N_SEAMS = 12;
+  for (let i = 0; i < N_SEAMS; i++) {
+    const a = (i / N_SEAMS) * 2 * Math.PI;
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.02, 2.0, 0.04), seamMat);
+    seam.position.set(1.61 * Math.cos(a), -0.6, 1.61 * Math.sin(a));
+    seam.rotation.y = -a;
+    g.add(seam);
+  }
+
+  // Equipment boxes (8 evenly spaced around body)
+  const boxMat = new THREE.MeshPhysicalMaterial({
+    color: 0x445566, metalness: 0.35, roughness: 0.65,
+  });
+  const boxAccMat = new THREE.MeshPhysicalMaterial({
+    color: 0x556677, metalness: 0.4, roughness: 0.55,
+  });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * 2 * Math.PI;
+    // Large equipment box
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.35, 0.35), boxMat);
+    box.position.set(1.8 * Math.cos(a), -0.4, 1.8 * Math.sin(a));
+    box.rotation.y = -a;
+    box.rotation.z = 0.05 * (i % 3 - 1);
+    g.add(box);
+    // Small box on top of some
+    if (i % 3 === 0) {
+      const sBox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.15, 0.2), boxAccMat);
+      sBox.position.set(1.9 * Math.cos(a), -0.15, 1.9 * Math.sin(a));
+      sBox.rotation.y = -a;
+      g.add(sBox);
+    }
+  }
+
+  // Access hatches (circular)
+  const hatchMat = new THREE.MeshPhysicalMaterial({
+    color: 0x556670, metalness: 0.3, roughness: 0.7,
+  });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * 2 * Math.PI + Math.PI / 4;
+    const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 12), hatchMat);
+    hatch.position.set(1.55 * Math.cos(a), -0.2, 1.55 * Math.sin(a));
+    hatch.rotation.x = Math.PI / 2;
+    hatch.rotation.z = a;
+    g.add(hatch);
+    // Hatch handle
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 6), accMat);
+    handle.position.set(1.62 * Math.cos(a), -0.2, 1.62 * Math.sin(a));
+    handle.rotation.z = Math.PI / 2;
+    handle.rotation.y = -a;
+    g.add(handle);
+  }
+
+  // Bottom mounting flange (connects to AB-axis)
+  const flangeMat = new THREE.MeshPhysicalMaterial({
+    color: 0x7788aa, metalness: 0.7, roughness: 0.3,
+  });
+  const flange = new THREE.Mesh(new THREE.CylinderGeometry(1.45, 1.5, 0.15, 24), flangeMat);
+  flange.position.y = -1.95;
+  g.add(flange);
+  const flangeRing = new THREE.Mesh(new THREE.TorusGeometry(1.48, 0.05, 8, 24), accMat);
+  flangeRing.rotation.x = Math.PI / 2;
+  flangeRing.position.y = -1.95;
+  g.add(flangeRing);
+
+  // Cable conduits (vertical pipes along body)
+  const conduitMat = new THREE.MeshPhysicalMaterial({
+    color: 0x667788, metalness: 0.5, roughness: 0.45,
+  });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * 2 * Math.PI + Math.PI / 6;
+    const conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.2, 6), conduitMat);
+    conduit.position.set(1.7 * Math.cos(a), -0.6, 1.7 * Math.sin(a));
+    g.add(conduit);
+  }
+
+  return g;
+}
+cabinGroup.add(buildCentralBody());
+
+// ---- 8c. AB-axis mechanism (enhanced gimbal) ----
+const aAxisGroup = new THREE.Group();
+aAxisGroup.position.y = -2.25;
+cabinGroup.add(aAxisGroup);
+
+const bAxisGroup = new THREE.Group();
+aAxisGroup.add(bAxisGroup);
+
+function buildABAxis() {
+  // A-axis (outer ring) - rotates around X (pitch)
+  const aMat = new THREE.MeshPhysicalMaterial({
+    color: COL.aAxis, metalness: 0.65, roughness: 0.28,
+    emissive: COL.aAxis, emissiveIntensity: 0.1,
+  });
+  const aDarkMat = new THREE.MeshPhysicalMaterial({
+    color: 0xcc5520, metalness: 0.5, roughness: 0.45,
+  });
+  const aHousingMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899aa, metalness: 0.6, roughness: 0.35,
+  });
+
+  // A-axis main ring (full torus)
+  const aFull = new THREE.Mesh(new THREE.TorusGeometry(1.75, 0.10, 12, 36), aMat);
+  aFull.rotation.x = Math.PI / 2;
+  aAxisGroup.add(aFull);
+
+  // A-axis bearing housings (trunnion style, on X axis)
+  for (let x of [-1, 1]) {
+    // Outer housing block
+    const bh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.45, 12), aHousingMat);
+    bh.position.set(x * 1.75, 0, 0);
+    bh.rotation.z = Math.PI / 2;
+    aAxisGroup.add(bh);
+    // Bearing cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.06, 12), aDarkMat);
+    cap.position.set(x * (1.75 + 0.23), 0, 0);
+    cap.rotation.z = Math.PI / 2;
+    aAxisGroup.add(cap);
+  }
+
+  // A-axis support arms (connecting to cabin body above)
+  const supMat = new THREE.MeshPhysicalMaterial({
+    color: 0xcc6633, metalness: 0.55, roughness: 0.35,
+  });
+  for (let x of [-1, 1]) {
+    // Diagonal support struts from A-axis ring up to cabin flange
+    for (let s = -1; s <= 1; s += 2) {
+      const sup = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.7, 6), supMat);
+      sup.position.set(x * 1.3, 0.4, s * 0.4);
+      sup.rotation.z = Math.PI / 3 * x;
+      sup.rotation.x = s * 0.3;
+      aAxisGroup.add(sup);
+    }
+  }
+
+  // B-axis (inner ring) - rotates around Z (roll, relative to A)
+  const bMat = new THREE.MeshPhysicalMaterial({
+    color: COL.bAxis, metalness: 0.65, roughness: 0.25,
+    emissive: COL.bAxis, emissiveIntensity: 0.12,
+  });
+  const bDarkMat = new THREE.MeshPhysicalMaterial({
+    color: 0xcc5577, metalness: 0.5, roughness: 0.4,
+  });
+  const bHousingMat = new THREE.MeshPhysicalMaterial({
+    color: 0x99aabb, metalness: 0.6, roughness: 0.3,
+  });
+
+  // B-axis ring
+  const bRing = new THREE.Mesh(new THREE.TorusGeometry(1.35, 0.08, 10, 32), bMat);
+  bRing.rotation.x = Math.PI / 2;
+  bAxisGroup.add(bRing);
+
+  // B-axis bearing housings (on Z axis)
+  for (let z of [-1, 1]) {
+    const bh = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.35, 12), bHousingMat);
+    bh.position.set(0, 0, z * 1.35);
+    bh.rotation.x = Math.PI / 2;
+    bAxisGroup.add(bh);
+    // Bearing cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 12), bDarkMat);
+    cap.position.set(0, 0, z * (1.35 + 0.17));
+    cap.rotation.x = Math.PI / 2;
+    bAxisGroup.add(cap);
+  }
+
+  // Intermediate gimbal ring (cross structure inside B-ring)
+  const crossMat = new THREE.MeshPhysicalMaterial({
+    color: 0xbb7799, metalness: 0.5, roughness: 0.35,
+  });
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * 2 * Math.PI;
+    const spoke = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.4, 6), crossMat);
+    spoke.position.set(1.2 * Math.cos(a), 0, 1.2 * Math.sin(a));
+    spoke.rotation.z = Math.PI / 2;
+    spoke.rotation.y = -a;
+    bAxisGroup.add(spoke);
+  }
+
+  // Inner hub of B-axis
+  const hubMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8899bb, metalness: 0.6, roughness: 0.3,
+  });
+  const bHub = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.25, 16), hubMat);
+  bHub.position.y = -0.05;
+  bAxisGroup.add(bHub);
+
+  // Connection points for Stewart (6 points on B-ring bottom)
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * 2 * Math.PI;
+    const dot = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 8, 8),
+      new THREE.MeshPhysicalMaterial({ color: COL.bAxis, emissive: COL.bAxis, emissiveIntensity: 0.3 })
+    );
+    dot.position.set(1.35 * Math.cos(a), -0.05, 1.35 * Math.sin(a));
+    bAxisGroup.add(dot);
+  }
+}
+buildABAxis();
+
+// ---- 8d. Stewart platform (hexapod) ----
+const stewartGroup = new THREE.Group();
+stewartGroup.position.y = -0.45;
+bAxisGroup.add(stewartGroup);
+
+// Stewart base plate (thicker with detail)
+const stewBaseMat = new THREE.MeshPhysicalMaterial({
+  color: COL.stewart, metalness: 0.5, roughness: 0.4,
+});
+const stewBase = new THREE.Mesh(new THREE.CylinderGeometry(STEWART_BASE_R, STEWART_BASE_R, 0.10, 24), stewBaseMat);
+stewartGroup.add(stewBase);
+
+// Base plate mounting ring
+const baseRingMat = new THREE.MeshPhysicalMaterial({
+  color: 0x8877cc, metalness: 0.4, roughness: 0.5,
+});
+const baseRing = new THREE.Mesh(new THREE.TorusGeometry(STEWART_BASE_R + 0.05, 0.04, 8, 24), baseRingMat);
+baseRing.rotation.x = Math.PI / 2;
+baseRing.position.y = -0.05;
+stewartGroup.add(baseRing);
+
+// Stewart top plate
+const stewTopMat = new THREE.MeshPhysicalMaterial({
+  color: COL.stewart, metalness: 0.5, roughness: 0.4,
+  emissive: COL.stewart, emissiveIntensity: 0.06,
+});
+const stewTop = new THREE.Mesh(new THREE.CylinderGeometry(STEWART_TOP_R, STEWART_TOP_R, 0.08, 24), stewTopMat);
+stewTop.position.y = -STEWART_HOME_L;
+stewartGroup.add(stewTop);
+
+// Top plate ring
+const topRing = new THREE.Mesh(new THREE.TorusGeometry(STEWART_TOP_R + 0.03, 0.03, 8, 20), baseRingMat);
+topRing.rotation.x = Math.PI / 2;
+topRing.position.y = -STEWART_HOME_L;
+stewartGroup.add(topRing);
+
+// 6 Stewart legs (each with barrel + piston rod)
+const stewLegMeshes = [];
+const legMat = new THREE.MeshPhysicalMaterial({
+  color: COL.stewartLeg, metalness: 0.6, roughness: 0.3,
+  emissive: COL.stewartLeg, emissiveIntensity: 0.08,
+});
+
+// Stewart joint angles (alternating pairs for hexapod, matching real FAST)
+const stewBaseAngles = [15, 105, 135, 225, 255, 345].map(d => d * DEG);
+const stewTopAngles = [45, 75, 165, 195, 285, 315].map(d => d * DEG);
+
+// Stewart leg joint spheres (base)
+for (let i = 0; i < 6; i++) {
+  const a = stewBaseAngles[i];
+  const jMat = new THREE.MeshPhysicalMaterial({
+    color: 0x8877cc, metalness: 0.5, roughness: 0.4,
+    emissive: 0x8877cc, emissiveIntensity: 0.1,
+  });
+  const joint = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), jMat);
+  joint.position.set(STEWART_BASE_R * Math.cos(a), 0.05, STEWART_BASE_R * Math.sin(a));
+  stewartGroup.add(joint);
+}
+
+// Leg cylinder meshes (updated each frame)
+for (let i = 0; i < 6; i++) {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1, 6), legMat.clone());
+  stewartGroup.add(leg);
+  stewLegMeshes.push(leg);
+}
+
+// Feed horn (receiver) - more detailed
+const hornMat = new THREE.MeshPhysicalMaterial({
+  color: COL.horn, metalness: 0.4, roughness: 0.3,
+  emissive: 0xff8844, emissiveIntensity: 0.06,
+});
+// Main horn cone
+const horn = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.7, 20), hornMat);
+horn.position.y = -STEWART_HOME_L - 0.40;
+stewartGroup.add(horn);
+
+// Horn rim
+const rimMat = new THREE.MeshPhysicalMaterial({
+  color: 0xddddff, metalness: 0.7, roughness: 0.2,
+  emissive: 0xff6b35, emissiveIntensity: 0.1,
+});
+const hornRim = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.03, 8, 20), rimMat);
+hornRim.rotation.x = Math.PI / 2;
+hornRim.position.y = -STEWART_HOME_L - 0.75;
+stewartGroup.add(hornRim);
+
+// Inner receiver cone
+const innerMat = new THREE.MeshPhysicalMaterial({
+  color: 0x222233, metalness: 0.8, roughness: 0.1,
+});
+const innerCone = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.4, 12), innerMat);
+innerCone.position.y = -STEWART_HOME_L - 0.25;
+stewartGroup.add(innerCone);
+
+// Horn inner glow (pulsing emission)
+const glowMat = new THREE.MeshPhysicalMaterial({
+  color: 0xff6b35, emissive: 0xff6b35, emissiveIntensity: 0.6,
+  transparent: true, opacity: 0.25,
+});
+const glow = new THREE.Mesh(new THREE.CircleGeometry(0.3, 12), glowMat);
+glow.rotation.x = Math.PI / 2;
+glow.position.y = -STEWART_HOME_L - 0.74;
+stewartGroup.add(glow);
+
+// ---- 8e. Observation beam (可切换的观测方向锥) ----
+const beamGroup = new THREE.Group();
+beamGroup.position.y = -4.0;  // below cabin, aligned with feed horn level
+cabinGroup.add(beamGroup);
+
+// Main beam cone
+const beamMat = new THREE.MeshPhysicalMaterial({
+  color: 0x4488ff,
+  emissive: 0x4488ff,
+  emissiveIntensity: 0.08,
+  transparent: true,
+  opacity: 0.08,
+  side: THREE.DoubleSide,
+  depthWrite: false,
+  metalness: 0.1,
+  roughness: 0.3,
+});
+const beamGeom = new THREE.CylinderGeometry(18, 0.4, 50, 24, 1, true);
+const beamMesh = new THREE.Mesh(beamGeom, beamMat);
+beamMesh.position.y = 25;  // center of cone (goes upward from feed horn)
+beamGroup.add(beamMesh);
+
+// Beam wireframe (structural lines defining the cone)
+const beamLineMat = new THREE.LineBasicMaterial({
+  color: 0x4488ff,
+  transparent: true,
+  opacity: 0.12,
+});
+const beamLinePts = [];
+const nBeamLines = 12;
+const nBeamRings = 6;
+// Meridian lines
+for (let i = 0; i < nBeamLines; i++) {
+  const a = (i / nBeamLines) * 2 * Math.PI;
+  for (let j = 0; j < 20; j++) {
+    const f0 = j / 20, f1 = (j + 1) / 20;
+    const y0 = f0 * 50, y1 = f1 * 50;
+    const r0 = 0.4 + (18 - 0.4) * f0, r1 = 0.4 + (18 - 0.4) * f1;
+    beamLinePts.push(r0 * Math.cos(a), y0, r0 * Math.sin(a));
+    beamLinePts.push(r1 * Math.cos(a), y1, r1 * Math.sin(a));
+  }
+}
+// Horizontal rings
+for (let ri = 0; ri < nBeamRings; ri++) {
+  const f = (ri + 1) / (nBeamRings + 1);
+  const y = f * 50;
+  const r = 0.4 + (18 - 0.4) * f;
+  const segs = 20;
+  for (let j = 0; j < segs; j++) {
+    const a0 = (j / segs) * 2 * Math.PI;
+    const a1 = ((j + 1) / segs) * 2 * Math.PI;
+    beamLinePts.push(r * Math.cos(a0), y, r * Math.sin(a0));
+    beamLinePts.push(r * Math.cos(a1), y, r * Math.sin(a1));
+  }
+}
+const bLG = new THREE.BufferGeometry();
+bLG.setAttribute('position', new THREE.Float32BufferAttribute(beamLinePts, 3));
+const beamLines = new THREE.LineSegments(bLG, beamLineMat);
+beamLines.position.y = 25;
+beamGroup.add(beamLines);
+
+// Beam top ring (highlight at the "aperture")
+const topRingMat = new THREE.MeshPhysicalMaterial({
+  color: 0x4488ff,
+  emissive: 0x4488ff,
+  emissiveIntensity: 0.15,
+  transparent: true,
+  opacity: 0.2,
+});
+const beamTopRing = new THREE.Mesh(new THREE.TorusGeometry(18, 0.15, 8, 24), topRingMat);
+beamTopRing.rotation.x = Math.PI / 2;
+beamTopRing.position.y = 50;
+beamGroup.add(beamTopRing);
+
+// State for beam toggle (always visible in clean version)
+state.showBeam = true;
+
+// ============================================================
+// SECTION 9: Cables
+// ============================================================
+const cableMeshes = [];
+const cableGlowMeshes = [];
+
+function createCables() {
+  for (let i = 0; i < N_CABLES; i++) {
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: COL.cableLow,
+      emissive: COL.cableLow,
+      emissiveIntensity: 0.15,
+      metalness: 0.3,
+      roughness: 0.5,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1, 6), mat);
+    mesh.frustumCulled = false;
+    scene.add(mesh);
+    cableMeshes.push(mesh);
+
+    // Glow layer
+    const gMat = new THREE.MeshPhysicalMaterial({
+      color: COL.cableLow,
+      emissive: COL.cableLow,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.2,
+    });
+    const glow = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 6), gMat);
+    glow.frustumCulled = false;
+    scene.add(glow);
+    cableGlowMeshes.push(glow);
+  }
+}
+createCables();
+
+// ============================================================
+// SECTION 10: Kinematics Engine
+// ============================================================
+function solveKinematics(attitude) {
+  const { pitch, roll, yaw } = attitude;
+  const pRad = pitch * DEG;
+  const rRad = roll * DEG;
+  const yRad = yaw * DEG;
+
+  // AB-axis: pitch drives A-axis, roll drives B-axis (decoupled simplified)
+  const abA = pRad;
+  const abB = rRad;
+
+  // Residual for Stewart (AB-axis handles pitch/roll, Stewart handles yaw + tiny residual)
+  const residualPitch = 0;
+  const residualRoll = 0;
+  const residualYaw = yRad;
+
+  // Stewart IK
+  const legLengths = [];
+  for (let i = 0; i < 6; i++) {
+    const ba = stewBaseAngles[i];
+    const ta = stewTopAngles[i];
+    // Base joint position in base frame
+    const bx = STEWART_BASE_R * Math.cos(ba);
+    const bz = STEWART_BASE_R * Math.sin(ba);
+    // Top joint position in top frame
+    let tx = STEWART_TOP_R * Math.cos(ta);
+    let tz = STEWART_TOP_R * Math.sin(ta);
+    const ty = 0;
+    // Apply residual rotation (small angle approx, mainly yaw)
+    const cosY = Math.cos(residualYaw);
+    const sinY = Math.sin(residualYaw);
+    const rx = tx * cosY + tz * sinY;
+    const rz = -tx * sinY + tz * cosY;
+    // Legacy vector from base to top (in base frame, Z-up, top is at -Z)
+    const dx = rx - bx;
+    const dz = rz - bz;
+    const dy = -STEWART_HOME_L - ty; // top plate is below base
+    const len = Math.sqrt(dx*dx + dy*dy + dz*dz);
+    legLengths.push(len);
+  }
+
+  return { abA, abB, legLengths };
+}
+
+function computeTensions(cabinPos, attitude) {
+  const { pitch, roll, yaw } = attitude;
+  const rot = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(pitch * DEG, yaw * DEG, roll * DEG, 'YXZ')
+  );
+
+  const worldEnds = [];
+  const dirs = [];
+  const weights = [];
+
+  for (let i = 0; i < N_CABLES; i++) {
+    const localEnd = armEndsLocal[i].clone();
+    localEnd.applyQuaternion(rot);
+    const worldEnd = localEnd.clone().add(cabinPos);
+    worldEnds.push(worldEnd);
+
+    const dir = new THREE.Vector3().copy(towerAnchors[i]).sub(worldEnd);
+    const len = dir.length();
+    dir.normalize();
+    dirs.push(dir);
+    weights.push(len);
+  }
+
+  // Simplified tension distribution: solve for vertical equilibrium + moment balance
+  // Assuming symmetrical structure, distribute based on vertical projection
+  const vertComponents = dirs.map(d => Math.abs(d.y));
+  const totalVert = vertComponents.reduce((a, b) => a + b, 0);
+
+  const tensions = vertComponents.map(v => {
+    const raw = (CABIN_WEIGHT / totalVert) * v;
+    return Math.max(T_MIN, Math.min(T_MAX, raw));
+  });
+
+  return tensions;
+}
+
+// ============================================================
+// SECTION 11: Cable Update
+// ============================================================
+function updateCables(cabinPos, attitude, tensions) {
+  const rot = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(attitude.pitch * DEG, attitude.yaw * DEG, attitude.roll * DEG, 'YXZ')
+  );
+
+  for (let i = 0; i < N_CABLES; i++) {
+    const localEnd = armEndsLocal[i].clone();
+    localEnd.applyQuaternion(rot);
+    const worldEnd = localEnd.clone().add(cabinPos);
+
+    const start = towerAnchors[i];
+    const mid = new THREE.Vector3().addVectors(start, worldEnd).multiplyScalar(0.5);
+    const dir = new THREE.Vector3().subVectors(worldEnd, start);
+    const len = dir.length();
+    const nDir = dir.clone().normalize();
+
+    // Tension -> color mapping
+    const tRatio = (tensions[i] - T_MIN) / (T_MAX - T_MIN);
+    const clamped = Math.max(0, Math.min(1, tRatio));
+    const c = new THREE.Color(COL.cableLow).lerp(new THREE.Color(COL.cableHigh), clamped);
+
+    // Main cable
+    const mesh = cableMeshes[i];
+    mesh.position.copy(mid);
+    mesh.scale.set(1, len, 1);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nDir);
+    mesh.material.color.copy(c);
+    mesh.material.emissive.copy(c);
+
+    // Glow cable
+    const gMesh = cableGlowMeshes[i];
+    gMesh.position.copy(mid);
+    gMesh.scale.set(1, len, 1);
+    gMesh.quaternion.copy(mesh.quaternion);
+    gMesh.material.color.copy(c);
+    gMesh.material.emissive.copy(c);
+    gMesh.material.opacity = 0.08 + clamped * 0.25;
+  }
+}
+
+// ============================================================
+// SECTION 12: Stewart Leg Update
+// ============================================================
+function updateStewartLegs(legLengths) {
+  for (let i = 0; i < 6; i++) {
+    const ba = stewBaseAngles[i];
+    const ta = stewTopAngles[i];
+    const bx = STEWART_BASE_R * Math.cos(ba);
+    const bz = STEWART_BASE_R * Math.sin(ba);
+    const tx = STEWART_TOP_R * Math.cos(ta);
+    const tz = STEWART_TOP_R * Math.sin(ta);
+
+    const start = new THREE.Vector3(bx, 0, bz);
+    const end = new THREE.Vector3(tx, -legLengths[i], tz);
+    const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+    const dir = new THREE.Vector3().subVectors(end, start);
+    const len = dir.length();
+    const nDir = dir.clone().normalize();
+
+    const leg = stewLegMeshes[i];
+    leg.position.copy(mid);
+    leg.scale.set(1, len, 1);
+    leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nDir);
+
+    // Color by extension
+    const extRatio = (len - STEWART_HOME_L) / STEWART_HOME_L;
+    const c = new THREE.Color(0x4ecdc4).lerp(new THREE.Color(0xff6b35), Math.abs(extRatio) * 2);
+    leg.material.color.copy(c);
+  }
+}
+
+// ============================================================
+// SECTION 13: Attitude Interpolation
+// ============================================================
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function lerpAngle(a, b, t) {
+  const d = b - a;
+  return a + d * t;
+}
+
+function updateAttitude(dt) {
+  if (!state.animating) return;
+
+  state.animT += dt / state.animDuration;
+  if (state.animT >= 1) {
+    state.animT = 1;
+    state.animating = false;
+    state.status = '已就位';
+    Object.assign(state.current, state.target);
+    return;
+  }
+
+  const e = easeInOutCubic(state.animT);
+  state.current.pitch = lerpAngle(state.start.pitch, state.target.pitch, e);
+  state.current.roll = lerpAngle(state.start.roll, state.target.roll, e);
+  state.current.yaw = lerpAngle(state.start.yaw, state.target.yaw, e);
+  state.status = '调姿中...';
+}
+
+function startAttitudeTransition(target) {
+  Object.assign(state.start, state.current);
+  Object.assign(state.target, target);
+  state.animT = 0;
+  state.animating = true;
+  state.status = '解算中...';
+}
+
+// ============================================================
+// SECTION 14: Mode Logic
+// ============================================================
+let demoPhase = 0;
+let demoWait = 0;
+
+const DEMO_SEQUENCE = [
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 2.0 },
+  { pitch: 10, roll: 0, yaw: 0, label: '俯仰 +10°', hold: 2.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 1.5 },
+  { pitch: -8, roll: 0, yaw: 0, label: '俯仰 -8°', hold: 2.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 1.5 },
+  { pitch: 0, roll: 12, yaw: 0, label: '横滚 +12°', hold: 2.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 1.5 },
+  { pitch: 0, roll: -8, yaw: 0, label: '横滚 -8°', hold: 2.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 1.5 },
+  { pitch: 0, roll: 0, yaw: 8, label: '偏航 +8°', hold: 2.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 1.5 },
+  { pitch: 8, roll: 6, yaw: 4, label: '复合姿态', hold: 3.0 },
+  { pitch: 0, roll: 0, yaw: 0, label: '归零位', hold: 2.0 },
+];
+
+function updateModeA(dt) {
+  if (state.animating) return;
+  demoWait -= dt;
+  if (demoWait > 0) return;
+
+  demoPhase = (demoPhase + 1) % DEMO_SEQUENCE.length;
+  const target = DEMO_SEQUENCE[demoPhase];
+  demoWait = target.hold;
+  startAttitudeTransition({ pitch: target.pitch, roll: target.roll, yaw: target.yaw });
+}
+
+function updateModeB(dt) {
+  // Manual mode - user triggers via button (unused in clean version)
+}
+
+function updateModeC(dt) {
+  if (state.animating) return;
+  // Simulate tracking a moving celestial source
+  state.trackingAngle += dt * 0.15;
+  const target = {
+    pitch: 8 * Math.sin(state.trackingAngle),
+    roll: 5 * Math.cos(state.trackingAngle * 0.7),
+    yaw: 3 * Math.sin(state.trackingAngle * 0.4),
+  };
+  startAttitudeTransition(target);
+}
+
+// ============================================================
+// SECTION 15: Main Animation Loop
+// ============================================================
+const clock = new THREE.Clock();
+state.status = '就绪';
+
+// Auto-orbit camera
+let orbitAngle = 0;
+let orbitIdle = 0;
+const ORBIT_IDLE_TIME = 3; // seconds before auto-orbit kicks in
+controls.addEventListener('start', () => { orbitIdle = 0; });
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // ---- Mode update ----
+  if (!state.animating) {
+    switch (state.mode) {
+      case 'A': updateModeA(dt); break;
+      case 'B': updateModeB(dt); break;
+      case 'C': updateModeC(dt); break;
+    }
+  }
+
+  // ---- Attitude interpolation ----
+  updateAttitude(dt);
+
+  // ---- Solve kinematics ----
+  const kin = solveKinematics(state.current);
+  state.abA = kin.abA;
+  state.abB = kin.abB;
+  state.legLengths = kin.legLengths;
+
+  // ---- Apply cabin transform ----
+  // Pitch around X, Yaw around Y, Roll around Z (YXZ order = flight dynamics)
+  const pRad = state.current.pitch * DEG;
+  const rRad = state.current.roll * DEG;
+  const yRad = state.current.yaw * DEG;
+  cabinGroup.quaternion.setFromEuler(new THREE.Euler(pRad, yRad, rRad, 'YXZ'));
+
+  // AB-axis relative rotations (A = pitch, B = roll)
+  aAxisGroup.rotation.x = kin.abA;
+  bAxisGroup.rotation.z = kin.abB;
+
+  // ---- Update Stewart legs ----
+  updateStewartLegs(state.legLengths);
+
+  // ---- Compute and update cables ----
+  const cabinWorldPos = new THREE.Vector3(0, CABIN_HEIGHT, 0);
+  const tensions = computeTensions(cabinWorldPos, state.current);
+  state.tensions = tensions;
+  updateCables(cabinWorldPos, state.current, tensions);
+
+  // ---- Visual polish ----
+  const t = clock.elapsedTime;
+  // Feed horn glow pulse
+  if (typeof glow !== 'undefined') {
+    glow.material.emissiveIntensity = 0.3 + 0.25 * Math.sin(t * 1.5);
+  }
+  // Observation beam pulse
+  if (typeof beamGroup !== 'undefined' && beamGroup.visible) {
+    if (typeof beamMesh !== 'undefined') {
+      beamMesh.material.opacity = 0.06 + 0.04 * Math.sin(t * 0.8);
+    }
+  }
+
+  // ---- Auto-rotate camera (resume after idle) ----
+  if (userInteractTimer > 0) {
+    userInteractTimer -= dt;
+    if (userInteractTimer <= 0) {
+      controls.autoRotate = true;
+    }
+  }
+
+  // ---- Render ----
+  controls.update();
+  composer.render();
+}
+
+// ============================================================
+// SECTION 16: Window resize
+// ============================================================
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+});
+
+// ============================================================
+// SECTION 17: Start
+// ============================================================
+// Initial demo sequence will start automatically
+demoWait = 1.0;
+animate();
+
+console.log('FAST 馈源舱 -- 姿态模拟已启动');
+</script>
+</body>
+</html>

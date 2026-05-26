@@ -3,9 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const SLIDES = [
-  { src: '/images/hero/slide-1.png', alt: '曲柄滑块机构动画演示' },
-  { src: '/images/hero/slide-2.png', alt: '空间站对接机构动画' },
-  { src: '/images/hero/slide-3.png', alt: '四杆机构运动学动画' },
+  { src: '/images/hero/fast-feed-cabin.gif', alt: 'FAST馈源舱姿态模拟' },
+  { src: '/images/hero/space-station-docking.gif', alt: '空间站交会对接' },
 ];
 
 const INTERVAL = 4000;

@@ -1,7 +1,7 @@
 import { getAnimationBySlugAsync, getAnimationUrl } from '@/lib/animation-registry';
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params;
@@ -17,9 +17,12 @@ export async function GET(
     return Response.redirect(src);
   }
 
-  // Uploaded files: proxy from Blob to strip Content-Disposition header
+  // Uploaded files: proxy to strip Content-Disposition header
+  // Relative paths (local uploads) need a full URL for server-side fetch
+  const fullUrl = src.startsWith('http') ? src : new URL(src, request.url).toString();
+
   try {
-    const blobRes = await fetch(src);
+    const blobRes = await fetch(fullUrl);
     if (!blobRes.ok) {
       return new Response('Blob not found', { status: 404 });
     }

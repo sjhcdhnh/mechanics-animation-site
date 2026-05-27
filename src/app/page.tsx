@@ -44,7 +44,7 @@ export default function HomePage() {
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground tracking-tight leading-tight text-balance">
-                力拔理力<span className="text-accent">集</span>
+                力拔·理力创见
               </h1>
 
               <p className="mt-5 text-sm sm:text-base text-muted max-w-lg leading-relaxed">

@@ -153,6 +153,26 @@ export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
   } catch { /* individual file already saved */ }
 }
 
+/** Update metadata for any animation (builtin = memory only, uploaded = blob + registry) */
+export async function updateAnimationMeta(slug: string, patch: Partial<AnimationMeta>): Promise<AnimationMeta | null> {
+  const anim = await getAnimationBySlugAsync(slug);
+  if (!anim) return null;
+
+  const updated: AnimationMeta = { ...anim, ...patch, slug }; // slug is immutable
+
+  if (anim.source === 'uploaded') {
+    // Persist to Blob: update individual file + registry
+    await saveUploadedMeta(updated);
+  } else {
+    // Builtin: update in-memory cache only
+    const builtin = getBuiltin();
+    const idx = builtin.findIndex((a) => a.slug === slug);
+    if (idx >= 0) builtin[idx] = updated;
+  }
+
+  return updated;
+}
+
 export async function deleteUploadedMeta(slug: string): Promise<void> {
   // Delete individual backup file
   try {
@@ -299,11 +319,24 @@ export function addAnimation(meta: AnimationMeta): void {
 }
 
 export function deleteAnimation(slug: string): boolean {
-  const registry = getBuiltin();
-  const index = registry.findIndex((a) => a.slug === slug);
-  if (index === -1) return false;
-  registry.splice(index, 1);
-  return true;
+  // Check builtin data
+  const builtin = getBuiltin();
+  const builtinIdx = builtin.findIndex((a) => a.slug === slug);
+  if (builtinIdx >= 0) {
+    builtin.splice(builtinIdx, 1);
+    return true;
+  }
+
+  // Check uploaded cache
+  if (uploadedCache) {
+    const uploadedIdx = uploadedCache.findIndex((a) => a.slug === slug);
+    if (uploadedIdx >= 0) {
+      uploadedCache.splice(uploadedIdx, 1);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function getAnimationUrl(anim: AnimationMeta): string {

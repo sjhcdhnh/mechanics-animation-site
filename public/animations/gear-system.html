@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>齿轮机构 · 线速度标注 · 无雾</title>
+    <style>
+        :root { --bg: #15171c; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background-color: var(--bg);
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            height: 100vh; width: 100vw;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        #canvas-container {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        canvas { display: block; }
+
+        .info-panel {
+            position: fixed; bottom: 28px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30,30,38,0.88);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border-radius: 20px; padding: 14px 24px;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+            display: flex; align-items: center; gap: 16px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.08);
+            flex-wrap: wrap; justify-content: center;
+        }
+        .info-item {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 13px; color: #e0e0e0; white-space: nowrap;
+        }
+        .color-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+        .divider {
+            width: 1px; height: 16px; background: #4a4a55; flex-shrink: 0;
+        }
+        @media (max-width: 700px) {
+            .info-panel { gap: 10px; padding: 10px 16px; border-radius: 14px; }
+            .info-item { font-size: 11px; gap: 5px; }
+            .color-dot { width: 10px; height: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="info-panel">
+        <div class="info-item"><span class="color-dot" style="background:#e63946;"></span> A</div>
+        <div class="divider"></div>
+        <div class="info-item"><span class="color-dot" style="background:#3a7bd5;"></span> B (主动)</div>
+        <div class="divider"></div>
+        <div class="info-item"><span class="color-dot" style="background:#2a9d8f;"></span> C</div>
+        <div class="divider"></div>
+        <div class="info-item"><span class="color-dot" style="background:#e76f51;"></span> D</div>
+        <div class="divider"></div>
+        <div class="info-item"><span class="color-dot" style="background:#9b5de5;"></span> E</div>
+        <div class="divider"></div>
+        <div class="info-item"><span class="color-dot" style="background:#8d99a4;"></span> 连杆</div>
+        <div class="divider"></div>
+        <div class="info-item" style="color:#ffd966;">⚡ v = 5Ω</div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ---------- 场景初始化 ----------
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#1a1d24');
+        // ⚠️ 雾效已移除，不再使用 scene.fog
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        container.appendChild(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 75);
+        camera.position.set(12, 6, 22);
+        camera.lookAt(0, 0, -2);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0, -2);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.12;
+        controls.minDistance = 12;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI * 0.72;
+        controls.minPolarAngle = 0.25;
+        controls.update();
+
+        // ---------- 光照 ----------
+        const ambient = new THREE.AmbientLight('#3a4050', 2.2);
+        scene.add(ambient);
+        const hemi = new THREE.HemisphereLight('#b0c0d8', '#282e3a', 1.6);
+        scene.add(hemi);
+        const keyLight = new THREE.DirectionalLight('#ffffff', 5.5);
+        keyLight.position.set(14, 18, 12);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        keyLight.shadow.camera.near = 0.5;
+        keyLight.shadow.camera.far = 75;
+        keyLight.shadow.camera.left = -22;
+        keyLight.shadow.camera.right = 22;
+        keyLight.shadow.camera.top = 18;
+        keyLight.shadow.camera.bottom = -18;
+        keyLight.shadow.bias = -0.0005;
+        keyLight.shadow.normalBias = 0.02;
+        scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight('#8a9bb5', 2.0);
+        fillLight.position.set(-6, 3, -6);
+        scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight('#5a6b82', 1.8);
+        rimLight.position.set(0, -2, 2);
+        scene.add(rimLight);
+
+        // ---------- 参数 ----------
+        const GEAR_RADIUS = 5.0;
+        const GEAR_THICK = 0.45;
+        const TEETH_COUNT = 36;
+        const TOOTH_HEIGHT = 0.65;
+        const TOOTH_DEDENDUM = 0.45;
+        const TOOTH_WIDTH_RATIO = 0.45;
+        const OMEGA = 1.7;
+
+        // 材质
+        const matA = new THREE.MeshStandardMaterial({ color: '#e63946', roughness: 0.25, metalness: 0.55 });
+        const matB = new THREE.MeshStandardMaterial({ color: '#3a7bd5', roughness: 0.25, metalness: 0.55 });
+        const matC = new THREE.MeshStandardMaterial({ color: '#2a9d8f', roughness: 0.25, metalness: 0.55 });
+        const matD = new THREE.MeshStandardMaterial({ color: '#e76f51', roughness: 0.25, metalness: 0.55 });
+        const matE = new THREE.MeshStandardMaterial({ color: '#9b5de5', roughness: 0.25, metalness: 0.55 });
+        const matRod = new THREE.MeshStandardMaterial({ color: '#8d99a4', roughness: 0.4, metalness: 0.7 });
+        const matHub = new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 });
+        const matPillar = new THREE.MeshStandardMaterial({ color: '#4a4f5a', roughness: 0.55, metalness: 0.5 });
+        const matGround = new THREE.MeshStandardMaterial({ color: '#1e2128', roughness: 0.9, metalness: 0.15 });
+
+        // ---------- 齿轮构建 ----------
+        function createPlanarGear(radius, thickness, teethCount, material) {
+            const group = new THREE.Group();
+            const shape = new THREE.Shape();
+            const rootR = radius - TOOTH_DEDENDUM;
+            const tipR = radius + TOOTH_HEIGHT;
+            const angleStep = (Math.PI * 2) / teethCount;
+            const toothAngle = angleStep * TOOTH_WIDTH_RATIO;
+            const gapAngle = angleStep - toothAngle;
+            let angle = -toothAngle / 2;
+            shape.moveTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
+            for (let i = 0; i < teethCount; i++) {
+                const tipStart = angle + toothAngle / 2;
+                shape.lineTo(tipR * Math.cos(tipStart), tipR * Math.sin(tipStart));
+                angle += toothAngle;
+                shape.lineTo(tipR * Math.cos(angle), tipR * Math.sin(angle));
+                shape.lineTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
+                angle += gapAngle;
+                shape.lineTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
+            }
+            const holePath = new THREE.Path();
+            holePath.absellipse(0, 0, 0.6, 0.6, 0, Math.PI * 2, true);
+            shape.holes.push(holePath);
+            const geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: thickness, bevelEnabled: false });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = mesh.receiveShadow = true;
+            group.add(mesh);
+            const hubGeo = new THREE.CylinderGeometry(0.55, 0.55, thickness + 0.08, 24);
+            const hub = new THREE.Mesh(hubGeo, matHub);
+            hub.position.z = 0;
+            hub.castShadow = hub.receiveShadow = true;
+            group.add(hub);
+            return group;
+        }
+
+        function wrapYAxisGear(radius, thickness, teethCount, material) {
+            const wrapper = new THREE.Group();
+            const gear = createPlanarGear(radius, thickness, teethCount, material);
+            gear.rotation.x = -Math.PI / 2;
+            wrapper.add(gear);
+            return wrapper;
+        }
+
+        // ---------- 场景物体 ----------
+        const grid = new THREE.GridHelper(28, 34, '#3a3f4a', '#252830');
+        grid.position.y = -18.5;
+        scene.add(grid);
+        const groundGeo = new THREE.PlaneGeometry(32, 32);
+        const ground = new THREE.Mesh(groundGeo, matGround);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -18.8;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // 齿轮 A, C (Z轴)
+        const gearA = createPlanarGear(GEAR_RADIUS, GEAR_THICK, TEETH_COUNT, matA);
+        gearA.position.set(0, 0, 0);
+        scene.add(gearA);
+        const gearC = createPlanarGear(GEAR_RADIUS, GEAR_THICK, TEETH_COUNT, matC);
+        gearC.position.set(0, -10, 0);
+        scene.add(gearC);
+
+        // 齿轮 B (Y轴)
+        const gearB = wrapYAxisGear(GEAR_RADIUS, GEAR_THICK, TEETH_COUNT, matB);
+        gearB.position.set(0, 5, 5);
+        scene.add(gearB);
+
+        // D-E 组合体
+        const groupDE = new THREE.Group();
+        groupDE.position.set(0, 0, -5);
+        scene.add(groupDE);
+
+        const gearD = wrapYAxisGear(GEAR_RADIUS, GEAR_THICK, TEETH_COUNT, matD);
+        gearD.position.set(0, -15, 0);
+        groupDE.add(gearD);
+
+        const gearE = wrapYAxisGear(GEAR_RADIUS, GEAR_THICK, TEETH_COUNT, matE);
+        gearE.position.set(0, 15, 0);
+        groupDE.add(gearE);
+
+        // 连杆
+        const rodGeo = new THREE.CylinderGeometry(0.32, 0.32, 30, 16);
+        const rod = new THREE.Mesh(rodGeo, matRod);
+        rod.position.set(0, 0, 0);
+        rod.castShadow = rod.receiveShadow = true;
+        groupDE.add(rod);
+
+        // 装饰环
+        const ringGeo = new THREE.TorusGeometry(0.52, 0.12, 12, 24);
+        const ringMat = new THREE.MeshStandardMaterial({ color: '#9ca3af', roughness: 0.45, metalness: 0.7 });
+        const ringD = new THREE.Mesh(ringGeo, ringMat);
+        ringD.position.set(0, -15, 0);
+        ringD.rotation.x = Math.PI / 2;
+        groupDE.add(ringD);
+        const ringE = new THREE.Mesh(ringGeo, ringMat);
+        ringE.position.set(0, 15, 0);
+        ringE.rotation.x = Math.PI / 2;
+        groupDE.add(ringE);
+
+        // 啮合点标记
+        function mark(x, y, z, col = '#f4d03f') {
+            const sg = new THREE.SphereGeometry(0.36, 20, 20);
+            const sm = new THREE.MeshStandardMaterial({ color: col, roughness: 0.3, metalness: 0.5 });
+            const s = new THREE.Mesh(sg, sm);
+            s.position.set(x, y, z);
+            s.castShadow = s.receiveShadow = true;
+            scene.add(s);
+        }
+        mark(0, 5, 0);
+        mark(0, -5, 0);
+        mark(0, -15, 0);
+
+        // 支撑柱
+        function pillar(x, y, z, h) {
+            const geo = new THREE.CylinderGeometry(0.4, 0.45, h, 12);
+            const p = new THREE.Mesh(geo, matPillar);
+            p.position.set(x, y, z);
+            p.castShadow = p.receiveShadow = true;
+            scene.add(p);
+        }
+        pillar(0, -16.8, 0, 3.6);
+        pillar(0, -18.8, -5, 4.0);
+        pillar(0, -18.8, 5, 4.0);
+
+        // 漂浮粒子
+        const particlesGeo = new THREE.BufferGeometry();
+        const ptsCount = 120;
+        const posArray = new Float32Array(ptsCount * 3);
+        for (let i = 0; i < ptsCount; i++) {
+            posArray[i * 3] = (Math.random() - 0.5) * 34;
+            posArray[i * 3 + 1] = (Math.random() - 0.5) * 28;
+            posArray[i * 3 + 2] = (Math.random() - 0.5) * 26;
+        }
+        particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particlesMat = new THREE.PointsMaterial({
+            color: '#bcc6d0', size: 0.09, transparent: true, opacity: 0.45, depthWrite: false,
+        });
+        const particles = new THREE.Points(particlesGeo, particlesMat);
+        scene.add(particles);
+
+        // ---------- 线速度标注 (齿轮E) ----------
+        function createVelocityArrow(color, length) {
+            const group = new THREE.Group();
+            const shaftGeo = new THREE.CylinderGeometry(0.1, 0.1, length - 0.4, 8);
+            const shaft = new THREE.Mesh(shaftGeo, new THREE.MeshStandardMaterial({
+                color, emissive: color, emissiveIntensity: 0.7, roughness: 0.3
+            }));
+            shaft.position.y = (length - 0.4) / 2;
+            group.add(shaft);
+            const headGeo = new THREE.ConeGeometry(0.22, 0.4, 10);
+            const head = new THREE.Mesh(headGeo, new THREE.MeshStandardMaterial({
+                color, emissive: color, emissiveIntensity: 0.7, roughness: 0.3
+            }));
+            head.position.y = length - 0.2;
+            group.add(head);
+            return group;
+        }
+
+        const arrowGroup = createVelocityArrow('#ffd966', 3.5);
+        scene.add(arrowGroup);
+
+        function createLabelSprite(text) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 64;
+            const ctx = canvas.getContext('2d');
+            ctx.font = 'Bold 28px "Segoe UI", "PingFang SC", sans-serif';
+            ctx.fillStyle = '#ffd966';
+            ctx.textAlign = 'center';
+            ctx.fillText(text, 128, 40);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(2.5, 0.625, 1);
+            return sprite;
+        }
+
+        const labelSprite = createLabelSprite('v = 5Ω');
+        scene.add(labelSprite);
+
+        const eCenterMarker = new THREE.Mesh(
+            new THREE.SphereGeometry(0.3, 16, 16),
+            new THREE.MeshStandardMaterial({ color: '#ffd966', emissive: '#ffd966', emissiveIntensity: 0.5 })
+        );
+        scene.add(eCenterMarker);
+
+        // ---------- 动画循环 ----------
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const dt = Math.min(clock.getDelta(), 0.1);
+
+            gearB.rotation.y += OMEGA * dt;
+            gearA.rotation.z += OMEGA * dt;
+            gearC.rotation.z -= OMEGA * dt;
+            gearD.rotation.y -= OMEGA * dt;
+            gearE.rotation.y -= OMEGA * dt;
+            rod.rotation.y -= OMEGA * dt;
+
+            const eWorldPos = new THREE.Vector3();
+            gearE.getWorldPosition(eWorldPos);
+            eCenterMarker.position.copy(eWorldPos);
+
+            const localPoint = new THREE.Vector3(GEAR_RADIUS, 0, 0);
+            const worldPoint = localPoint.clone().applyMatrix4(gearE.matrixWorld);
+
+            const rVec = worldPoint.clone().sub(eWorldPos);
+            const velocity = new THREE.Vector3(-OMEGA * rVec.z, 0, OMEGA * rVec.x);
+
+            arrowGroup.position.copy(worldPoint);
+            if (velocity.length() > 0.001) {
+                const dir = velocity.clone().normalize();
+                arrowGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+            }
+
+            const labelPos = worldPoint.clone().add(velocity.clone().normalize().multiplyScalar(4.0));
+            labelSprite.position.copy(labelPos);
+
+            particles.rotation.y += dt * 0.03;
+            particles.position.y = Math.sin(performance.now() * 0.001) * 0.15;
+
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        // ---------- 响应式与快捷键 ----------
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key.toLowerCase() === 'r') {
+                camera.position.set(12, 6, 22);
+                controls.target.set(0, 0, -2);
+                controls.update();
+            } else if (e.key.toLowerCase() === 'f') {
+                camera.position.set(0, 0, 28);
+                controls.target.set(0, 0, -2);
+                controls.update();
+            } else if (e.key.toLowerCase() === 't') {
+                camera.position.set(0, 24, 0);
+                controls.target.set(0, 0, -2);
+                controls.update();
+            }
+        });
+
+        renderer.domElement.addEventListener('dblclick', () => {
+            camera.position.set(12, 6, 22);
+            controls.target.set(0, 0, -2);
+            controls.update();
+        });
+
+        requestAnimationFrame(animate);
+        console.log('🌫️ 雾效已移除，视野无遮挡');
+    </script>
+</body>
+</html>

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>双翼蝴蝶扑翼机构 · 交互式3D仿真</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+            background: #0a0a14;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* 右侧控制面板 */
+        #panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 260px;
+            background: rgba(10, 10, 20, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 18px 16px;
+            color: #ddd;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+            border: 1px solid rgba(100,100,200,0.25);
+            z-index: 10;
+            user-select: none;
+        }
+        #panel h3 {
+            margin: 0 0 15px 0;
+            color: #fff;
+            font-size: 18px;
+            text-align: center;
+        }
+        .slider-group {
+            margin-bottom: 12px;
+        }
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 4px;
+            color: #ccc;
+        }
+        .slider-group input[type=range] {
+            width: 100%;
+            accent-color: #5a5aff;
+        }
+        .slider-value {
+            color: #aaccff;
+            font-weight: bold;
+        }
+        #data-panel {
+            margin-top: 15px;
+            background: rgba(20,20,40,0.7);
+            border-radius: 10px;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #aaddff;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+        #data-panel span {
+            color: #ffcc88;
+        }
+        button {
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            background: rgba(60,60,120,0.7);
+            border: 1px solid rgba(120,120,255,0.5);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: rgba(80,80,180,0.8);
+        }
+        .note {
+            font-size: 11px;
+            color: #777;
+            text-align: center;
+            margin-top: 8px;
+        }
+        #drag-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            color: #aaa;
+            font-size: 13px;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 12px;
+            border-radius: 20px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="panel">
+        <h3>🦋 机构参数</h3>
+        <div class="slider-group">
+            <label>曲柄角速度 ω <span class="slider-value" id="val-omega">2.0</span> rad/s</label>
+            <input type="range" id="slider-omega" min="0.5" max="6" step="0.1" value="2.0">
+        </div>
+        <div class="slider-group">
+            <label>曲柄长度 r <span class="slider-value" id="val-r">30</span> mm</label>
+            <input type="range" id="slider-r" min="15" max="80" step="1" value="30">
+        </div>
+        <div class="slider-group">
+            <label>连杆长度 l <span class="slider-value" id="val-l">100</span> mm</label>
+            <input type="range" id="slider-l" min="50" max="180" step="1" value="100">
+        </div>
+        <div class="slider-group">
+            <label>摇杆长度 R <span class="slider-value" id="val-R">50</span> mm</label>
+            <input type="range" id="slider-R" min="25" max="100" step="1" value="50">
+        </div>
+        <div class="slider-group">
+            <label>翅膀长度 Lw <span class="slider-value" id="val-Lw">100</span> mm</label>
+            <input type="range" id="slider-Lw" min="50" max="180" step="1" value="100">
+        </div>
+        <div class="slider-group">
+            <label>安装角 γ <span class="slider-value" id="val-gamma">120</span>°</label>
+            <input type="range" id="slider-gamma" min="60" max="160" step="1" value="120">
+        </div>
+        <div class="slider-group">
+            <label>摇杆横距 d <span class="slider-value" id="val-d">60</span> mm</label>
+            <input type="range" id="slider-d" min="30" max="120" step="1" value="60">
+        </div>
+        <div class="slider-group">
+            <label>摇杆高度 h <span class="slider-value" id="val-h">80</span> mm</label>
+            <input type="range" id="slider-h" min="40" max="150" step="1" value="80">
+        </div>
+        <button id="pauseBtn">⏯️ 暂停</button>
+        <div id="data-panel">
+            📊 <b>实时运动量</b><br>
+            曲柄转角 φ: <span id="phi-val">0.0</span>°<br>
+            摇杆转角 θ₃: <span id="theta3-val">0.0</span>°<br>
+            摇杆角速度 ω₃: <span id="omega3-val">0.00</span> rad/s<br>
+            摇杆角加速度 α₃: <span id="alpha3-val">0.00</span> rad/s²<br>
+            A点速度: <span id="vA-val">0.00</span> m/s<br>
+            C点速度: <span id="vC-val">0.00</span> m/s<br>
+            A点加速度: <span id="aA-val">0.00</span> m/s²<br>
+            C点加速度: <span id="aC-val">0.00</span> m/s²
+        </div>
+        <div class="note">🖱️ 鼠标拖拽曲柄A点或翼尖C点<br>可动态驱动机构</div>
+    </div>
+    <div id="drag-hint">拖动节点：<span style="color:#0ff">A</span> <span style="color:#f0f">C_L</span> <span style="color:#f80">O₂</span></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ================= 全局参数 =================
+        const params = {
+            d: 60, h: 80, r: 30, R: 50, l: 100, L_wing: 100,
+            gamma: THREE.MathUtils.degToRad(120),
+            omega: 2.0,
+        };
+        let phi = 0;
+        let paused = false;
+
+        // ================= 运动学 (带速度加速度) =================
+        function solveTheta3(phi) {
+            const { d, h, r, R, l } = params;
+            const E = -d - r * Math.cos(phi);
+            const F = h - r * Math.sin(phi);
+            const K = (l * l - E * E - F * F - R * R) / (2 * R);
+            const denom = Math.sqrt(E * E + F * F);
+            const arg = Math.max(-1, Math.min(1, K / denom));
+            const delta = Math.acos(arg);
+            const alpha = Math.atan2(F, E);
+            return alpha - delta;
+        }
+
+        function computeFullKinematics(phi) {
+            const { d, h, r, R, l, L_wing, gamma, omega } = params;
+            const theta3 = solveTheta3(phi);
+            const A = new THREE.Vector2(r * Math.cos(phi), r * Math.sin(phi));
+            const vA = new THREE.Vector2(-r * omega * Math.sin(phi), r * omega * Math.cos(phi));
+            const aA = new THREE.Vector2(-r * omega * omega * Math.cos(phi), -r * omega * omega * Math.sin(phi));
+
+            const O2L = new THREE.Vector2(-d, h);
+            const B_left = new THREE.Vector2(O2L.x + R * Math.cos(theta3), O2L.y + R * Math.sin(theta3));
+            const d_vec = B_left.clone().sub(A);
+            const e_theta = new THREE.Vector2(-Math.sin(theta3), Math.cos(theta3));
+            const denom = R * d_vec.dot(e_theta);
+            let theta3_dot = 0;
+            if (Math.abs(denom) > 1e-9) theta3_dot = d_vec.dot(vA) / denom;
+            const vB = e_theta.clone().multiplyScalar(R * theta3_dot);
+            const e_n = new THREE.Vector2(Math.cos(theta3), Math.sin(theta3));
+            const term1 = -vB.clone().sub(vA).dot(vB.clone().sub(vA));
+            const term2 = d_vec.dot(e_n.clone().multiplyScalar(R * theta3_dot * theta3_dot).add(aA));
+            let theta3_ddot = 0;
+            if (Math.abs(denom) > 1e-9) theta3_ddot = (term1 + term2) / denom;
+            const aB = e_theta.clone().multiplyScalar(R * theta3_ddot).sub(e_n.clone().multiplyScalar(R * theta3_dot * theta3_dot));
+
+            const wing_dir = new THREE.Vector2(Math.cos(theta3 + gamma), Math.sin(theta3 + gamma));
+            const wing_perp = new THREE.Vector2(-Math.sin(theta3 + gamma), Math.cos(theta3 + gamma));
+            const C_left = B_left.clone().add(wing_dir.clone().multiplyScalar(L_wing));
+            const vC = vB.clone().add(wing_perp.clone().multiplyScalar(L_wing * theta3_dot));
+            const aC = aB.clone().add(wing_perp.clone().multiplyScalar(L_wing * theta3_ddot)).sub(wing_dir.clone().multiplyScalar(L_wing * theta3_dot * theta3_dot));
+
+            // 右侧对称
+            const theta3_sym = Math.PI - theta3;
+            const O2R = new THREE.Vector2(d, h);
+            const B_right = new THREE.Vector2(O2R.x + R * Math.cos(theta3_sym), O2R.y + R * Math.sin(theta3_sym));
+            const C_right = B_right.clone().add(new THREE.Vector2(Math.cos(theta3_sym - gamma), Math.sin(theta3_sym - gamma)).multiplyScalar(L_wing));
+            const vB_right = new THREE.Vector2(-vB.x, vB.y);
+            const vC_right = new THREE.Vector2(-vC.x, vC.y);
+            const aB_right = new THREE.Vector2(-aB.x, aB.y);
+            const aC_right = new THREE.Vector2(-aC.x, aC.y);
+
+            return {
+                A, B_left, C_left, B_right, C_right, O2L, O2R, theta3,
+                vA, vB, vC, aA, aB, aC,
+                vB_right, vC_right, aB_right, aC_right,
+                theta3_dot, theta3_ddot
+            };
+        }
+
+        // 逆向求解 (拖拽翼尖)
+        function inverseFromCLeft(C_target, phi_guess) {
+            const { d, h, r, R, l, L_wing, gamma } = params;
+            const O2L = new THREE.Vector2(-d, h);
+            const vec = C_target.clone().sub(O2L);
+            const dist = vec.length();
+            if (dist > R + L_wing || dist < Math.abs(R - L_wing)) return null;
+            const cos_beta = (R*R + dist*dist - L_wing*L_wing) / (2 * R * dist);
+            const beta = Math.acos(Math.max(-1, Math.min(1, cos_beta)));
+            const ang_vec = Math.atan2(vec.y, vec.x);
+            const theta3_1 = ang_vec + beta;
+            const theta3_2 = ang_vec - beta;
+            function wingError(t3) {
+                const B = O2L.clone().add(new THREE.Vector2(R*Math.cos(t3), R*Math.sin(t3)));
+                const C_calc = B.clone().add(new THREE.Vector2(Math.cos(t3+gamma), Math.sin(t3+gamma)).multiplyScalar(L_wing));
+                return C_calc.distanceTo(C_target);
+            }
+            const theta3 = wingError(theta3_1) < wingError(theta3_2) ? theta3_1 : theta3_2;
+            const B = O2L.clone().add(new THREE.Vector2(R*Math.cos(theta3), R*Math.sin(theta3)));
+            const d_OB = B.length();
+            if (d_OB > r + l || d_OB < Math.abs(r - l)) return null;
+            const a = (r*r - l*l + d_OB*d_OB) / (2 * d_OB);
+            const h_sq = r*r - a*a;
+            if (h_sq < 0) return null;
+            const h_val = Math.sqrt(h_sq);
+            const dir_OB = B.clone().normalize();
+            const perp = new THREE.Vector2(-dir_OB.y, dir_OB.x);
+            const A1 = dir_OB.clone().multiplyScalar(a).add(perp.clone().multiplyScalar(h_val));
+            const A2 = dir_OB.clone().multiplyScalar(a).add(perp.clone().multiplyScalar(-h_val));
+            const phi1 = Math.atan2(A1.y, A1.x);
+            const phi2 = Math.atan2(A2.y, A2.x);
+            const diff1 = Math.abs(phi1 - phi_guess);
+            const diff2 = Math.abs(phi2 - phi_guess);
+            return diff1 < diff2 ? phi1 : phi2;
+        }
+
+        // ================= 场景初始化 =================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a14);
+        scene.fog = new THREE.Fog(0x0a0a14, 50, 500);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 800);
+        camera.position.set(120, 150, 280);
+        camera.lookAt(0, 80, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 80, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.update();
+
+        // 光照
+        scene.add(new THREE.AmbientLight(0x334466));
+        const sun = new THREE.DirectionalLight(0xffeedd, 3);
+        sun.position.set(80, 150, 100);
+        sun.castShadow = true;
+        scene.add(sun);
+        scene.add(new THREE.DirectionalLight(0x6688cc, 1.2).position.set(-60, 40, -80));
+
+        // 地面网格
+        const grid = new THREE.GridHelper(350, 24, 0x336688, 0x112244);
+        grid.position.y = -10;
+        scene.add(grid);
+
+        // ================= 蝴蝶模型 =================
+        const to3D = (v2, y=0) => new THREE.Vector3(v2.x, v2.y, y);
+
+        // 身体
+        const bodyGeo = new THREE.SphereGeometry(1, 32, 16);
+        const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0x334466, emissive: 0x112233, roughness: 0.4, metalness: 0.8, clearcoat: 0.3 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.scale.set(0.9, 2.2, 0.65);
+        body.position.set(0, 40, 0);
+        body.castShadow = true;
+        scene.add(body);
+
+        const head = new THREE.Mesh(new THREE.SphereGeometry(7, 32, 16), new THREE.MeshStandardMaterial({ color: 0x223344, emissive: 0x111122, roughness: 0.3, metalness: 0.7 }));
+        head.position.set(0, 68, 0);
+        head.castShadow = true;
+        scene.add(head);
+
+        const eyeGeo = new THREE.SphereGeometry(3.5, 16, 16);
+        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, roughness: 0.1 });
+        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+        leftEye.position.set(-3.5, 70, 5);
+        scene.add(leftEye);
+        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+        rightEye.position.set(3.5, 70, 5);
+        scene.add(rightEye);
+        const pupilGeo = new THREE.SphereGeometry(1.8, 8, 8);
+        const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+        const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        leftPupil.position.set(-3.5, 70, 7.5);
+        scene.add(leftPupil);
+        const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
+        rightPupil.position.set(3.5, 70, 7.5);
+        scene.add(rightPupil);
+
+        function createAntenna(side) {
+            const curve = new THREE.CubicBezierCurve3(
+                new THREE.Vector3(side * 3, 71, 0),
+                new THREE.Vector3(side * 12, 85, 5),
+                new THREE.Vector3(side * 18, 95, -5),
+                new THREE.Vector3(side * 22, 110, 0)
+            );
+            const points = curve.getPoints(20);
+            const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(points), new THREE.LineBasicMaterial({ color: 0x8899cc }));
+            scene.add(line);
+            const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0xaaccff, emissive: 0x4466aa, roughness: 0.3 }));
+            tip.position.copy(points[points.length-1]);
+            scene.add(tip);
+            return { line, tip, curve };
+        }
+        createAntenna(-1);
+        createAntenna(1);
+
+        // 翅膀 (动态形状)
+        function createWingMesh(colorBase) {
+            const geo = new THREE.BufferGeometry();
+            const vertices = new Float32Array(12); // 4 vertices
+            geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+            geo.setIndex([0,1,2,0,2,3]);
+            const mat = new THREE.MeshStandardMaterial({
+                color: colorBase, emissive: new THREE.Color(colorBase).multiplyScalar(0.3),
+                side: THREE.DoubleSide, transparent: true, opacity: 0.7, roughness: 0.5
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.castShadow = true;
+            return mesh;
+        }
+        const wingL = createWingMesh(0xff4488);
+        const wingR = createWingMesh(0xff8844);
+        scene.add(wingL);
+        scene.add(wingR);
+
+        function updateWingGeometry(mesh, B, C, width = 15) {
+            const dir = new THREE.Vector3().subVectors(C, B);
+            const perp = new THREE.Vector3(-dir.y, dir.x, 0).normalize().multiplyScalar(width);
+            const positions = mesh.geometry.attributes.position.array;
+            positions[0] = B.x; positions[1] = B.y; positions[2] = 0;
+            positions[3] = C.x; positions[4] = C.y; positions[5] = 0;
+            positions[6] = C.x + perp.x; positions[7] = C.y + perp.y; positions[8] = 0;
+            positions[9] = B.x + perp.x; positions[10] = B.y + perp.y; positions[11] = 0;
+            mesh.geometry.attributes.position.needsUpdate = true;
+            mesh.geometry.computeVertexNormals();
+        }
+
+        // ================= 机构杆件与节点 =================
+        function updateTube(mesh, p1, p2, radius) {
+            const dir = new THREE.Vector3().subVectors(p2, p1);
+            const len = dir.length();
+            if (len < 0.001) return;
+            mesh.position.lerpVectors(p1, p2, 0.5);
+            const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), dir.normalize());
+            mesh.setRotationFromQuaternion(quat);
+            mesh.geometry.dispose();
+            mesh.geometry = new THREE.CylinderGeometry(radius, radius, len, 8);
+        }
+        function createNode(pos, color, size=4) {
+            const geo = new THREE.SphereGeometry(size, 16, 16);
+            const mat = new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.4), roughness: 0.25, metalness: 0.6 });
+            const m = new THREE.Mesh(geo, mat);
+            m.position.copy(pos);
+            m.castShadow = true;
+            return m;
+        }
+
+        const matCrank = new THREE.MeshStandardMaterial({ color: 0x00ccff, emissive: 0x003344, roughness: 0.3, metalness: 0.7 });
+        const matLink = new THREE.MeshStandardMaterial({ color: 0x3399cc, roughness: 0.4, metalness: 0.6 });
+        const matRocker = new THREE.MeshStandardMaterial({ color: 0xff8844, emissive: 0x331100, roughness: 0.3, metalness: 0.6 });
+
+        const crank = new THREE.Mesh(new THREE.CylinderGeometry(2.2,2.2,1,8), matCrank);
+        const linkL = new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,8), matLink);
+        const rockerL = new THREE.Mesh(new THREE.CylinderGeometry(2.0,2.0,1,8), matRocker);
+        const linkR = new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.6,1,8), matLink);
+        const rockerR = new THREE.Mesh(new THREE.CylinderGeometry(2.0,2.0,1,8), matRocker);
+        scene.add(crank, linkL, rockerL, linkR, rockerR);
+
+        const nodes = {};
+        nodes.O = createNode(new THREE.Vector3(0,0,0), 0xffffff, 5);
+        nodes.A = createNode(new THREE.Vector3(0,0,0), 0x00ffff, 4);
+        nodes.O2L = createNode(new THREE.Vector3(-params.d, params.h, 0), 0xff8800, 5);
+        nodes.O2R = createNode(new THREE.Vector3(params.d, params.h, 0), 0xff8800, 5);
+        nodes.BL = createNode(new THREE.Vector3(0,0,0), 0xffff00, 3.5);
+        nodes.BR = createNode(new THREE.Vector3(0,0,0), 0xffff00, 3.5);
+        nodes.CL = createNode(new THREE.Vector3(0,0,0), 0xff4488, 3);
+        nodes.CR = createNode(new THREE.Vector3(0,0,0), 0xff8844, 3);
+        for (const n of Object.values(nodes)) scene.add(n);
+
+        // ================= 拖拽交互 =================
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let dragTarget = null; // 'A', 'CL', 'CR', 'O2L', 'O2R'
+        const dragPlane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+
+        function getIntersections(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects([
+                nodes.A, nodes.CL, nodes.CR, nodes.O2L, nodes.O2R
+            ]);
+            return intersects;
+        }
+
+        window.addEventListener('mousedown', (event) => {
+            const intersects = getIntersections(event);
+            if (intersects.length > 0) {
+                const obj = intersects[0].object;
+                if (obj === nodes.A) dragTarget = 'A';
+                else if (obj === nodes.CL) dragTarget = 'CL';
+                else if (obj === nodes.CR) dragTarget = 'CR';
+                else if (obj === nodes.O2L) dragTarget = 'O2L';
+                else if (obj === nodes.O2R) dragTarget = 'O2R';
+                if (dragTarget) {
+                    controls.enabled = false;
+                    event.stopPropagation();
+                }
+            }
+        });
+
+        window.addEventListener('mousemove', (event) => {
+            if (!dragTarget) return;
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersection = new THREE.Vector3();
+            const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+            raycaster.ray.intersectPlane(plane, intersection);
+            if (!intersection) return;
+
+            if (dragTarget === 'A') {
+                phi = Math.atan2(intersection.y, intersection.x);
+            } else if (dragTarget === 'CL') {
+                const C_target = new THREE.Vector2(intersection.x, intersection.y);
+                const newPhi = inverseFromCLeft(C_target, phi);
+                if (newPhi !== null) phi = newPhi;
+            } else if (dragTarget === 'CR') {
+                const mirror = new THREE.Vector2(-intersection.x, intersection.y);
+                const newPhi = inverseFromCLeft(mirror, phi);
+                if (newPhi !== null) phi = newPhi;
+            } else if (dragTarget === 'O2L') {
+                params.d = -intersection.x;
+                params.h = intersection.y;
+                updateSliderValues();
+            } else if (dragTarget === 'O2R') {
+                params.d = intersection.x;
+                params.h = intersection.y;
+                updateSliderValues();
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            dragTarget = null;
+            controls.enabled = true;
+        });
+
+        // ================= 滑块绑定 =================
+        function updateSliderValues() {
+            document.getElementById('val-d').textContent = params.d.toFixed(0);
+            document.getElementById('val-h').textContent = params.h.toFixed(0);
+            document.getElementById('slider-d').value = params.d;
+            document.getElementById('slider-h').value = params.h;
+        }
+        document.getElementById('slider-omega').addEventListener('input', e => params.omega = parseFloat(e.target.value));
+        document.getElementById('slider-r').addEventListener('input', e => params.r = parseFloat(e.target.value));
+        document.getElementById('slider-l').addEventListener('input', e => params.l = parseFloat(e.target.value));
+        document.getElementById('slider-R').addEventListener('input', e => params.R = parseFloat(e.target.value));
+        document.getElementById('slider-Lw').addEventListener('input', e => params.L_wing = parseFloat(e.target.value));
+        document.getElementById('slider-gamma').addEventListener('input', e => params.gamma = THREE.MathUtils.degToRad(parseFloat(e.target.value)));
+        document.getElementById('slider-d').addEventListener('input', e => { params.d = parseFloat(e.target.value); updateSliderValues(); });
+        document.getElementById('slider-h').addEventListener('input', e => { params.h = parseFloat(e.target.value); updateSliderValues(); });
+        
+        // 更新滑块显示值
+        document.querySelectorAll('input[type=range]').forEach(slider => {
+            slider.addEventListener('input', function() {
+                const spanId = 'val-' + this.id.replace('slider-', '');
+                const span = document.getElementById(spanId);
+                if (span) span.textContent = this.value;
+            });
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            paused = !paused;
+            document.getElementById('pauseBtn').textContent = paused ? '▶️ 播放' : '⏯️ 暂停';
+        });
+
+        // ================= 动画循环 =================
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+            if (!paused && dragTarget === null) phi += params.omega * dt;
+
+            const kin = computeFullKinematics(phi);
+            const O = new THREE.Vector3(0,0,0);
+            const A = to3D(kin.A);
+            const B_L = to3D(kin.B_left);
+            const C_L = to3D(kin.C_left);
+            const B_R = to3D(kin.B_right);
+            const C_R = to3D(kin.C_right);
+            const O2L = to3D(kin.O2L);
+            const O2R = to3D(kin.O2R);
+
+            updateTube(crank, O, A, 2.2);
+            updateTube(linkL, A, B_L, 1.6);
+            updateTube(rockerL, O2L, B_L, 2.0);
+            updateTube(linkR, A, B_R, 1.6);
+            updateTube(rockerR, O2R, B_R, 2.0);
+
+            nodes.A.position.copy(A);
+            nodes.BL.position.copy(B_L);
+            nodes.BR.position.copy(B_R);
+            nodes.CL.position.copy(C_L);
+            nodes.CR.position.copy(C_R);
+            nodes.O2L.position.copy(O2L);
+            nodes.O2R.position.copy(O2R);
+
+            updateWingGeometry(wingL, B_L, C_L, 15);
+            updateWingGeometry(wingR, B_R, C_R, 15);
+
+            // 更新运动数据面板
+            const phiDeg = (phi * 180 / Math.PI) % 360;
+            const theta3Deg = (kin.theta3 * 180 / Math.PI) % 360;
+            document.getElementById('phi-val').textContent = phiDeg.toFixed(1);
+            document.getElementById('theta3-val').textContent = theta3Deg.toFixed(1);
+            document.getElementById('omega3-val').textContent = kin.theta3_dot.toFixed(2);
+            document.getElementById('alpha3-val').textContent = kin.theta3_ddot.toFixed(2);
+            document.getElementById('vA-val').textContent = (kin.vA.length()/1000).toFixed(3);
+            document.getElementById('vC-val').textContent = (kin.vC.length()/1000).toFixed(3);
+            document.getElementById('aA-val').textContent = (kin.aA.length()/1000).toFixed(2);
+            document.getElementById('aC-val').textContent = (kin.aC.length()/1000).toFixed(2);
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 初始化滑块数值显示
+        updateSliderValues();
+    </script>
+</body>
+</html>

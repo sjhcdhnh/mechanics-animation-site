@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>串联四联杆机器人 - 云梯消防车</title>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --panel-bg: rgba(22, 22, 40, 0.95);
+            --text: #e0e0e0;
+            --accent: #e63946;
+            --accent2: #f4a261;
+            --slider-track: #333;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #1a1a2e;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 控制面板 */
+        #panel {
+            position: fixed;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            width: 280px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+            color: var(--text);
+        }
+
+        #panel h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        #panel .subtitle {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .control-group {
+            margin-bottom: 14px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+
+        .control-group label .val {
+            font-size: 12px;
+            color: var(--accent2);
+            font-weight: 600;
+            min-width: 38px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--slider-track);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+        }
+
+        .preset-btns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .preset-btns button {
+            padding: 10px 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            letter-spacing: 0.3px;
+        }
+
+        .preset-btns button:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--accent2);
+        }
+
+        .preset-btns button.active-preset {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        #btn-auto {
+            width: 100%;
+            margin-top: 10px;
+            padding: 11px;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent2);
+            color: #1a1a2e;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+
+        #btn-auto:hover {
+            filter: brightness(1.1);
+        }
+
+        #btn-auto.running {
+            background: var(--accent);
+            color: #fff;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.7;
+            }
+        }
+
+        /* 图例提示 */
+        #legend {
+            position: fixed;
+            left: 16px;
+            bottom: 24px;
+            z-index: 10;
+            font-size: 11px;
+            color: #888;
+            line-height: 1.7;
+        }
+
+        #legend span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 2px;
+            margin-right: 4px;
+            vertical-align: middle;
+        }
+
+        /* 响应式 */
+        @media (max-width: 640px) {
+            #panel {
+                right: 4px;
+                width: 250px;
+                padding: 14px 16px;
+                border-radius: 12px;
+            }
+            #panel h2 {
+                font-size: 15px;
+            }
+            .control-group label {
+                font-size: 11px;
+            }
+            .preset-btns button {
+                font-size: 10px;
+                padding: 8px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <!-- 控制面板 -->
+    <div id="panel">
+        <h2>串联四联杆云梯机器人</h2>
+        <div class="subtitle">Serial Four-Bar Linkage Aerial Ladder</div>
+
+        <div class="control-group">
+            <label>转台旋转 <span class="val" id="val-turret">0°</span></label>
+            <input type="range" id="slider-turret" min="-180" max="180" value="0" step="0.5">
+        </div>
+        <div class="control-group">
+            <label>第一节臂 (四连杆1) <span class="val" id="val-boom1">45°</span></label>
+            <input type="range" id="slider-boom1" min="-10" max="85" value="45" step="0.5">
+        </div>
+        <div class="control-group">
+            <label>第二节臂 (四连杆2) <span class="val" id="val-boom2">35°</span></label>
+            <input type="range" id="slider-boom2" min="-85" max="85" value="35" step="0.5">
+        </div>
+        <div class="control-group">
+            <label>第三节臂 (四连杆3) <span class="val" id="val-boom3">25°</span></label>
+            <input type="range" id="slider-boom3" min="-85" max="85" value="25" step="0.5">
+        </div>
+        <div class="control-group">
+            <label>第四节臂 (四连杆4) <span class="val" id="val-boom4">15°</span></label>
+            <input type="range" id="slider-boom4" min="-85" max="85" value="15" step="0.5">
+        </div>
+
+        <div class="preset-btns">
+            <button data-preset="transport">运输模式</button>
+            <button data-preset="working">作业模式</button>
+            <button data-preset="extend">最大伸展</button>
+            <button data-preset="rescue">高空救援</button>
+        </div>
+
+        <button id="btn-auto">自动演示</button>
+    </div>
+
+    <!-- 图例 -->
+    <div id="legend">
+        <span style="background:#e63946;"></span> 液压缸 (四连杆主动件) &nbsp;
+        <span style="background:#f4a261;"></span> 转动关节 &nbsp;
+        <span style="background:#aaa;"></span> 臂架连杆
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==================== 场景初始化 ====================
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+
+        // 天空渐变背景
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0xccccdd, 30, 80);
+
+        // 相机
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.5, 200);
+        camera.position.set(18, 10, 16);
+        camera.lookAt(0, 4, 0);
+
+        // 渲染器
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        // OrbitControls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 4, 0);
+        controls.minDistance = 6;
+        controls.maxDistance = 50;
+        controls.maxPolarAngle = Math.PI * 0.78;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.update();
+
+        // ==================== 光照 ====================
+        // 环境光
+        const ambientLight = new THREE.AmbientLight(0x8899bb, 1.2);
+        scene.add(ambientLight);
+
+        // 半球光 (天空+地面)
+        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x443322, 0.8);
+        scene.add(hemiLight);
+
+        // 主方向光 (模拟太阳)
+        const sunLight = new THREE.DirectionalLight(0xfff5e8, 4.5);
+        sunLight.position.set(20, 25, 10);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 100;
+        sunLight.shadow.camera.left = -25;
+        sunLight.shadow.camera.right = 25;
+        sunLight.shadow.camera.top = 25;
+        sunLight.shadow.camera.bottom = -25;
+        sunLight.shadow.bias = -0.0003;
+        sunLight.shadow.normalBias = 0.02;
+        scene.add(sunLight);
+
+        // 补光
+        const fillLight = new THREE.DirectionalLight(0xaaccff, 1.5);
+        fillLight.position.set(-5, 3, -3);
+        scene.add(fillLight);
+
+        // ==================== 材质工厂 ====================
+        function createMaterial(color, metalness = 0.3, roughness = 0.5) {
+            return new THREE.MeshStandardMaterial({ color, metalness, roughness });
+        }
+
+        const matTruckRed = createMaterial(0xcc2222, 0.25, 0.4); // 卡车红色
+        const matTruckDark = createMaterial(0x1a1a1a, 0.3, 0.6); // 深色底盘
+        const matChrome = createMaterial(0xcccccc, 0.7, 0.25); // 镀铬/银色
+        const matSteel = createMaterial(0x778899, 0.55, 0.35); // 钢材
+        const matCylinder = createMaterial(0x444444, 0.8, 0.3); // 液压缸筒
+        const matRod = createMaterial(0xdddddd, 0.9, 0.15); // 液压活塞杆
+        const matJoint = createMaterial(0x333333, 0.6, 0.3); // 关节
+        const matBasket = createMaterial(0xffaa00, 0.3, 0.4); // 吊篮黄色
+        const matBasketFloor = createMaterial(0x333333, 0.4, 0.5); // 吊篮底板
+        const matStabilizer = createMaterial(0x2a2a2a, 0.4, 0.45); // 支腿
+        const matGround = createMaterial(0x555555, 0.1, 0.85); // 地面
+        const matWheel = createMaterial(0x111111, 0.2, 0.7); // 轮胎
+        const matHub = createMaterial(0xcccccc, 0.8, 0.2); // 轮毂
+        const matRung = createMaterial(0x999999, 0.5, 0.35); // 横档
+        const matBracket = createMaterial(0x666666, 0.6, 0.3); // 连杆支架
+
+        // ==================== 地面 ====================
+        const groundGeo = new THREE.PlaneGeometry(60, 60);
+        const ground = new THREE.Mesh(groundGeo, matGround);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.01;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // 网格线
+        const gridHelper = new THREE.PolarGridHelper(28, 48, 36, 256, 0x444444, 0x333333);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // ==================== 辅助函数 ====================
+        // 创建梯子式臂架 (两根主梁 + 横档)
+        function createLadderBoom(length, width, height) {
+            const group = new THREE.Group();
+            const railThick = 0.07;
+            const halfW = width / 2;
+
+            // 上主梁
+            const topRailGeo = new THREE.BoxGeometry(length, height, railThick);
+            const topRail = new THREE.Mesh(topRailGeo, matSteel);
+            topRail.position.set(0, 0, halfW);
+            topRail.castShadow = true;
+            topRail.receiveShadow = true;
+            group.add(topRail);
+
+            // 下主梁
+            const botRail = new THREE.Mesh(topRailGeo, matSteel);
+            botRail.position.set(0, 0, -halfW);
+            botRail.castShadow = true;
+            botRail.receiveShadow = true;
+            group.add(botRail);
+
+            // 顶部横杆 (X方向连接)
+            const topCrossGeo = new THREE.BoxGeometry(length, 0.03, width);
+            const topCross = new THREE.Mesh(topCrossGeo, matRung);
+            topCross.position.set(0, height / 2, 0);
+            topCross.castShadow = true;
+            group.add(topCross);
+
+            // 底部横杆
+            const botCross = new THREE.Mesh(topCrossGeo, matRung);
+            botCross.position.set(0, -height / 2, 0);
+            botCross.castShadow = true;
+            group.add(botCross);
+
+            // 横档 (rungs) - 在两根主梁之间
+            const numRungs = Math.max(Math.floor(length / 0.35), 3);
+            const rungGeo = new THREE.BoxGeometry(0.04, 0.03, width - railThick * 2);
+            for (let i = 0; i < numRungs; i++) {
+                const x = -length / 2 + (i + 0.5) * (length / numRungs);
+                // 顶部横档
+                const rungTop = new THREE.Mesh(rungGeo, matRung);
+                rungTop.position.set(x, height / 2 - 0.03, 0);
+                rungTop.castShadow = true;
+                group.add(rungTop);
+                // 底部横档
+                const rungBot = new THREE.Mesh(rungGeo, matRung);
+                rungBot.position.set(x, -height / 2 + 0.03, 0);
+                rungBot.castShadow = true;
+                group.add(rungBot);
+            }
+
+            // 中间斜撑 (X型结构增强真实感)
+            const diagonalGeo = new THREE.BoxGeometry(0.025, Math.sqrt(length * length + height * height) / numRungs, 0.03);
+            for (let i = 0; i < numRungs - 1; i++) {
+                const cx = -length / 2 + (i + 1) * (length / numRungs);
+                const diag = new THREE.Mesh(diagonalGeo, matRung);
+                diag.position.set(cx, 0, 0);
+                diag.rotation.z = Math.atan2(height, length / numRungs);
+                diag.castShadow = true;
+                group.add(diag);
+            }
+
+            return group;
+        }
+
+        // 创建液压缸组 (缸筒 + 活塞杆)
+        function createCylinderAssembly(barrelLength, rodLength, barrelRadius = 0.08, rodRadius = 0.05) {
+            const group = new THREE.Group();
+
+            // 缸筒
+            const barrelGeo = new THREE.CylinderGeometry(barrelRadius, barrelRadius, barrelLength, 16);
+            const barrel = new THREE.Mesh(barrelGeo, matCylinder);
+            barrel.rotation.z = Math.PI / 2;
+            barrel.position.x = barrelLength / 2;
+            barrel.castShadow = true;
+            barrel.receiveShadow = true;
+            group.add(barrel);
+            barrel.name = 'barrel';
+
+            // 缸筒底座连接环
+            const baseRingGeo = new THREE.TorusGeometry(barrelRadius + 0.02, 0.02, 8, 16);
+            const baseRing = new THREE.Mesh(baseRingGeo, matJoint);
+            baseRing.position.x = 0;
+            baseRing.rotation.y = Math.PI / 2;
+            group.add(baseRing);
+
+            // 活塞杆
+            const rodGeo = new THREE.CylinderGeometry(rodRadius, rodRadius, rodLength, 12);
+            const rod = new THREE.Mesh(rodGeo, matRod);
+            rod.rotation.z = Math.PI / 2;
+            rod.position.x = barrelLength + rodLength / 2;
+            rod.castShadow = true;
+            group.add(rod);
+            rod.name = 'rod';
+
+            // 杆端连接环
+            const rodRingGeo = new THREE.TorusGeometry(rodRadius + 0.015, 0.015, 8, 12);
+            const rodRing = new THREE.Mesh(rodRingGeo, matJoint);
+            rodRing.position.x = barrelLength + rodLength;
+            rodRing.rotation.y = Math.PI / 2;
+            group.add(rodRing);
+
+            // 存储参数以便更新
+            group.userData = { barrelLength, rodLength, barrelRadius, rodRadius, barrel, rod, rodRing, baseRing };
+            return group;
+        }
+
+        // 更新液压缸
+        function updateCylinder(group, totalLength) {
+            const { barrelLength: maxBarrel, barrelRadius, rodRadius } = group.userData;
+            const barrelLen = Math.min(totalLength * 0.55, maxBarrel);
+            const rodLen = Math.max(0, totalLength - barrelLen);
+
+            const barrel = group.userData.barrel;
+            const rod = group.userData.rod;
+            const rodRing = group.userData.rodRing;
+
+            barrel.scale.x = barrelLen / maxBarrel;
+            barrel.position.x = barrelLen / 2;
+
+            rod.scale.x = Math.max(0.01, rodLen / group.userData.rodLength);
+            rod.position.x = barrelLen + rodLen / 2;
+
+            rodRing.position.x = barrelLen + rodLen;
+            rodRing.visible = rodLen > 0.05;
+        }
+
+        // ==================== 构建场景层级 ====================
+        const rootGroup = new THREE.Group();
+        scene.add(rootGroup);
+
+        // --- 卡车车身 ---
+        const truckGroup = new THREE.Group();
+        truckGroup.position.set(0, 0.7, 0);
+        rootGroup.add(truckGroup);
+
+        // 底盘大梁
+        const chassisGeo = new THREE.BoxGeometry(7.5, 0.35, 1.0);
+        const chassis = new THREE.Mesh(chassisGeo, matTruckDark);
+        chassis.position.set(0.2, 0.6, 0);
+        chassis.castShadow = true;
+        chassis.receiveShadow = true;
+        truckGroup.add(chassis);
+
+        // 车身主体
+        const bodyGeo = new THREE.BoxGeometry(5.5, 1.2, 2.4);
+        const body = new THREE.Mesh(bodyGeo, matTruckRed);
+        body.position.set(0.3, 1.6, 0);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        truckGroup.add(body);
+
+        // 驾驶室
+        const cabinGeo = new THREE.BoxGeometry(2.2, 1.5, 2.4);
+        const cabin = new THREE.Mesh(cabinGeo, matTruckRed);
+        cabin.position.set(-3.0, 1.7, 0);
+        cabin.castShadow = true;
+        cabin.receiveShadow = true;
+        truckGroup.add(cabin);
+
+        // 挡风玻璃
+        const windshieldGeo = new THREE.PlaneGeometry(2.0, 0.7);
+        const windshieldMat = new THREE.MeshStandardMaterial({ color: 0x8899cc, metalness: 0.1, roughness: 0.2,
+            opacity: 0.7, transparent: true });
+        const windshield = new THREE.Mesh(windshieldGeo, windshieldMat);
+        windshield.position.set(-3.0, 2.2, 0.81);
+        windshield.rotation.x = -0.25;
+        truckGroup.add(windshield);
+
+        // 保险杠
+        const bumperGeo = new THREE.BoxGeometry(0.2, 0.3, 2.5);
+        const bumper = new THREE.Mesh(bumperGeo, matChrome);
+        bumper.position.set(-4.2, 0.9, 0);
+        truckGroup.add(bumper);
+
+        // 车轮
+        function createWheel(x, y, z) {
+            const wheelGroup = new THREE.Group();
+            wheelGroup.position.set(x, y, z);
+
+            const tireGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.4, 24);
+            const tire = new THREE.Mesh(tireGeo, matWheel);
+            tire.rotation.z = Math.PI / 2;
+            tire.castShadow = true;
+            tire.receiveShadow = true;
+            wheelGroup.add(tire);
+
+            const hubGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.42, 16);
+            const hub = new THREE.Mesh(hubGeo, matHub);
+            hub.rotation.z = Math.PI / 2;
+            wheelGroup.add(hub);
+
+            // 轮毂螺栓
+            for (let i = 0; i < 6; i++) {
+                const boltGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.44, 6);
+                const bolt = new THREE.Mesh(boltGeo, matJoint);
+                bolt.rotation.z = Math.PI / 2;
+                const angle = (i / 6) * Math.PI * 2;
+                bolt.position.y = Math.cos(angle) * 0.2;
+                bolt.position.z = Math.sin(angle) * 0.2;
+                wheelGroup.add(bolt);
+            }
+
+            return wheelGroup;
+        }
+
+        // 前轮
+        truckGroup.add(createWheel(-2.8, 0.55, 1.3));
+        truckGroup.add(createWheel(-2.8, 0.55, -1.3));
+        // 后轮 (双排)
+        truckGroup.add(createWheel(1.5, 0.55, 1.3));
+        truckGroup.add(createWheel(1.5, 0.55, -1.3));
+        truckGroup.add(createWheel(2.8, 0.55, 1.3));
+        truckGroup.add(createWheel(2.8, 0.55, -1.3));
+
+        // --- 臂架运输托架 (Ladder Cradle) ---
+        // 主托架 - 位于车身后部，运输时支撑折叠臂架
+        const cradleGroup = new THREE.Group();
+        cradleGroup.position.set(2.0, 2.25, 0);
+        truckGroup.add(cradleGroup);
+
+        // 托架底座
+        const cradleBaseGeo = new THREE.BoxGeometry(0.4, 0.15, 0.8);
+        const cradleBase = new THREE.Mesh(cradleBaseGeo, matStabilizer);
+        cradleBase.position.y = 0;
+        cradleBase.castShadow = true;
+        cradleBase.receiveShadow = true;
+        cradleGroup.add(cradleBase);
+
+        // U型支撑臂
+        function createCradleArm(z) {
+            const arm = new THREE.Group();
+            const vertGeo = new THREE.BoxGeometry(0.1, 0.5, 0.1);
+            const vert = new THREE.Mesh(vertGeo, matSteel);
+            vert.position.set(0, 0.25, z);
+            vert.castShadow = true;
+            arm.add(vert);
+
+            const topGeo = new THREE.BoxGeometry(0.15, 0.08, 0.1);
+            const top = new THREE.Mesh(topGeo, matChrome);
+            top.position.set(0, 0.52, z);
+            arm.add(top);
+
+            return arm;
+        }
+        cradleGroup.add(createCradleArm(0.25));
+        cradleGroup.add(createCradleArm(-0.25));
+
+        // 顶部横梁
+        const cradleCrossGeo = new THREE.BoxGeometry(0.08, 0.06, 0.55);
+        const cradleCross = new THREE.Mesh(cradleCrossGeo, matChrome);
+        cradleCross.position.set(0, 0.52, 0);
+        cradleCross.castShadow = true;
+        cradleGroup.add(cradleCross);
+
+        // 前辅助托架 (靠近驾驶室后方)
+        const frontCradleGroup = new THREE.Group();
+        frontCradleGroup.position.set(-1.2, 2.15, 0);
+        truckGroup.add(frontCradleGroup);
+
+        const frontCradleBaseGeo = new THREE.BoxGeometry(0.3, 0.1, 0.6);
+        const frontCradleBase = new THREE.Mesh(frontCradleBaseGeo, matStabilizer);
+        frontCradleBase.position.y = 0;
+        frontCradleBase.castShadow = true;
+        frontCradleBase.receiveShadow = true;
+        frontCradleGroup.add(frontCradleBase);
+
+        const frontPadGeo = new THREE.BoxGeometry(0.3, 0.06, 0.5);
+        const frontPad = new THREE.Mesh(frontPadGeo, matChrome);
+        frontPad.position.y = 0.08;
+        frontPad.castShadow = true;
+        frontCradleGroup.add(frontPad);
+
+        // 支腿 (Stabilizers)
+        function createStabilizer(side) {
+            const sGroup = new THREE.Group();
+            const outerGeo = new THREE.BoxGeometry(0.25, 0.2, 1.6);
+            const outer = new THREE.Mesh(outerGeo, matStabilizer);
+            outer.position.set(0, -0.05, side * 1.2);
+            outer.castShadow = true;
+            outer.receiveShadow = true;
+            sGroup.add(outer);
+
+            const footGeo = new THREE.BoxGeometry(0.5, 0.12, 0.5);
+            const foot = new THREE.Mesh(footGeo, matStabilizer);
+            foot.position.set(0, -0.2, side * 2.2);
+            foot.castShadow = true;
+            sGroup.add(foot);
+
+            return sGroup;
+        }
+
+        const stabGroup = new THREE.Group();
+        stabGroup.position.set(0.5, 0.8, 0);
+        stabGroup.add(createStabilizer(1));
+        stabGroup.add(createStabilizer(-1));
+        truckGroup.add(stabGroup);
+
+        // --- 转台 (Turntable) ---
+        const turntableGroup = new THREE.Group();
+        turntableGroup.position.set(1.2, 2.5, 0);
+        truckGroup.add(turntableGroup);
+
+        // 转台底座
+        const turretBaseGeo = new THREE.CylinderGeometry(1.1, 1.2, 0.3, 32);
+        const turretBase = new THREE.Mesh(turretBaseGeo, matTruckDark);
+        turretBase.position.y = 0;
+        turretBase.castShadow = true;
+        turretBase.receiveShadow = true;
+        turntableGroup.add(turretBase);
+
+        // 转台旋转平台
+        const turretPlatformGeo = new THREE.CylinderGeometry(1.0, 1.05, 0.25, 32);
+        const turretPlatform = new THREE.Mesh(turretPlatformGeo, matSteel);
+        turretPlatform.position.y = 0.25;
+        turretPlatform.castShadow = true;
+        turretPlatform.receiveShadow = true;
+        turntableGroup.add(turretPlatform);
+
+        // 转台护栏
+        for (let i = 0; i < 12; i++) {
+            const angle = (i / 12) * Math.PI * 2;
+            const postGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8);
+            const post = new THREE.Mesh(postGeo, matChrome);
+            post.position.set(Math.cos(angle) * 0.95, 0.45, Math.sin(angle) * 0.95);
+            post.castShadow = true;
+            turntableGroup.add(post);
+        }
+
+        // 第一节臂 pivot 支座 (Y型支架)
+        const boom1BracketGroup = new THREE.Group();
+        boom1BracketGroup.position.y = 0.4;
+        turntableGroup.add(boom1BracketGroup);
+
+        // 支座侧板
+        function createBracketPlate(x, z) {
+            const plateGeo = new THREE.BoxGeometry(0.1, 0.5, 0.15);
+            const plate = new THREE.Mesh(plateGeo, matBracket);
+            plate.position.set(x, 0.25, z);
+            plate.castShadow = true;
+            plate.receiveShadow = true;
+            return plate;
+        }
+
+        boom1BracketGroup.add(createBracketPlate(0, 0.25));
+        boom1BracketGroup.add(createBracketPlate(0, -0.25));
+
+        // 支座顶板
+        const bracketTopGeo = new THREE.BoxGeometry(0.35, 0.08, 0.6);
+        const bracketTop = new THREE.Mesh(bracketTopGeo, matBracket);
+        bracketTop.position.y = 0.52;
+        bracketTop.castShadow = true;
+        boom1BracketGroup.add(bracketTop);
+
+        // 关节销轴
+        function createPivotPin() {
+            const pinGroup = new THREE.Group();
+            const pinGeo = new THREE.CylinderGeometry(0.06, 0.06, 0.65, 16);
+            const pin = new THREE.Mesh(pinGeo, matJoint);
+            pin.rotation.x = Math.PI / 2;
+            pinGroup.add(pin);
+
+            const capGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.04, 16);
+            const cap1 = new THREE.Mesh(capGeo, matChrome);
+            cap1.position.z = 0.32;
+            cap1.rotation.x = Math.PI / 2;
+            pinGroup.add(cap1);
+            const cap2 = new THREE.Mesh(capGeo, matChrome);
+            cap2.position.z = -0.32;
+            cap2.rotation.x = Math.PI / 2;
+            pinGroup.add(cap2);
+
+            return pinGroup;
+        }
+
+        // ==================== 四联杆臂架系统 ====================
+        // 每个臂节: { pivotGroup, boomGroup, cylinderGroup, length }
+        const boomConfigs = [
+            { length: 5.5, width: 0.45, height: 0.28, barrelLen: 1.6, rodLen: 1.8, barrelR: 0.07, rodR: 0.045,
+                cylBaseX: -0.15, cylBaseY: -0.55, cylBoomX: 1.6, cylBoomY: 0.18 },
+            { length: 4.5, width: 0.38, height: 0.24, barrelLen: 1.3, rodLen: 1.5, barrelR: 0.06, rodR: 0.04,
+                cylBaseX: -0.12, cylBaseY: -0.45, cylBoomX: 1.3, cylBoomY: 0.15 },
+            { length: 3.8, width: 0.32, height: 0.2, barrelLen: 1.1, rodLen: 1.3, barrelR: 0.055, rodR: 0.035,
+                cylBaseX: -0.1, cylBaseY: -0.4, cylBoomX: 1.1, cylBoomY: 0.13 },
+            { length: 3.0, width: 0.26, height: 0.16, barrelLen: 0.9, rodLen: 1.1, barrelR: 0.05, rodR: 0.03, cylBaseX: -0.08,
+                cylBaseY: -0.35, cylBoomX: 0.9, cylBoomY: 0.1 },
+        ];
+
+        const boomStages = [];
+        let parentGroup = boom1BracketGroup; // 第一节臂附着在支座上
+
+        for (let i = 0; i < boomConfigs.length; i++) {
+            const cfg = boomConfigs[i];
+
+            // Pivot 组 (旋转关节)
+            const pivotGroup = new THREE.Group();
+            pivotGroup.position.set(0, 0.55, 0); // 在支座/前一节末端
+            parentGroup.add(pivotGroup);
+
+            // 关节销轴
+            const pin = createPivotPin();
+            pin.position.set(0, 0, 0);
+            pivotGroup.add(pin);
+
+            // 臂架
+            const boomGroup = new THREE.Group();
+            const ladderBoom = createLadderBoom(cfg.length, cfg.width, cfg.height);
+            ladderBoom.position.set(cfg.length / 2, 0, 0);
+            boomGroup.add(ladderBoom);
+
+            // 臂架端部连接支座 (给下一节)
+            const endBracketGeo = new THREE.BoxGeometry(0.2, cfg.height + 0.1, cfg.width + 0.1);
+            const endBracket = new THREE.Mesh(endBracketGeo, matBracket);
+            endBracket.position.set(cfg.length, 0, 0);
+            endBracket.castShadow = true;
+            endBracket.receiveShadow = true;
+            boomGroup.add(endBracket);
+
+            // 耳板 (连接下一节)
+            const earGeo = new THREE.BoxGeometry(0.08, 0.4, 0.08);
+            const ear1 = new THREE.Mesh(earGeo, matBracket);
+            ear1.position.set(cfg.length, 0.2, cfg.width / 2 + 0.03);
+            ear1.castShadow = true;
+            boomGroup.add(ear1);
+            const ear2 = new THREE.Mesh(earGeo, matBracket);
+            ear2.position.set(cfg.length, 0.2, -cfg.width / 2 - 0.03);
+            ear2.castShadow = true;
+            boomGroup.add(ear2);
+
+            pivotGroup.add(boomGroup);
+
+            // 液压缸
+            const cylinderGroup = createCylinderAssembly(cfg.barrelLen, cfg.rodLen, cfg.barrelR, cfg.rodR);
+            cylinderGroup.position.set(cfg.cylBaseX, cfg.cylBaseY, 0);
+            pivotGroup.add(cylinderGroup);
+
+            // 三角支架 (连接缸杆端到臂架)
+            const triBracketGeo = new THREE.BoxGeometry(0.12, 0.25, 0.06);
+            const triBracket = new THREE.Mesh(triBracketGeo, matBracket);
+            triBracket.position.set(cfg.cylBoomX, cfg.cylBoomY, 0);
+            triBracket.castShadow = true;
+            boomGroup.add(triBracket);
+
+            // 四连杆标识球
+            const jointSphereGeo = new THREE.SphereGeometry(0.06, 8, 8);
+            const jointSphere1 = new THREE.Mesh(jointSphereGeo, matJoint);
+            jointSphere1.position.set(cfg.cylBaseX, cfg.cylBaseY, 0);
+            pivotGroup.add(jointSphere1);
+
+            const jointSphere2 = new THREE.Mesh(jointSphereGeo, matJoint);
+            jointSphere2.position.set(cfg.cylBoomX, cfg.cylBoomY, 0);
+            boomGroup.add(jointSphere2);
+
+            boomStages.push({
+                pivotGroup,
+                boomGroup,
+                cylinderGroup,
+                length: cfg.length,
+                cfg,
+                currentAngle: THREE.MathUtils.degToRad(i === 0 ? 45 : i === 1 ? 35 : i === 2 ? 25 : 15),
+            });
+
+            // 下一节附着在臂架末端
+            const nextAttachPoint = new THREE.Group();
+            nextAttachPoint.position.set(cfg.length, 0, 0);
+            boomGroup.add(nextAttachPoint);
+            parentGroup = nextAttachPoint;
+        }
+
+        // --- 工作篮 (Basket) ---
+        const basketGroup = new THREE.Group();
+        basketGroup.position.set(0, 0.55, 0);
+        parentGroup.add(basketGroup);
+
+        // 调平装置 (保持工作篮水平)
+        const levelingGroup = new THREE.Group();
+        basketGroup.add(levelingGroup);
+
+        // 篮底
+        const basketFloorGeo = new THREE.BoxGeometry(0.8, 0.06, 0.7);
+        const basketFloor = new THREE.Mesh(basketFloorGeo, matBasketFloor);
+        basketFloor.position.y = -0.3;
+        basketFloor.castShadow = true;
+        basketFloor.receiveShadow = true;
+        levelingGroup.add(basketFloor);
+
+        // 篮筐护栏
+        const railGeo = new THREE.BoxGeometry(0.06, 0.7, 0.06);
+        const railPositions = [
+            [0.37, 0.05, 0.32],
+            [0.37, 0.05, -0.32],
+            [-0.37, 0.05, 0.32],
+            [-0.37, 0.05, -0.32]
+        ];
+        railPositions.forEach(([rx, ry, rz]) => {
+            const rail = new THREE.Mesh(railGeo, matBasket);
+            rail.position.set(rx, ry, rz);
+            rail.castShadow = true;
+            levelingGroup.add(rail);
+        });
+
+        // 顶部扶手
+        const topRailGeo = new THREE.BoxGeometry(0.8, 0.04, 0.04);
+        const topRailFront = new THREE.Mesh(topRailGeo, matBasket);
+        topRailFront.position.set(0, 0.38, 0.32);
+        levelingGroup.add(topRailFront);
+        const topRailBack = new THREE.Mesh(topRailGeo, matBasket);
+        topRailBack.position.set(0, 0.38, -0.32);
+        levelingGroup.add(topRailBack);
+
+        const sideRailGeo = new THREE.BoxGeometry(0.04, 0.04, 0.7);
+        const sideRailL = new THREE.Mesh(sideRailGeo, matBasket);
+        sideRailL.position.set(0.37, 0.38, 0);
+        levelingGroup.add(sideRailL);
+        const sideRailR = new THREE.Mesh(sideRailGeo, matBasket);
+        sideRailR.position.set(-0.37, 0.38, 0);
+        levelingGroup.add(sideRailR);
+
+        // 中部横栏
+        const midRailGeo = new THREE.BoxGeometry(0.04, 0.04, 0.7);
+        const midRailF = new THREE.Mesh(midRailGeo, matBasket);
+        midRailF.position.set(0, 0.0, 0.32);
+        levelingGroup.add(midRailF);
+        const midRailB = new THREE.Mesh(midRailGeo, matBasket);
+        midRailB.position.set(0, 0.0, -0.32);
+        levelingGroup.add(midRailB);
+
+        // ==================== UI 交互 ====================
+        const sliderTurret = document.getElementById('slider-turret');
+        const sliderBoom1 = document.getElementById('slider-boom1');
+        const sliderBoom2 = document.getElementById('slider-boom2');
+        const sliderBoom3 = document.getElementById('slider-boom3');
+        const sliderBoom4 = document.getElementById('slider-boom4');
+
+        const valTurret = document.getElementById('val-turret');
+        const valBoom1 = document.getElementById('val-boom1');
+        const valBoom2 = document.getElementById('val-boom2');
+        const valBoom3 = document.getElementById('val-boom3');
+        const valBoom4 = document.getElementById('val-boom4');
+
+        const btnAuto = document.getElementById('btn-auto');
+        const presetButtons = document.querySelectorAll('.preset-btns button');
+
+        let targetAngles = {
+            turret: 0,
+            boom1: 45,
+            boom2: 35,
+            boom3: 25,
+            boom4: 15,
+        };
+
+        let currentAngles = { ...targetAngles };
+        let autoDemo = false;
+        let autoDemoTime = 0;
+
+        // 滑块事件
+        function bindSlider(slider, valEl, key, suffix = '°') {
+            slider.addEventListener('input', () => {
+                const v = parseFloat(slider.value);
+                targetAngles[key] = v;
+                valEl.textContent = v.toFixed(1) + suffix;
+                // 手动操作时取消自动演示
+                if (autoDemo) stopAutoDemo();
+            });
+        }
+
+        bindSlider(sliderTurret, valTurret, 'turret');
+        bindSlider(sliderBoom1, valBoom1, 'boom1');
+        bindSlider(sliderBoom2, valBoom2, 'boom2');
+        bindSlider(sliderBoom3, valBoom3, 'boom3');
+        bindSlider(sliderBoom4, valBoom4, 'boom4');
+
+        // 预设
+        const presets = {
+            transport: { turret: 0, boom1: 3, boom2: -80, boom3: 80, boom4: -78 },
+            working: { turret: 30, boom1: 45, boom2: 35, boom3: 25, boom4: 15 },
+            extend: { turret: 0, boom1: 60, boom2: 55, boom3: 50, boom4: 45 },
+            rescue: { turret: -45, boom1: 75, boom2: 60, boom3: 40, boom4: 20 },
+        };
+
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetName = btn.dataset.preset;
+                const preset = presets[presetName];
+                if (!preset) return;
+
+                if (autoDemo) stopAutoDemo();
+
+                // 高亮按钮
+                presetButtons.forEach(b => b.classList.remove('active-preset'));
+                btn.classList.add('active-preset');
+
+                // 设置目标角度
+                Object.keys(preset).forEach(k => {
+                    targetAngles[k] = preset[k];
+                });
+
+                // 更新滑块UI
+                sliderTurret.value = preset.turret;
+                valTurret.textContent = preset.turret + '°';
+                sliderBoom1.value = preset.boom1;
+                valBoom1.textContent = preset.boom1 + '°';
+                sliderBoom2.value = preset.boom2;
+                valBoom2.textContent = preset.boom2 + '°';
+                sliderBoom3.value = preset.boom3;
+                valBoom3.textContent = preset.boom3 + '°';
+                sliderBoom4.value = preset.boom4;
+                valBoom4.textContent = preset.boom4 + '°';
+            });
+        });
+
+        // 自动演示
+        function stopAutoDemo() {
+            autoDemo = false;
+            btnAuto.textContent = '自动演示';
+            btnAuto.classList.remove('running');
+        }
+
+        btnAuto.addEventListener('click', () => {
+            autoDemo = !autoDemo;
+            if (autoDemo) {
+                btnAuto.textContent = '停止演示';
+                btnAuto.classList.add('running');
+                autoDemoTime = 0;
+                presetButtons.forEach(b => b.classList.remove('active-preset'));
+            } else {
+                stopAutoDemo();
+            }
+        });
+
+        // ==================== 动画循环 ====================
+        const clock = new THREE.Clock();
+
+        function lerpAngle(current, target, t) {
+            // 角度插值 (处理 -180/180 跨越)
+            let diff = target - current;
+            while (diff > 180) diff -= 360;
+            while (diff < -180) diff += 360;
+            return current + diff * Math.min(t, 1);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = Math.min(clock.getDelta(), 0.1);
+            const lerpSpeed = 4.0; // 平滑过渡速度
+
+            // 自动演示
+            if (autoDemo) {
+                autoDemoTime += dt;
+                const t = autoDemoTime;
+                const cycle = 16.0; // 16秒一个循环
+
+                // 转台来回摆动
+                targetAngles.turret = Math.sin(t * 0.5) * 120;
+                // 各臂节做波浪运动
+                const phase = t * 0.8;
+                targetAngles.boom1 = 30 + Math.sin(phase) * 30 + Math.sin(phase * 0.7) * 15;
+                targetAngles.boom2 = 25 + Math.sin(phase + 0.8) * 28 + Math.sin(phase * 0.6) * 12;
+                targetAngles.boom3 = 20 + Math.sin(phase + 1.6) * 25 + Math.cos(phase * 0.65) * 10;
+                targetAngles.boom4 = 12 + Math.sin(phase + 2.2) * 20 + Math.cos(phase * 0.55) * 8;
+
+                // 更新滑块
+                sliderTurret.value = Math.round(targetAngles.turret);
+                valTurret.textContent = Math.round(targetAngles.turret) + '°';
+                sliderBoom1.value = Math.round(targetAngles.boom1);
+                valBoom1.textContent = Math.round(targetAngles.boom1) + '°';
+                sliderBoom2.value = Math.round(targetAngles.boom2);
+                valBoom2.textContent = Math.round(targetAngles.boom2) + '°';
+                sliderBoom3.value = Math.round(targetAngles.boom3);
+                valBoom3.textContent = Math.round(targetAngles.boom3) + '°';
+                sliderBoom4.value = Math.round(targetAngles.boom4);
+                valBoom4.textContent = Math.round(targetAngles.boom4) + '°';
+            }
+
+            // 平滑插值
+            const keys = ['turret', 'boom1', 'boom2', 'boom3', 'boom4'];
+            keys.forEach(k => {
+                currentAngles[k] = lerpAngle(currentAngles[k], targetAngles[k], lerpSpeed * dt);
+            });
+
+            // 应用转台旋转
+            turntableGroup.rotation.y = THREE.MathUtils.degToRad(currentAngles.turret);
+
+            // 应用各臂节旋转并更新液压缸
+            for (let i = 0; i < boomStages.length; i++) {
+                const stage = boomStages[i];
+                const angleRad = THREE.MathUtils.degToRad(currentAngles[`boom${i + 1}`]);
+                stage.currentAngle = angleRad;
+                stage.pivotGroup.rotation.z = angleRad;
+
+                // 计算液压缸长度
+                const cfg = stage.cfg;
+                const bx = cfg.cylBaseX;
+                const by = cfg.cylBaseY;
+                const rx = cfg.cylBoomX;
+                const ry = cfg.cylBoomY;
+
+                const rodX = rx * Math.cos(angleRad) - ry * Math.sin(angleRad);
+                const rodY = rx * Math.sin(angleRad) + ry * Math.cos(angleRad);
+
+                const dx = rodX - bx;
+                const dy = rodY - by;
+                const cylLen = Math.sqrt(dx * dx + dy * dy);
+                const cylAngle = Math.atan2(dy, dx);
+
+                // 更新液压缸
+                stage.cylinderGroup.rotation.z = cylAngle;
+                updateCylinder(stage.cylinderGroup, cylLen);
+            }
+
+            // 工作篮调平 (保持水平)
+            let totalBoomAngle = 0;
+            for (let i = 0; i < boomStages.length; i++) {
+                totalBoomAngle += boomStages[i].currentAngle;
+            }
+            levelingGroup.rotation.z = -totalBoomAngle;
+
+            // 更新控制器
+            controls.update();
+
+            // 渲染
+            renderer.render(scene, camera);
+        }
+
+        // ==================== 响应式处理 ====================
+        window.addEventListener('resize', () => {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+
+        // 键盘快捷键
+        window.addEventListener('keydown', (e) => {
+            switch (e.key.toLowerCase()) {
+                case '1':
+                    presetButtons[0].click();
+                    break;
+                case '2':
+                    presetButtons[1].click();
+                    break;
+                case '3':
+                    presetButtons[2].click();
+                    break;
+                case '4':
+                    presetButtons[3].click();
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    btnAuto.click();
+                    break;
+                case 'r':
+                    // 复位
+                    targetAngles = { turret: 0, boom1: 45, boom2: 35, boom3: 25, boom4: 15 };
+                    sliderTurret.value = 0;
+                    valTurret.textContent = '0°';
+                    sliderBoom1.value = 45;
+                    valBoom1.textContent = '45°';
+                    sliderBoom2.value = 35;
+                    valBoom2.textContent = '35°';
+                    sliderBoom3.value = 25;
+                    valBoom3.textContent = '25°';
+                    sliderBoom4.value = 15;
+                    valBoom4.textContent = '15°';
+                    if (autoDemo) stopAutoDemo();
+                    presetButtons.forEach(b => b.classList.remove('active-preset'));
+                    break;
+            }
+        });
+
+        // ==================== 启动 ====================
+        // 初始设置液压缸
+        for (let i = 0; i < boomStages.length; i++) {
+            const stage = boomStages[i];
+            const angleRad = stage.currentAngle;
+            stage.pivotGroup.rotation.z = angleRad;
+
+            const cfg = stage.cfg;
+            const rodX = cfg.cylBoomX * Math.cos(angleRad) - cfg.cylBoomY * Math.sin(angleRad);
+            const rodY = cfg.cylBoomX * Math.sin(angleRad) + cfg.cylBoomY * Math.cos(angleRad);
+            const dx = rodX - cfg.cylBaseX;
+            const dy = rodY - cfg.cylBaseY;
+            const cylLen = Math.sqrt(dx * dx + dy * dy);
+            const cylAngle = Math.atan2(dy, dx);
+            stage.cylinderGroup.rotation.z = cylAngle;
+            updateCylinder(stage.cylinderGroup, cylLen);
+        }
+
+        // 启动渲染循环
+        animate();
+
+        console.log('串联四联杆云梯机器人已就绪');
+        console.log('操作: 拖动右侧滑块 | 预设按钮 | 空格键自动演示 | 鼠标旋转/缩放');
+        console.log('快捷键: 1-运输 2-作业 3-最大伸展 4-高空救援 R-复位 空格-演示');
+    </script>
+</body>
+</html>

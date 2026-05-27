@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>串联四连杆机器人 · 完善版</title>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; }
+    
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #1a1a2e;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 8px 24px;
+      border-radius: 40px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      z-index: 10;
+      pointer-events: none;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.6);
+      font-size: 0.9rem;
+    }
+    #info h1 { margin: 0; font-size: 1.2rem; font-weight: 600; background: linear-gradient(135deg, #ff6b35, #ff8a65); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    #info p { margin: 2px 0 0; font-size: 0.75rem; opacity: 0.7; color: #1a1a2e; -webkit-text-fill-color: #1a1a2e; }
+
+    #controls-container {
+      position: absolute;
+      bottom: 25px;
+      right: 25px;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      padding: 14px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      z-index: 20;
+      pointer-events: auto;
+      max-width: 340px;
+      max-height: 75vh;
+      overflow-y: auto;
+      font-size: 0.75rem;
+      transition: all 0.3s ease;
+    }
+    #controls-container::-webkit-scrollbar { width: 4px; }
+    #controls-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+    #controls-container::-webkit-scrollbar-track { background: transparent; }
+
+    .link-group {
+      margin-bottom: 8px;
+      padding: 6px 10px;
+      background: rgba(245, 248, 250, 0.6);
+      border-radius: 12px;
+      border-left: 4px solid #ff6b35;
+      transition: all 0.2s;
+    }
+    .link-group:hover { background: rgba(245, 248, 250, 0.9); }
+    .link-group .link-label {
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: #1a1a2e;
+      display: inline-block;
+      min-width: 32px;
+      letter-spacing: 0.5px;
+    }
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin: 2px 0;
+    }
+    .slider-row label {
+      font-weight: 500;
+      color: #555;
+      font-size: 0.65rem;
+      min-width: 16px;
+    }
+    .slider-row input {
+      flex: 1;
+      min-width: 50px;
+      cursor: pointer;
+      accent-color: #ff6b35;
+      height: 4px;
+      border-radius: 2px;
+    }
+    .slider-row input::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 12px; height: 12px; border-radius: 50%; background: #ff6b35; cursor: pointer; }
+    .slider-row span {
+      min-width: 32px;
+      text-align: center;
+      font-weight: 600;
+      color: #1a1a2e;
+      font-size: 0.65rem;
+      background: rgba(255,255,255,0.5);
+      padding: 0 4px;
+      border-radius: 4px;
+    }
+
+    .target-group {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 14px;
+      border: 1px dashed #bbb;
+    }
+    .target-group .target-title { font-size: 0.7rem; font-weight: 600; color: #1a1a2e; margin-bottom: 4px; }
+    .target-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .target-row input {
+      width: 48px;
+      padding: 3px 6px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      text-align: center;
+      background: rgba(255,255,255,0.8);
+      transition: border 0.2s;
+    }
+    .target-row input:focus { outline: none; border-color: #ff6b35; box-shadow: 0 0 0 2px rgba(255,107,53,0.15); }
+    .go-btn {
+      background: linear-gradient(135deg, #ff6b35, #ff8a65);
+      color: white;
+      border: none;
+      padding: 4px 16px;
+      border-radius: 24px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.7rem;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(255,107,53,0.25);
+    }
+    .go-btn:hover { transform: scale(1.04); box-shadow: 0 4px 12px rgba(255,107,53,0.35); }
+    .go-btn:active { transform: scale(0.95); }
+    .status {
+      font-size: 0.65rem;
+      color: #1a1a2e;
+      padding: 2px 10px;
+      background: rgba(255,255,255,0.4);
+      border-radius: 16px;
+      text-align: center;
+      min-width: 60px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    @media (max-width: 700px) {
+      #controls-container { max-width: 260px; padding: 10px 12px; bottom: 15px; right: 15px; }
+      .slider-row input { min-width: 40px; }
+      .slider-row span { min-width: 28px; font-size: 0.6rem; }
+      .target-row input { width: 38px; }
+      .target-group { padding: 6px 8px; }
+      #info { padding: 6px 16px; font-size: 0.8rem; top: 12px; }
+      #info h1 { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    <h1>🤖 串联四连杆机器人</h1>
+    <p>每杆独立 X/Y/Z 旋转 · 坐标驱动 · 拖拽视角</p>
+  </div>
+
+  <div id="controls-container">
+    <div id="sliders-wrapper"></div>
+
+    <div class="target-group">
+      <div class="target-title">🎯 目标坐标</div>
+      <div class="target-row">
+        <label style="font-size:0.7rem; font-weight:500; min-width:12px;">X</label>
+        <input type="number" id="targetX" value="3.0" step="0.1" placeholder="X">
+        <label style="font-size:0.7rem; font-weight:500; min-width:12px;">Y</label>
+        <input type="number" id="targetY" value="2.5" step="0.1" placeholder="Y">
+        <label style="font-size:0.7rem; font-weight:500; min-width:12px;">Z</label>
+        <input type="number" id="targetZ" value="0.0" step="0.1" placeholder="Z">
+        <button class="go-btn" id="goBtn">🚀 到达</button>
+        <span class="status" id="statusText">就绪</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+    // --- 场景、相机、渲染器 ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xf0f4f8);
+
+    // 环境光
+    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambient);
+    
+    const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    mainLight.position.set(5, 12, 8);
+    mainLight.castShadow = true;
+    scene.add(mainLight);
+    
+    const fillLight = new THREE.DirectionalLight(0x88aaff, 0.3);
+    fillLight.position.set(-4, 3, -5);
+    scene.add(fillLight);
+    
+    const rimLight = new THREE.DirectionalLight(0xffaa88, 0.2);
+    rimLight.position.set(-2, 1, -8);
+    scene.add(rimLight);
+
+    // 地面
+    const gridHelper = new THREE.GridHelper(10, 16, 0x4477aa, 0x8899bb);
+    gridHelper.position.y = -0.5;
+    scene.add(gridHelper);
+
+    // 坐标轴
+    const axesHelper = new THREE.AxesHelper(3.5);
+    axesHelper.position.y = -0.4;
+    scene.add(axesHelper);
+
+    // 相机
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(6, 4.5, 9);
+    camera.lookAt(1.5, 1.8, 0);
+
+    // 渲染器
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    // CSS2渲染器
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0px';
+    labelRenderer.domElement.style.left = '0px';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    document.body.appendChild(labelRenderer.domElement);
+
+    // 轨道控制
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(1.5, 1.8, 0);
+    controls.maxPolarAngle = Math.PI / 2.0;
+    controls.minDistance = 3;
+    controls.maxDistance = 20;
+
+    // --- 机器人参数 ---
+    const L1 = 1.8, L2 = 1.6, L3 = 1.4, L4 = 1.2;
+    const colors = [0xff6b35, 0x26c6da, 0x5c6bc0, 0xffa726];
+    const colorNames = ['#ff6b35', '#26c6da', '#5c6bc0', '#ffa726'];
+    const J0 = new THREE.Vector3(0, 0.3, 0);
+
+    // 基座
+    const baseMat = new THREE.MeshStandardMaterial({ 
+      color: 0x445566, 
+      roughness: 0.3, 
+      metalness: 0.6 
+    });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 0.5, 32), baseMat);
+    base.position.set(0, -0.25, 0);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    scene.add(base);
+
+    // 转台
+    const turntableMat = new THREE.MeshStandardMaterial({ 
+      color: 0x667788, 
+      roughness: 0.2, 
+      metalness: 0.7 
+    });
+    const turntable = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.2, 24), turntableMat);
+    turntable.position.set(0, 0.1, 0);
+    turntable.castShadow = true;
+    turntable.receiveShadow = true;
+    scene.add(turntable);
+
+    // 存储动态物体
+    let dynamicObjects = [];
+
+    // --- 创建连杆 ---
+    function createLink3D(length, width, height, color, startPos, eulerXYZ) {
+      const geo = new THREE.BoxGeometry(length, height, width);
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: color, 
+        roughness: 0.3, 
+        metalness: 0.4,
+        emissive: new THREE.Color(color).multiplyScalar(0.08)
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+
+      const dir = new THREE.Vector3(1, 0, 0);
+      const euler = new THREE.Euler(eulerXYZ[0], eulerXYZ[1], eulerXYZ[2], 'XYZ');
+      dir.applyEuler(euler);
+      dir.normalize();
+
+      const center = startPos.clone().add(dir.clone().multiplyScalar(length / 2));
+      mesh.position.copy(center);
+
+      const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+      mesh.quaternion.copy(quat);
+
+      const endPos = startPos.clone().add(dir.clone().multiplyScalar(length));
+      return { mesh, endPos, dir };
+    }
+
+    // --- 更新机器人 ---
+    function updateRobotFull(eulerAngles) {
+      dynamicObjects.forEach(obj => scene.remove(obj));
+      dynamicObjects = [];
+
+      const lengths = [L1, L2, L3, L4];
+      let pos = J0.clone();
+      const jointPositions = [pos.clone()];
+
+      for (let i = 0; i < 4; i++) {
+        const euler = eulerAngles[i];
+        const link = createLink3D(lengths[i], 0.25, 0.25, colors[i], pos, euler);
+        scene.add(link.mesh);
+        dynamicObjects.push(link.mesh);
+
+        if (i < 3) {
+          const sphereMat = new THREE.MeshStandardMaterial({ 
+            color: 0x8899aa, 
+            roughness: 0.2, 
+            metalness: 0.7 
+          });
+          const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), sphereMat);
+          sphere.position.copy(link.endPos);
+          sphere.castShadow = true;
+          sphere.receiveShadow = true;
+          scene.add(sphere);
+          dynamicObjects.push(sphere);
+        }
+
+        pos = link.endPos;
+        jointPositions.push(pos.clone());
+      }
+
+      // 末端执行器
+      const gripMat = new THREE.MeshStandardMaterial({ 
+        color: 0xcc5533, 
+        roughness: 0.4, 
+        metalness: 0.3 
+      });
+      const grip = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.15, 0.35), gripMat);
+      grip.position.copy(pos.clone().add(new THREE.Vector3(0.25, 0, 0)));
+      grip.castShadow = true;
+      grip.receiveShadow = true;
+      scene.add(grip);
+      dynamicObjects.push(grip);
+
+      // 更新标签
+      if (window.labelObjects) window.labelObjects.forEach(obj => scene.remove(obj));
+      window.labelObjects = [];
+
+      const labelNames = ['θ₁', 'θ₂', 'θ₃', 'θ₄'];
+      const offsets = [
+        new THREE.Vector3(0.6, 0.9, 0.7),
+        new THREE.Vector3(2.0, 2.1, 0.6),
+        new THREE.Vector3(3.0, 1.3, 0.6),
+        new THREE.Vector3(4.0, 2.1, 0.6)
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const div = document.createElement('div');
+        div.textContent = labelNames[i];
+        div.style.color = '#1a1a2e';
+        div.style.fontSize = '18px';
+        div.style.fontWeight = '700';
+        div.style.textShadow = '0 0 20px rgba(255,255,255,0.9), 0 0 10px rgba(255,255,255,0.5)';
+        div.style.background = 'rgba(255,255,255,0.8)';
+        div.style.padding = '2px 12px';
+        div.style.borderRadius = '20px';
+        div.style.border = '1px solid rgba(255,255,255,0.8)';
+        div.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)';
+        div.style.backdropFilter = 'blur(2px)';
+
+        const label = new CSS2DObject(div);
+        if (i < jointPositions.length - 1) {
+          label.position.copy(jointPositions[i]).add(offsets[i]);
+        } else {
+          label.position.copy(jointPositions[i]).add(new THREE.Vector3(0.6, 0.6, 0.6));
+        }
+        scene.add(label);
+        window.labelObjects.push(label);
+      }
+    }
+
+    // --- 逆运动学求解 (增强版) ---
+    function solveIK(targetPos) {
+      const rel = targetPos.clone().sub(J0);
+      const x = rel.x, y = rel.y, z = rel.z;
+      const theta1y = Math.atan2(z, x);
+      const horizontalDist = Math.sqrt(x*x + z*z);
+      const verticalDist = y;
+      
+      // 多初始猜测，选择最优解
+      const initialGuesses = [
+        [0.5, 0.5, -0.5, 0.3],
+        [0.8, 0.3, -0.8, 0.5],
+        [-0.3, 0.8, -0.3, 0.2],
+        [0.2, 0.6, -0.4, 0.6]
+      ];
+      
+      let bestAngles = null;
+      let bestError = Infinity;
+      
+      function forwardKinematics2D(angs) {
+        let x = 0, y = 0;
+        let angle = 0;
+        const lengths = [L1, L2, L3, L4];
+        for (let i = 0; i < 4; i++) {
+          angle += angs[i];
+          x += lengths[i] * Math.cos(angle);
+          y += lengths[i] * Math.sin(angle);
+        }
+        return { x, y };
+      }
+      
+      const learningRate = 0.015;
+      const iterations = 800;
+      const target2D = { x: horizontalDist, y: verticalDist };
+      
+      for (const guess of initialGuesses) {
+        let angles = [...guess];
+        for (let iter = 0; iter < iterations; iter++) {
+          const current = forwardKinematics2D(angles);
+          const dx = current.x - target2D.x;
+          const dy = current.y - target2D.y;
+          const error = Math.sqrt(dx*dx + dy*dy);
+          if (error < 0.0005) break;
+          
+          for (let i = 0; i < 4; i++) {
+            const eps = 0.001;
+            const orig = angles[i];
+            angles[i] += eps;
+            const fwd = forwardKinematics2D(angles);
+            const gradX = (fwd.x - current.x) / eps;
+            const gradY = (fwd.y - current.y) / eps;
+            angles[i] = orig - learningRate * (dx * gradX + dy * gradY);
+            angles[i] = Math.max(-3.14, Math.min(3.14, angles[i]));
+          }
+        }
+        const final = forwardKinematics2D(angles);
+        const error = Math.sqrt((final.x - target2D.x)**2 + (final.y - target2D.y)**2);
+        if (error < bestError) {
+          bestError = error;
+          bestAngles = angles;
+        }
+      }
+      
+      if (!bestAngles) bestAngles = [0.5, 0.5, -0.5, 0.3];
+      
+      return [
+        [0, theta1y, bestAngles[0]],
+        [0, 0, bestAngles[1]],
+        [0, 0, bestAngles[2]],
+        [0, 0, bestAngles[3]]
+      ];
+    }
+
+    // --- 平滑运动过渡 ---
+    let targetAngles = null;
+    let currentAngles = [
+      [0, 0.8, 0],
+      [0, 0, 1.0],
+      [0, 0, -0.6],
+      [0, 0, 0.4]
+    ];
+    let isAnimating = false;
+
+    function moveToTarget(targetPos) {
+      const statusText = document.getElementById('statusText');
+      statusText.textContent = '🤔 求解中';
+      
+      const clampedTarget = targetPos.clone();
+      const maxReach = L1 + L2 + L3 + L4;
+      if (clampedTarget.length() > maxReach) {
+        clampedTarget.normalize().multiplyScalar(maxReach * 0.95);
+        statusText.textContent = '⚠️ 已修正范围';
+      } else {
+        statusText.textContent = '🚀 运动中';
+      }
+      
+      const angles = solveIK(clampedTarget);
+      targetAngles = angles;
+      isAnimating = true;
+    }
+
+    // --- 生成滑块UI ---
+    const sliderWrapper = document.getElementById('sliders-wrapper');
+    const linkNames = ['θ₁', 'θ₂', 'θ₃', 'θ₄'];
+    const axisLabels = ['X', 'Y', 'Z'];
+    const sliderData = [];
+
+    for (let i = 0; i < 4; i++) {
+      const group = document.createElement('div');
+      group.className = 'link-group';
+      group.style.borderLeftColor = colorNames[i];
+      
+      const label = document.createElement('div');
+      label.className = 'link-label';
+      label.textContent = linkNames[i];
+      label.style.color = colorNames[i];
+      group.appendChild(label);
+      
+      const rowData = [];
+      for (let j = 0; j < 3; j++) {
+        const row = document.createElement('div');
+        row.className = 'slider-row';
+        
+        const lbl = document.createElement('label');
+        lbl.textContent = axisLabels[j];
+        row.appendChild(lbl);
+        
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = '-3.14';
+        input.max = '3.14';
+        input.step = '0.005';
+        input.value = '0.0';
+        if (i === 0 && j === 1) input.value = '0.8';
+        if (i === 1 && j === 2) input.value = '1.0';
+        if (i === 2 && j === 2) input.value = '-0.6';
+        if (i === 3 && j === 2) input.value = '0.4';
+        row.appendChild(input);
+        
+        const span = document.createElement('span');
+        span.textContent = parseFloat(input.value).toFixed(2);
+        row.appendChild(span);
+        
+        group.appendChild(row);
+        rowData.push({ input, span });
+      }
+      sliderWrapper.appendChild(group);
+      sliderData.push(rowData);
+    }
+
+    function updateFromSliders() {
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 3; j++) {
+          const val = parseFloat(sliderData[i][j].input.value);
+          sliderData[i][j].span.textContent = val.toFixed(2);
+          currentAngles[i][j] = val;
+        }
+      }
+      targetAngles = null;
+      isAnimating = false;
+      updateRobotFull(currentAngles);
+      document.getElementById('statusText').textContent = '✋ 手动控制';
+    }
+
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 3; j++) {
+        sliderData[i][j].input.addEventListener('input', updateFromSliders);
+      }
+    }
+
+    document.getElementById('goBtn').addEventListener('click', () => {
+      const x = parseFloat(document.getElementById('targetX').value) || 0;
+      const y = parseFloat(document.getElementById('targetY').value) || 0;
+      const z = parseFloat(document.getElementById('targetZ').value) || 0;
+      moveToTarget(new THREE.Vector3(x, y, z));
+    });
+
+    // 初始更新
+    updateFromSliders();
+
+    // --- 动画循环 (含平滑过渡) ---
+    function animate() {
+      requestAnimationFrame(animate);
+      
+      // 平滑动画过渡
+      if (isAnimating && targetAngles) {
+        let allClose = true;
+        for (let i = 0; i < 4; i++) {
+          for (let j = 0; j < 3; j++) {
+            const diff = targetAngles[i][j] - currentAngles[i][j];
+            if (Math.abs(diff) > 0.001) {
+              currentAngles[i][j] += diff * 0.08;
+              allClose = false;
+            } else {
+              currentAngles[i][j] = targetAngles[i][j];
+            }
+          }
+        }
+        updateRobotFull(currentAngles);
+        if (allClose) {
+          isAnimating = false;
+          document.getElementById('statusText').textContent = '✅ 已到达';
+          // 更新滑块显示
+          for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 3; j++) {
+              sliderData[i][j].input.value = currentAngles[i][j];
+              sliderData[i][j].span.textContent = currentAngles[i][j].toFixed(2);
+            }
+          }
+        }
+      }
+      
+      controls.update();
+      renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
+    }
+    animate();
+
+    // --- 窗口自适应 ---
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      labelRenderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 装饰粒子
+    const particleGeo = new THREE.BufferGeometry();
+    const particleCount = 400;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 30;
+      positions[i+1] = (Math.random() - 0.5) * 15 + 3;
+      positions[i+2] = (Math.random() - 0.5) * 30 - 5;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMat = new THREE.PointsMaterial({ 
+      color: 0x88aadd, 
+      size: 0.05, 
+      transparent: true, 
+      opacity: 0.3,
+      blending: THREE.AdditiveBlending
+    });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+
+    console.log('🤖 串联四连杆机器人 (完善版) 已启动！');
+  </script>
+</body>
+</html>

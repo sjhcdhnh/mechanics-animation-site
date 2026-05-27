@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>齿轮啮合连杆机构</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Microsoft YaHei', sans-serif;
+      background-color: #e0e5ec;
+    }
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 30, 0.8);
+      color: #f0f0f0;
+      padding: 10px 22px;
+      border-radius: 40px;
+      pointer-events: none;
+      z-index: 20;
+      font-size: 15px;
+      border-left: 4px solid #ffcc22;
+    }
+    .instruction {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.55);
+      color: #ddd;
+      padding: 6px 20px;
+      border-radius: 20px;
+      font-size: 13px;
+      z-index: 15;
+    }
+  </style>
+</head>
+<body>
+  <div id="info">
+    黄齿轮主动啮合｜蓝紫双齿轮同轴同步转动｜红杆处于反向180°半圆摆动
+  </div>
+  <div class="instruction">鼠标拖动旋转视角 | 滚轮缩放</div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe0e5ec);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(6, 4, 7);
+    camera.lookAt(2, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    // 光照
+    const ambLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 8, 5);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // 材质
+    const matRed = new THREE.MeshStandardMaterial({ color: 0xcc2222, metalness: 0.6 });
+    const matGreen = new THREE.MeshStandardMaterial({ color: 0x22aa44, metalness: 0.4 });
+    const matBase = new THREE.MeshStandardMaterial({ color: 0xddbb44, metalness: 0.5 });
+    const matGearY = new THREE.MeshStandardMaterial({ color: 0xffcc00, metalness: 0.7 });
+    const matGearB = new THREE.MeshStandardMaterial({ color: 0x4488ff, metalness: 0.6 });
+    const matGearP = new THREE.MeshStandardMaterial({ color: 0x9955ff, metalness: 0.6 });
+    const matJoint = new THREE.MeshStandardMaterial({ color: 0xbb7744 });
+    const matSilver = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+    const matBoard = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.3 });
+
+    // 基础参数
+    const fixedX = 3.5;
+    const rodLen = 3.2;
+    const yOff = 0.45;
+    const gearDist = 1.05;
+    const blueGearX = fixedX + gearDist;
+
+    // 黄色基座立柱
+    const baseCol = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,yOff*2+0.4,32),matBase);
+    baseCol.position.set(fixedX,0,0);
+    scene.add(baseCol);
+
+    // 黄色主动齿轮
+    const gearYRadius = 0.7;
+    const gearY = new THREE.Mesh(new THREE.CylinderGeometry(gearYRadius,gearYRadius,0.3,40),matGearY);
+    gearY.position.set(fixedX,0,0);
+    scene.add(gearY);
+    const toothYGroup = new THREE.Group();
+    const toothYGeo = new THREE.BoxGeometry(0.12,0.35,0.22);
+    for(let i=0;i<40;i++){
+      let t = new THREE.Mesh(toothYGeo,matGearY);
+      let ang = i/40*Math.PI*2;
+      t.position.set(Math.cos(ang)*(gearYRadius+0.08),0,Math.sin(ang)*(gearYRadius+0.08));
+      t.rotation.y = ang;
+      toothYGroup.add(t);
+    }
+    gearY.add(toothYGroup);
+
+    // 顶部固定板
+    const fixBoard = new THREE.Mesh(new THREE.BoxGeometry(1.4,0.12,1.4),matBoard);
+    fixBoard.position.set(blueGearX,1.1,0);
+    scene.add(fixBoard);
+
+    // 银色固定竖杆
+    const silverAxis = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,2.0,16),matSilver);
+    silverAxis.position.set(blueGearX,0.1,0);
+    scene.add(silverAxis);
+
+    // 蓝色从动齿轮（带齿）
+    const gearBRadius = 0.18;
+    const gearBlue = new THREE.Mesh(new THREE.CylinderGeometry(gearBRadius,gearBRadius,1.2,32),matGearB);
+    gearBlue.position.set(blueGearX,0,0);
+    scene.add(gearBlue);
+    const toothBGroup = new THREE.Group();
+    const toothBGeo = new THREE.BoxGeometry(0.07,1.25,0.12);
+    for(let i=0;i<32;i++){
+      let t = new THREE.Mesh(toothBGeo,matGearB);
+      let ang = i/32*Math.PI*2;
+      t.position.set(Math.cos(ang)*(gearBRadius+0.04),0,Math.sin(ang)*(gearBRadius+0.04));
+      t.rotation.y = ang;
+      toothBGroup.add(t);
+    }
+    gearBlue.add(toothBGroup);
+
+    // 紫色完整带齿齿轮
+    const gearPRadius = 0.52;
+    const gearPurple = new THREE.Mesh(new THREE.CylinderGeometry(gearPRadius,gearPRadius,0.25,32),matGearP);
+    gearPurple.position.set(blueGearX, -0.8, 0);
+    scene.add(gearPurple);
+    const toothPGroup = new THREE.Group();
+    const toothPGeo = new THREE.BoxGeometry(0.09,0.28,0.14);
+    for(let i=0;i<32;i++){
+      let t = new THREE.Mesh(toothPGeo,matGearP);
+      let ang = i/32*Math.PI*2;
+      t.position.set(Math.cos(ang)*(gearPRadius+0.05),0,Math.sin(ang)*(gearPRadius+0.05));
+      t.rotation.y = ang;
+      toothPGroup.add(t);
+    }
+    gearPurple.add(toothPGroup);
+
+    // 红色连杆
+    const rodUp = new THREE.Mesh(new THREE.BoxGeometry(rodLen,0.12,0.15),matRed);
+    const rodDown = new THREE.Mesh(new THREE.BoxGeometry(rodLen,0.12,0.15),matRed);
+    scene.add(rodUp,rodDown);
+
+    // 绿色从动杆
+    const greenBar = new THREE.Mesh(new THREE.CylinderGeometry(0.25,0.25,yOff*2+0.5,32),matGreen);
+    scene.add(greenBar);
+
+    // 铰接球
+    const j1 = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,16),matJoint);
+    const j2 = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,16),matJoint);
+    const j3 = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,16),matJoint);
+    const j4 = new THREE.Mesh(new THREE.SphereGeometry(0.15,16,16),matJoint);
+    scene.add(j1,j2,j3,j4);
+
+    let time = 0;
+    function animate(){
+      requestAnimationFrame(animate);
+      time += 0.016;
+
+      let gearRot = time;
+      gearY.rotation.y = gearRot;
+
+      let speedRatio = gearYRadius / gearBRadius;
+      let blueRot = -gearRot * speedRatio;
+      gearBlue.rotation.y = blueRot;
+      gearPurple.rotation.y = blueRot;
+
+      // 最终正确：反向另一侧180度半圆
+      let swingAngle = Math.sin(time) * Math.PI / 2;
+
+      let pRUp = new THREE.Vector3(fixedX, yOff, 0);
+      let pRDn = new THREE.Vector3(fixedX, -yOff, 0);
+      let pLUp = new THREE.Vector3(
+        fixedX - rodLen * Math.cos(swingAngle),
+        yOff,
+        rodLen * Math.sin(swingAngle)
+      );
+      let pLDn = new THREE.Vector3(
+        fixedX - rodLen * Math.cos(swingAngle),
+        -yOff,
+        rodLen * Math.sin(swingAngle)
+      );
+
+      rodUp.position.set((pRUp.x+pLUp.x)/2, pRUp.y, (pRUp.z+pLUp.z)/2);
+      rodUp.rotation.y = swingAngle;
+      rodDown.position.set((pRDn.x+pLDn.x)/2, pRDn.y, (pRDn.z+pLDn.z)/2);
+      rodDown.rotation.y = swingAngle;
+
+      greenBar.position.set((pLUp.x+pLDn.x)/2,0,(pLUp.z+pLDn.z)/2);
+      greenBar.rotation.y = swingAngle;
+
+      j1.position.copy(pRUp);
+      j2.position.copy(pRDn);
+      j3.position.copy(pLUp);
+      j4.position.copy(pLDn);
+
+      controls.update();
+      renderer.render(scene,camera);
+    }
+    animate();
+
+    window.onresize = ()=>{
+      camera.aspect = innerWidth/innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth,innerHeight);
+    }
+  </script>
+</body>
+</html>

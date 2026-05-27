@@ -134,15 +134,42 @@ async function writeRegistry(entries: AnimationMeta[]): Promise<void> {
 
 /** Save uploaded metadata: individual file (primary) + registry update (best-effort) */
 export async function saveUploadedMeta(meta: AnimationMeta): Promise<void> {
-  // Individual file is source of truth
+  // 1. ALWAYS save individual file first — it's the source of truth
   await put(`registry/${meta.slug}.meta.json`, JSON.stringify(meta), {
     access: 'public',
     contentType: 'application/json',
   });
 
-  // Registry update is best-effort; never throw
+  // 2. Update registry safely — never overwrite with partial data
   try {
-    const entries = await fetchRegistry();
+    let entries = await fetchRegistry();
+
+    // 3. If registry returned empty, verify against individual files before trusting it.
+    //    An empty result might mean the registry is temporarily unavailable, not that
+    //    there are genuinely no uploads. Overwriting in that case would orphan data.
+    if (entries.length === 0) {
+      try {
+        const { blobs } = await list({ prefix: 'registry/' });
+        const recovered: AnimationMeta[] = [];
+        for (const b of blobs) {
+          if (b.pathname.endsWith('.meta.json')) {
+            try {
+              const r = await fetch(b.url);
+              if (r.ok) recovered.push(await r.json());
+            } catch { /* skip broken file */ }
+          }
+        }
+        if (recovered.length > 0) {
+          entries = recovered;
+          try {
+            const parsedUrl = new URL(blobs[0].url);
+            blobStoreBase = `${parsedUrl.protocol}//${parsedUrl.host}`;
+          } catch { /* nop */ }
+        }
+      } catch { /* nop */ }
+    }
+
+    // 4. Merge new entry
     const idx = entries.findIndex((e) => e.slug === meta.slug);
     if (idx >= 0) {
       entries[idx] = meta;

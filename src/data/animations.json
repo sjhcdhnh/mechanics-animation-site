@@ -340,5 +340,53 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "主动齿轮通过啮合传动驱动从动齿轮，从动齿轮上的曲柄带动连杆-摇杆机构完成挑膜动作。机构自由度 F = 1，齿轮啮合为高副约束。"
+  },
+  {
+    "slug": "swing-guide-bar-meng",
+    "title": "竖直直动驱动摆动导杆机构 · 轨迹显示",
+    "subtitle": "Vertical Sliding-Driven Oscillating Guide Bar — Trajectory Visualization",
+    "category": "planar-linkage",
+    "tags": ["摆动导杆", "直动驱动", "轨迹", "导杆机构", "单自由度"],
+    "mechanismType": "摆动导杆机构",
+    "fileName": "swing-guide-bar-meng.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "单自由度平面竖直直动驱动摆动导杆机构。竖直滑块通过直动驱动导杆绕固定铰链摆动，末端轨迹实时显示。拖拽红色滑块交互调节驱动位置，直观展示导杆运动规律与末端轨迹变化。",
+    "author": "蒙思宇",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "单自由度机构：竖直导轨上的驱动滑块做直线往复运动，推动导杆绕固定铰链摆动。导杆末端绘制运动轨迹。机构自由度 F = 1，驱动输入为滑块竖直位移。Three.js 3D渲染，支持 OrbitControls 旋转缩放。"
+  },
+  {
+    "slug": "crank-block-meng",
+    "title": "曲柄摇块机构 · 套筒随动旋转",
+    "subtitle": "Crank-Rocker Block Mechanism — Rotating Sleeve Follower",
+    "category": "planar-linkage",
+    "tags": ["曲柄摇块", "套筒", "旋转", "随动", "四杆机构"],
+    "mechanismType": "曲柄摇块机构",
+    "fileName": "crank-block-meng.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "曲柄摇块机构的交互式3D演示。曲柄绕固定轴转动，通过连杆驱动摇块（套筒）绕其铰链随动旋转。支持拖拽曲柄圆盘手动调节角度、播放/暂停自动旋转，实时显示曲柄角度。",
+    "author": "蒙思宇",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "曲柄绕固定铰链整周回转，通过连杆带动套筒（摇块）绕其铰链摆动。曲柄圆盘可拖拽交互。机构满足Grashof条件（曲柄为最短杆），摇块做往复摆动。Three.js 3D渲染，支持 OrbitControls。"
+  },
+  {
+    "slug": "shaper-2d-meng",
+    "title": "牛头刨床 · 急回机构（2D版）",
+    "subtitle": "Shaper Quick-Return Mechanism — 2D Canvas Edition",
+    "category": "planar-linkage",
+    "tags": ["牛头刨床", "急回特性", "2D", "导杆", "行程速比"],
+    "mechanismType": "牛头刨床急回机构",
+    "fileName": "shaper-2d-meng.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "牛头刨床急回机构的2D Canvas精确演示。飞轮→曲柄→连杆→摇杆→滑枕，完整展示急回运动全过程。工作行程（切削）与回程的速度差异清晰可见，适合运动学理论教学与公式验证。",
+    "author": "蒙思宇",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "飞轮半径 R = 75 mm，连杆长度 232 mm，摇杆总长 270 mm。曲柄逆时针匀速转动（ω = 1.8 rad/s），滑枕做往复直线运动。回程速度显著快于工作行程（急回特性）。2D Canvas 渲染，实时相位标注。"
   }
 ]

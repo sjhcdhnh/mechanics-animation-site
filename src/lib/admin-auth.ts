@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 
-// SHA-256 hash of the admin password — never store plaintext
-const PASSWORD_HASH = '2d599fa69db07c9dc1f591e8504ce0d2000cef67dce74d6726fa1d12f281e085';
+const DEFAULT_PASSWORD = 'liqu2025';
 
 // Server-side secret for signing tokens (rotates on restart — acceptable for this use case)
 const SECRET = crypto.randomBytes(32).toString('hex');
@@ -9,14 +8,23 @@ const SECRET = crypto.randomBytes(32).toString('hex');
 // Active tokens (in-memory, resets on cold start)
 const activeTokens = new Set<string>();
 
-/** Verify admin password using constant-time comparison */
+function hashPassword(pw: string): string {
+  return crypto.createHash('sha256').update(pw).digest('hex');
+}
+
+/** Verify admin password — checks env ADMIN_PASSWORD first, then default */
 export function verifyPassword(input: string): boolean {
-  const inputHash = crypto.createHash('sha256').update(input).digest('hex');
-  try {
-    return crypto.timingSafeEqual(Buffer.from(inputHash), Buffer.from(PASSWORD_HASH));
-  } catch {
-    return false;
+  const envPassword = process.env.ADMIN_PASSWORD;
+  if (envPassword) {
+    return crypto.timingSafeEqual(
+      Buffer.from(hashPassword(input)),
+      Buffer.from(hashPassword(envPassword))
+    );
   }
+  return crypto.timingSafeEqual(
+    Buffer.from(hashPassword(input)),
+    Buffer.from(hashPassword(DEFAULT_PASSWORD))
+  );
 }
 
 /** Create a signed admin session token */

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>牛头刨床 · 急回机构</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        canvas {
+            background: #ffffff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .info {
+            position: absolute;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.8);
+            padding: 6px 18px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="500"></canvas>
+    <div class="info" id="phaseLabel">🔧 工作行程 (慢速)</div>
+
+    <script>
+        (function() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            const phaseLabel = document.getElementById('phaseLabel');
+
+            // ---------- 机构参数 (右移 + 摇杆加长) ----------
+            const O = { x: 240, y: 295 };      // 摇杆底部铰链
+            const C = { x: 420, y: 250 };      // 飞轮圆心
+            const R = 75;                      // 曲柄半径
+            const d = 150;                     // 连杆连接点距O
+            const L = 270;                     // 摇杆总长 (加长)
+            const railY = 80;                  // 滑枕中心高度
+            const linkLen = 232;               // 连杆固定长度
+
+            // 竖直导槽范围 (覆盖摇杆顶端可能的Y值)
+            const guideTop = 20;
+            const guideBottom = 135;
+            const guideHeight = guideBottom - guideTop;
+
+            let crankAngle = 0;
+            let rockerAngle = 0;
+            const omega = 1.8;                 // 曲柄角速度
+            let prevSliderX = O.x + L * Math.sin(0);
+            let sliderVelocity = 0;
+
+            // ---------- 摇杆角度求解 ----------
+            function solveRockerAngle(alpha) {
+                const Px = C.x + R * Math.cos(alpha);
+                const Py = C.y + R * Math.sin(alpha);
+                let phi = rockerAngle;
+                for (let iter = 0; iter < 8; iter++) {
+                    const sinPhi = Math.sin(phi);
+                    const cosPhi = Math.cos(phi);
+                    const Bx = O.x + d * sinPhi;
+                    const By = O.y - d * cosPhi;
+                    const dx = Bx - Px;
+                    const dy = By - Py;
+                    const F = dx * dx + dy * dy - linkLen * linkLen;
+                    const dF = 2 * d * (dx * cosPhi + dy * sinPhi);
+                    if (Math.abs(dF) < 1e-10) break;
+                    phi -= F / dF;
+                }
+                return Math.max(-0.9, Math.min(0.9, phi));
+            }
+
+            function getPoints(alpha, phi) {
+                const P = { x: C.x + R * Math.cos(alpha), y: C.y + R * Math.sin(alpha) };
+                const B = { x: O.x + d * Math.sin(phi), y: O.y - d * Math.cos(phi) };
+                const T = { x: O.x + L * Math.sin(phi), y: O.y - L * Math.cos(phi) };
+                return { P, B, T };
+            }
+
+            // ---------- 绘制 ----------
+            function drawScene(alpha, phi, points) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const { P, B, T } = points;
+
+                // 绿色连杆
+                ctx.beginPath();
+                ctx.moveTo(P.x, P.y);
+                ctx.lineTo(B.x, B.y);
+                ctx.strokeStyle = '#3cb371';
+                ctx.lineWidth = 8;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // 棕色摇杆
+                ctx.beginPath();
+                ctx.moveTo(O.x, O.y);
+                ctx.lineTo(T.x, T.y);
+                ctx.strokeStyle = '#a0522d';
+                ctx.lineWidth = 10;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // ---- 竖直导槽 (贯穿滑枕的细槽) ----
+                const slotX = T.x - 4;
+                const slotW = 8;
+                ctx.fillStyle = '#5c3d6e';
+                ctx.fillRect(slotX, guideTop, slotW, guideHeight);
+
+                // ---- 紫色滑枕 (薄型) ----
+                const sliderWidth = 130;
+                const sliderHeight = 24;        // 很薄
+                const sliderX = T.x - sliderWidth / 2;
+                const sliderY = railY - sliderHeight / 2;
+                ctx.fillStyle = '#9b59b6';
+                ctx.fillRect(sliderX, sliderY, sliderWidth, sliderHeight);
+
+                // 滑枕边框强调
+                ctx.strokeStyle = '#7d3c98';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(sliderX, sliderY, sliderWidth, sliderHeight);
+
+                // 连接销钉 (红色，限制在导槽内)
+                let pinY = Math.max(guideTop + 4, Math.min(guideBottom - 4, T.y));
+                ctx.beginPath();
+                ctx.arc(T.x, pinY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // 飞轮 (灰色)
+                ctx.beginPath();
+                ctx.arc(C.x, C.y, R + 12, 0, Math.PI * 2);
+                ctx.fillStyle = '#999999';
+                ctx.fill();
+                ctx.strokeStyle = '#666';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(C.x, C.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = '#555';
+                ctx.fill();
+
+                // 曲柄销
+                ctx.beginPath();
+                ctx.arc(P.x, P.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#444';
+                ctx.fill();
+
+                // 各铰链点
+                function joint(x, y, r = 5) {
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, Math.PI * 2);
+                    ctx.fillStyle = '#111';
+                    ctx.fill();
+                }
+                joint(O.x, O.y);
+                joint(B.x, B.y, 4);
+                joint(C.x, C.y, 5);
+                joint(P.x, P.y, 4);
+
+                // 水平导轨参考线
+                ctx.beginPath();
+                ctx.moveTo(50, railY);
+                ctx.lineTo(750, railY);
+                ctx.strokeStyle = '#ccc';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // 状态标签
+                if (sliderVelocity > 0.1) {
+                    phaseLabel.textContent = '⚡ 回程 (快速退回)';
+                    phaseLabel.style.color = '#e85d75';
+                } else if (sliderVelocity < -0.1) {
+                    phaseLabel.textContent = '🔧 工作行程 (慢速切削)';
+                    phaseLabel.style.color = '#4caf84';
+                } else {
+                    phaseLabel.textContent = '⏸ 换向中';
+                    phaseLabel.style.color = '#333';
+                }
+            }
+
+            // ---------- 动画循环 ----------
+            let lastTime = null;
+            function animate(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                let dt = (timestamp - lastTime) / 1000;
+                if (dt > 0.1) dt = 0.1;
+                lastTime = timestamp;
+
+                crankAngle += omega * dt;
+                crankAngle %= Math.PI * 2;
+                rockerAngle = solveRockerAngle(crankAngle);
+                const points = getPoints(crankAngle, rockerAngle);
+
+                const currentX = points.T.x;
+                sliderVelocity = (currentX - prevSliderX) / dt;
+                prevSliderX = currentX;
+
+                drawScene(crankAngle, rockerAngle, points);
+                requestAnimationFrame(animate);
+            }
+
+            // 初始化
+            rockerAngle = solveRockerAngle(crankAngle);
+            const initPts = getPoints(crankAngle, rockerAngle);
+            prevSliderX = initPts.T.x;
+            requestAnimationFrame(animate);
+        })();
+    </script>
+</body>
+</html>

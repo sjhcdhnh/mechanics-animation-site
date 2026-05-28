@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>单自由度平面竖直直动驱动摆动导杆机构 · 轨迹显示</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text: #333333;
+            --accent: #e53935;
+            --panel-bg: rgba(255, 255, 255, 0.92);
+            --shadow: 0 2px 16px rgba(0, 0, 0, 0.10);
+            --border: #e0e0e0;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #ffffff;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            user-select: none;
+            cursor: grab;
+        }
+        body:active {
+            cursor: grabbing;
+        }
+        body.dragging-slider {
+            cursor: ns-resize;
+        }
+        body.dragging-slider:active {
+            cursor: ns-resize;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        canvas {
+            display: block;
+        }
+        #info-panel {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 12px 22px;
+            box-shadow: var(--shadow);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #info-panel .title {
+            font-weight: 700;
+            font-size: 15px;
+            color: #1a1a1a;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+            letter-spacing: 0.2px;
+        }
+        .badge-red {
+            background: #fce4e4;
+            color: #c62828;
+        }
+        .badge-blue {
+            background: #e3f0fb;
+            color: #0d47a1;
+        }
+        .badge-gray {
+            background: #f0f0f0;
+            color: #444;
+        }
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .dot-red {
+            background: #e53935;
+        }
+        .dot-blue {
+            background: #1e6fbf;
+        }
+        .dot-gray {
+            background: #777;
+        }
+        #hint-bar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            padding: 10px 20px;
+            box-shadow: var(--shadow);
+            font-size: 13px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+            letter-spacing: 0.2px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #hint-bar .key-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+            background: #eee;
+            font-size: 11px;
+            font-weight: 700;
+            color: #444;
+            flex-shrink: 0;
+        }
+        #hint-bar .divider {
+            width: 1px;
+            height: 14px;
+            background: #ddd;
+            flex-shrink: 0;
+        }
+        @media (max-width: 640px) {
+            #info-panel {
+                padding: 10px 14px;
+                gap: 8px;
+                border-radius: 10px;
+                top: 10px;
+            }
+            #info-panel .title {
+                font-size: 13px;
+            }
+            .badge {
+                font-size: 10px;
+                padding: 4px 7px;
+                gap: 3px;
+            }
+            .badge-dot {
+                width: 6px;
+                height: 6px;
+            }
+            #hint-bar {
+                bottom: 12px;
+                padding: 8px 14px;
+                font-size: 11px;
+                gap: 6px;
+                border-radius: 16px;
+            }
+            #hint-bar .key-icon {
+                width: 18px;
+                height: 18px;
+                font-size: 9px;
+                border-radius: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="info-panel">
+        <span class="title">🔧 摆动导杆机构</span>
+        <span class="badge badge-red"><span class="badge-dot dot-red"></span>驱动滑块</span>
+        <span class="badge badge-blue"><span class="badge-dot dot-blue"></span>摆动套筒</span>
+        <span class="badge badge-gray"><span class="badge-dot dot-gray"></span>直动导杆</span>
+    </div>
+    <div id="hint-bar">
+        <span class="key-icon">🖱</span> 拖拽红色滑块
+        <span class="divider"></span>
+        <span class="key-icon">↔</span> 右键旋转视角
+        <span class="divider"></span>
+        <span class="key-icon">🔍</span> 滚轮缩放
+        <span class="divider"></span>
+        <span class="key-icon">␣</span> 切换动画
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==================== 场景初始化 ====================
+        const container = document.getElementById('canvas-container');
+        const hintBar = document.getElementById('hint-bar');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#ffffff');
+        scene.fog = new THREE.Fog('#ffffff', 25, 60);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.1;
+        container.appendChild(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 80);
+        camera.position.set(9, 4.5, 11);
+        camera.lookAt(1.2, 0, 0);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(1.2, 0, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.12;
+        controls.minDistance = 4;
+        controls.maxDistance = 25;
+        controls.maxPolarAngle = Math.PI * 0.78;
+        controls.mouseButtons = {
+            LEFT: null,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.ROTATE
+        };
+        controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+        controls.update();
+
+        // ==================== 光照 ====================
+        const ambientLight = new THREE.AmbientLight('#f5f5f7', 2.8);
+        scene.add(ambientLight);
+        const hemiLight = new THREE.HemisphereLight('#ffffff', '#c8c8d0', 1.6);
+        scene.add(hemiLight);
+        const sunLight = new THREE.DirectionalLight('#ffffff', 4.5);
+        sunLight.position.set(10, 14, 8);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 60;
+        sunLight.shadow.camera.left = -15;
+        sunLight.shadow.camera.right = 15;
+        sunLight.shadow.camera.top = 12;
+        sunLight.shadow.camera.bottom = -12;
+        sunLight.shadow.bias = -0.00025;
+        sunLight.shadow.normalBias = 0.02;
+        scene.add(sunLight);
+        const fillLight = new THREE.DirectionalLight('#d0d8ff', 1.8);
+        fillLight.position.set(-4, 3, -2);
+        scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight('#ffffff', 2.2);
+        rimLight.position.set(0, -1, 6);
+        scene.add(rimLight);
+
+        // ==================== 机构参数 ====================
+        const D = 3.0;
+        const SLIDER_Y_MIN = -4.6;
+        const SLIDER_Y_MAX = 4.6;
+        const ANIMATION_AMPLITUDE = 4.0;
+        const ANIMATION_PERIOD = 3.2;
+        const GUIDE_ROD_LENGTH = 12.5;
+        const GUIDE_ROD_RADIUS = 0.13;
+
+        // ==================== 材质工厂 ====================
+        function createMaterial(hexColor, roughness = 0.35, metalness = 0.15) {
+            return new THREE.MeshStandardMaterial({
+                color: new THREE.Color(hexColor),
+                roughness,
+                metalness,
+            });
+        }
+        const matFrameDark = createMaterial('#5a5a5e', 0.5, 0.4);
+        const matFrameRail = createMaterial('#7a7a80', 0.45, 0.5);
+        const matSlider = createMaterial('#e53935', 0.28, 0.08);
+        const matSliderHighlight = createMaterial('#ff5252', 0.22, 0.05);
+        const matSleeve = createMaterial('#1e6fbf', 0.25, 0.25);
+        const matSleeveAccent = createMaterial('#2989d8', 0.2, 0.35);
+        const matGuideRod = createMaterial('#8c8c94', 0.4, 0.55);
+        const matJointPin = createMaterial('#4a4a50', 0.3, 0.7);
+        const matBasePlate = createMaterial('#6e6e74', 0.55, 0.45);
+        const matGroundPlane = new THREE.MeshStandardMaterial({
+            color: new THREE.Color('#e8e8ec'),
+            roughness: 0.85,
+            metalness: 0.02,
+            transparent: true,
+            opacity: 0.55,
+        });
+
+        // ==================== 静态场景 ====================
+        const groundGeo = new THREE.PlaneGeometry(20, 20);
+        const groundPlane = new THREE.Mesh(groundGeo, matGroundPlane);
+        groundPlane.rotation.x = -Math.PI / 2;
+        groundPlane.position.set(0, -6.5, 0);
+        groundPlane.receiveShadow = true;
+        scene.add(groundPlane);
+
+        const gridHelper = new THREE.PolarGridHelper(9, 48, 30, 256, '#d8d8dc', '#eaeaea');
+        gridHelper.position.y = -6.49;
+        scene.add(gridHelper);
+
+        // 原点标记
+        const originDotGeo = new THREE.SphereGeometry(0.16, 32, 32);
+        const originDot = new THREE.Mesh(originDotGeo, createMaterial('#333333', 0.3, 0.6));
+        originDot.position.set(0, 0, 0);
+        originDot.castShadow = true;
+        originDot.receiveShadow = true;
+        scene.add(originDot);
+
+        const originRingGeo = new THREE.TorusGeometry(0.28, 0.04, 16, 40);
+        const originRing = new THREE.Mesh(originRingGeo, createMaterial('#444444', 0.25, 0.7));
+        originRing.position.set(0, 0, 0);
+        scene.add(originRing);
+
+        // 竖直导轨及底座
+        const railHeight = 11.5;
+        const railGeo = new THREE.BoxGeometry(0.28, railHeight, 0.28);
+        const railMesh = new THREE.Mesh(railGeo, matFrameRail);
+        railMesh.position.set(D, 0, 0);
+        railMesh.castShadow = true;
+        railMesh.receiveShadow = true;
+        scene.add(railMesh);
+
+        const railBaseGeo = new THREE.CylinderGeometry(0.45, 0.5, 0.35, 40);
+        const railBase = new THREE.Mesh(railBaseGeo, matBasePlate);
+        railBase.position.set(D, -railHeight / 2 + 0.15, 0);
+        railBase.castShadow = true;
+        railBase.receiveShadow = true;
+        scene.add(railBase);
+
+        const railTopCapGeo = new THREE.CylinderGeometry(0.32, 0.36, 0.22, 32);
+        const railTopCap = new THREE.Mesh(railTopCapGeo, matFrameDark);
+        railTopCap.position.set(D, railHeight / 2 - 0.1, 0);
+        railTopCap.castShadow = true;
+        railTopCap.receiveShadow = true;
+        scene.add(railTopCap);
+
+        for (let i = -5; i <= 5; i++) {
+            if (i === 0) continue;
+            const tickGeo = new THREE.BoxGeometry(0.5, 0.04, 0.04);
+            const tick = new THREE.Mesh(tickGeo, matFrameDark);
+            tick.position.set(D + 0.3, i, 0);
+            scene.add(tick);
+        }
+
+        // ---- 导杆远端运动轨迹（黑色曲线） ----
+        function createTrajectoryCurve() {
+            const points = [];
+            const steps = 200;
+            // 修正：轨迹跟随导杆所在平面 z = 0
+            const z = 0;
+
+            for (let i = 0; i <= steps; i++) {
+                const y = SLIDER_Y_MIN + (i / steps) * (SLIDER_Y_MAX - SLIDER_Y_MIN);
+                const bx = D;
+                const by = y;
+                const theta = Math.atan2(by, bx);
+                const farX = bx - GUIDE_ROD_LENGTH * Math.cos(theta);
+                const farY = by - GUIDE_ROD_LENGTH * Math.sin(theta);
+                points.push(new THREE.Vector3(farX, farY, z));
+            }
+
+            const curve = new THREE.CatmullRomCurve3(points);
+            const curvePoints = curve.getPoints(points.length * 2);
+            const geometry = new THREE.BufferGeometry().setFromPoints(curvePoints);
+
+            const material = new THREE.LineBasicMaterial({
+                color: '#000000',
+                linewidth: 1,
+                opacity: 0.85,
+                transparent: true,
+                depthTest: true,
+                depthWrite: true,
+            });
+
+            const trajectoryLine = new THREE.Line(geometry, material);
+            return trajectoryLine;
+        }
+
+        const trajectoryLine = createTrajectoryCurve();
+        scene.add(trajectoryLine);
+
+        // ==================== 动态构件 ====================
+        const allParts = {};
+
+        // --- 竖直驱动滑块组（红色，含铰接销轴）---
+        const sliderGroup = new THREE.Group();
+        sliderGroup.name = '驱动滑块组';
+        const sliderBodyGeo = new THREE.BoxGeometry(0.72, 0.78, 0.72);
+        const sliderBody = new THREE.Mesh(sliderBodyGeo, matSlider);
+        sliderBody.castShadow = true;
+        sliderBody.receiveShadow = true;
+        sliderGroup.add(sliderBody);
+        const sliderFrontGeo = new THREE.BoxGeometry(0.74, 0.8, 0.08);
+        const sliderFront = new THREE.Mesh(sliderFrontGeo, matSliderHighlight);
+        sliderFront.position.z = 0.38;
+        sliderGroup.add(sliderFront);
+
+        const hingePinGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.9, 20);
+        const hingePin = new THREE.Mesh(hingePinGeo, matJointPin);
+        hingePin.rotation.x = Math.PI / 2;
+        hingePin.position.set(0, 0, 0);
+        hingePin.castShadow = true;
+        sliderGroup.add(hingePin);
+        allParts.hingePin = hingePin;
+
+        const washerGeo = new THREE.TorusGeometry(0.16, 0.06, 8, 20);
+        const washerFront = new THREE.Mesh(washerGeo, matJointPin);
+        washerFront.position.set(0, 0, 0.45);
+        sliderGroup.add(washerFront);
+        const washerBack = new THREE.Mesh(washerGeo, matJointPin);
+        washerBack.position.set(0, 0, -0.45);
+        sliderGroup.add(washerBack);
+
+        sliderGroup.position.set(D, 0, 0);
+        scene.add(sliderGroup);
+        allParts.sliderGroup = sliderGroup;
+        allParts.sliderBody = sliderBody;
+
+        // --- 摆动套筒组（蓝色）---
+        const sleeveGroup = new THREE.Group();
+        sleeveGroup.name = '摆动套筒组';
+        // 修正：套筒与滑块销轴对齐，z = 0
+        sleeveGroup.position.set(0, 0, 0);
+
+        const sleeveTubeGeo = new THREE.CylinderGeometry(0.44, 0.44, 1.9, 40, 1, true);
+        const sleeveTube = new THREE.Mesh(sleeveTubeGeo, matSleeve);
+        sleeveTube.rotation.z = -Math.PI / 2;
+        sleeveTube.castShadow = true;
+        sleeveTube.receiveShadow = true;
+        sleeveGroup.add(sleeveTube);
+        allParts.sleeveTube = sleeveTube;
+
+        const endRingGeo = new THREE.TorusGeometry(0.44, 0.07, 12, 40);
+        const endRingFront = new THREE.Mesh(endRingGeo, matSleeveAccent);
+        endRingFront.position.set(0.95, 0, 0);
+        endRingFront.rotation.y = Math.PI / 2;
+        sleeveGroup.add(endRingFront);
+        const endRingBack = new THREE.Mesh(endRingGeo, matSleeveAccent);
+        endRingBack.position.set(-0.95, 0, 0);
+        endRingBack.rotation.y = Math.PI / 2;
+        sleeveGroup.add(endRingBack);
+
+        const armGeo = new THREE.CylinderGeometry(0.07, 0.09, 0.8, 12);
+        const armMesh = new THREE.Mesh(armGeo, matSleeve);
+        armMesh.rotation.z = Math.PI / 2;
+        armMesh.position.x = 0.5;
+        armMesh.castShadow = true;
+        sleeveGroup.add(armMesh);
+
+        scene.add(sleeveGroup);
+        allParts.sleeveGroup = sleeveGroup;
+
+        // --- 直动导杆（灰色圆柱）---
+        const guideRodGeo = new THREE.CylinderGeometry(GUIDE_ROD_RADIUS, GUIDE_ROD_RADIUS, GUIDE_ROD_LENGTH, 28);
+        const guideRod = new THREE.Mesh(guideRodGeo, matGuideRod);
+        guideRod.castShadow = true;
+        guideRod.receiveShadow = true;
+        // 修正：导杆位于 z = 0 平面
+        guideRod.position.z = 0;
+        scene.add(guideRod);
+        allParts.guideRod = guideRod;
+
+        const rodEndGeo = new THREE.SphereGeometry(GUIDE_ROD_RADIUS * 1.35, 20, 20);
+        const rodEndNear = new THREE.Mesh(rodEndGeo, matGuideRod);
+        rodEndNear.castShadow = true;
+        rodEndNear.position.z = 0;
+        scene.add(rodEndNear);
+        allParts.rodEndNear = rodEndNear;
+
+        const rodEndFar = new THREE.Mesh(rodEndGeo, matGuideRod);
+        rodEndFar.castShadow = true;
+        rodEndFar.position.z = 0;
+        scene.add(rodEndFar);
+        allParts.rodEndFar = rodEndFar;
+
+        // OB参考虚线组
+        const dashLineGroup = new THREE.Group();
+        dashLineGroup.renderOrder = 1000;
+        scene.add(dashLineGroup);
+        allParts.dashLineGroup = dashLineGroup;
+
+        // ==================== 运动学计算 ====================
+        function computeKinematics(ySlider) {
+            const yClamped = Math.max(SLIDER_Y_MIN, Math.min(SLIDER_Y_MAX, ySlider));
+            const bx = D;
+            const by = yClamped;
+            const theta = Math.atan2(by, bx);
+            return {
+                ySlider: yClamped,
+                bx,
+                by,
+                theta,
+                cosTheta: Math.cos(theta),
+                sinTheta: Math.sin(theta),
+                distOB: Math.sqrt(bx * bx + by * by),
+            };
+        }
+
+        function updateDashedLine(bx, by, theta) {
+            const group = allParts.dashLineGroup;
+            while (group.children.length > 0) {
+                const child = group.children[0];
+                if (child.geometry) child.geometry.dispose();
+                if (child.material) child.material.dispose();
+                group.remove(child);
+            }
+            const distOB = Math.sqrt(bx * bx + by * by);
+            const dashLength = distOB / 20;
+            const gapLength = dashLength * 1.2;
+            const totalPattern = dashLength + gapLength;
+            const numDashes = Math.floor(distOB / totalPattern);
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+            const dashMat = new THREE.MeshBasicMaterial({
+                color: '#cccccc',
+                transparent: true,
+                opacity: 0.55,
+                depthTest: true,
+                depthWrite: false,
+            });
+            for (let i = 0; i < numDashes; i++) {
+                const startDist = i * totalPattern;
+                const midDist = startDist + dashLength / 2;
+                const cx = midDist * cosT;
+                const cy = midDist * sinT;
+                const dashGeo = new THREE.CylinderGeometry(0.025, 0.025, dashLength, 6);
+                const dash = new THREE.Mesh(dashGeo, dashMat);
+                dash.position.set(cx, cy, -0.02);
+                dash.rotation.z = theta - Math.PI / 2;
+                dash.renderOrder = 1000;
+                group.add(dash);
+            }
+        }
+
+        function updateMechanism(kin) {
+            const { ySlider, bx, by, theta, cosTheta, sinTheta } = kin;
+            allParts.sliderGroup.position.set(D, ySlider, 0);
+            allParts.sleeveGroup.rotation.z = theta;
+
+            const halfLen = GUIDE_ROD_LENGTH / 2;
+            const rodCenterX = bx - halfLen * cosTheta;
+            const rodCenterY = by - halfLen * sinTheta;
+            // 修正：导杆整体运动在 z = 0 平面
+            allParts.guideRod.position.set(rodCenterX, rodCenterY, 0);
+            allParts.guideRod.rotation.z = theta - Math.PI / 2;
+
+            allParts.rodEndNear.position.set(bx, by, 0);
+            const farX = bx - GUIDE_ROD_LENGTH * cosTheta;
+            const farY = by - GUIDE_ROD_LENGTH * sinTheta;
+            allParts.rodEndFar.position.set(farX, farY, 0);
+
+            updateDashedLine(bx, by, theta);
+        }
+
+        // ==================== 状态与交互 ====================
+        let currentYSlider = 0.0;
+        let animationTime = 0;
+        let isAutoAnimating = true;
+        let isDragging = false;
+        let dragResumeTimeout = null;
+        const RESUME_DELAY = 1800;
+
+        function setSliderY(y) {
+            currentYSlider = Math.max(SLIDER_Y_MIN, Math.min(SLIDER_Y_MAX, y));
+            const kin = computeKinematics(currentYSlider);
+            updateMechanism(kin);
+            return kin;
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const dragPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -D);
+
+        function getSliderIntersection(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const targets = [allParts.sliderBody, allParts.sliderGroup];
+            const intersects = raycaster.intersectObjects(targets, true);
+            if (intersects.length > 0) {
+                for (const intersect of intersects) {
+                    let obj = intersect.object;
+                    while (obj) {
+                        if (obj === allParts.sliderGroup || obj === allParts.sliderBody || obj === allParts.hingePin) {
+                            return intersect;
+                        }
+                        obj = obj.parent;
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getYFromMouseOnDragPlane(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersection = new THREE.Vector3();
+            if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                return intersection.y;
+            }
+            return null;
+        }
+
+        function onPointerDown(event) {
+            if (event.button !== 0) return;
+            const hit = getSliderIntersection(event);
+            if (hit) {
+                isDragging = true;
+                controls.enabled = false;
+                document.body.classList.add('dragging-slider');
+                if (dragResumeTimeout) {
+                    clearTimeout(dragResumeTimeout);
+                    dragResumeTimeout = null;
+                }
+                isAutoAnimating = false;
+                hintBar.innerHTML = `<span style="color:#e53935;font-weight:600;">●</span> 拖动中... <span class="divider"></span> 松开鼠标放置滑块`;
+                const yFromPlane = getYFromMouseOnDragPlane(event);
+                if (yFromPlane !== null) setSliderY(yFromPlane);
+                event.preventDefault();
+            }
+        }
+
+        function onPointerMove(event) {
+            if (isDragging) {
+                const yFromPlane = getYFromMouseOnDragPlane(event);
+                if (yFromPlane !== null) setSliderY(yFromPlane);
+            }
+            if (!isDragging && event.buttons === 0) {
+                const hit = getSliderIntersection(event);
+                document.body.style.cursor = hit ? 'ns-resize' : 'grab';
+            }
+        }
+
+        function onPointerUp() {
+            if (isDragging) {
+                isDragging = false;
+                controls.enabled = true;
+                document.body.classList.remove('dragging-slider');
+                document.body.style.cursor = 'grab';
+                hintBar.innerHTML =
+                    `<span style="color:#e53935;font-weight:600;">●</span> 滑块已放置 <span class="divider"></span> ${RESUME_DELAY / 1000}秒后恢复自动动画 <span class="divider"></span> <span class="key-icon">␣</span> 立即恢复`;
+                if (dragResumeTimeout) clearTimeout(dragResumeTimeout);
+                dragResumeTimeout = setTimeout(() => {
+                    isAutoAnimating = true;
+                    animationTime =
+                        Math.asin(Math.max(-1, Math.min(1, currentYSlider / ANIMATION_AMPLITUDE))) *
+                        ANIMATION_PERIOD /
+                        (2 * Math.PI);
+                    if (animationTime < 0) animationTime += ANIMATION_PERIOD;
+                    dragResumeTimeout = null;
+                    hintBar.innerHTML = `<span class="key-icon">🖱</span> 拖拽红色滑块 <span class="divider"></span> <span class="key-icon">↔</span> 右键旋转视角 <span class="divider"></span> <span class="key-icon">🔍</span> 滚轮缩放 <span class="divider"></span> <span class="key-icon">␣</span> 切换动画`;
+                }, RESUME_DELAY);
+            }
+        }
+
+        function onKeyDown(event) {
+            if (event.code === 'Space' || event.key === ' ') {
+                event.preventDefault();
+                if (dragResumeTimeout) {
+                    clearTimeout(dragResumeTimeout);
+                    dragResumeTimeout = null;
+                }
+                isAutoAnimating = !isAutoAnimating;
+                if (isAutoAnimating) {
+                    animationTime =
+                        Math.asin(Math.max(-1, Math.min(1, currentYSlider / ANIMATION_AMPLITUDE))) *
+                        ANIMATION_PERIOD /
+                        (2 * Math.PI);
+                    if (animationTime < 0) animationTime += ANIMATION_PERIOD;
+                }
+                hintBar.innerHTML = isAutoAnimating
+                    ? `<span class="key-icon">🖱</span> 拖拽红色滑块 <span class="divider"></span> <span class="key-icon">↔</span> 右键旋转视角 <span class="divider"></span> <span class="key-icon">🔍</span> 滚轮缩放 <span class="divider"></span> <span class="key-icon">␣</span> 切换动画`
+                    : `<span style="color:#ff9800;font-weight:600;">⏸</span> 动画已暂停 <span class="divider"></span> <span class="key-icon">␣</span> 恢复动画`;
+            }
+            if (event.code === 'KeyR') {
+                camera.position.set(9, 4.5, 11);
+                controls.target.set(1.2, 0, 0);
+                controls.update();
+            }
+            if (event.code === 'KeyF') {
+                camera.position.set(1.5, 0, 13);
+                controls.target.set(1.5, 0, 0);
+                controls.update();
+            }
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('pointermove', onPointerMove);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointerleave', onPointerUp);
+        window.addEventListener('keydown', onKeyDown);
+
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const fake = { clientX: touch.clientX, clientY: touch.clientY, button: 0 };
+                if (getSliderIntersection(fake)) {
+                    isDragging = true;
+                    controls.enabled = false;
+                    document.body.classList.add('dragging-slider');
+                    if (dragResumeTimeout) {
+                        clearTimeout(dragResumeTimeout);
+                        dragResumeTimeout = null;
+                    }
+                    isAutoAnimating = false;
+                    hintBar.innerHTML = `<span style="color:#e53935;font-weight:600;">●</span> 拖动中...`;
+                    const y = getYFromMouseOnDragPlane(fake);
+                    if (y !== null) setSliderY(y);
+                    e.preventDefault();
+                }
+            }
+        }, { passive: false });
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging && e.touches.length === 1) {
+                const fake = { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY };
+                const y = getYFromMouseOnDragPlane(fake);
+                if (y !== null) setSliderY(y);
+                e.preventDefault();
+            }
+        }, { passive: false });
+        window.addEventListener('touchend', () => {
+            if (isDragging) {
+                onPointerUp();
+            }
+        });
+
+        // ==================== 动画循环 ====================
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.1);
+            if (isAutoAnimating && !isDragging) {
+                animationTime += dt;
+                const yTarget = ANIMATION_AMPLITUDE * Math.sin((2 * Math.PI * animationTime) / ANIMATION_PERIOD);
+                currentYSlider = yTarget;
+                const kin = computeKinematics(currentYSlider);
+                updateMechanism(kin);
+            }
+            if (controls.enabled) controls.update();
+            sunLight.intensity = 4.5 * (1 + 0.03 * Math.sin(animationTime * 0.7));
+            allParts.sliderBody.material.emissive = isDragging ? new THREE.Color('#330000') : new THREE.Color('#000000');
+            allParts.sliderBody.material.emissiveIntensity = isDragging ? 0.4 : 0;
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // 初始姿态
+        const initKin = setSliderY(1.5);
+        updateDashedLine(initKin.bx, initKin.by, initKin.theta);
+        requestAnimationFrame(animate);
+
+        console.log('✅ 机构已修正：导杆与滑块销轴中心精确重合，轨迹同步于 z=0 平面');
+    </script>
+</body>
+</html>

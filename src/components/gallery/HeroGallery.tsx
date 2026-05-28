@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 const SLIDES = [
   { src: '/images/hero/fast-feed-cabin.gif', alt: 'FAST馈源舱姿态模拟' },
   { src: '/images/hero/space-station-docking.gif', alt: '空间站交会对接' },
+  { src: '/images/hero/mechanism-demo.gif', alt: '机构运动学演示' },
 ];
 
 const INTERVAL = 4000;

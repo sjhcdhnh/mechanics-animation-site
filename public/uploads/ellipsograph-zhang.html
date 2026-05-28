@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>椭圆仪机构 - 无导轨参数可调</title>
+    <style>
+        :root {
+            --bg: #88EEFF;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            overflow: hidden;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+            height: 100vh;
+            width: 100vw;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* 控制面板 */
+        .control-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(10, 61, 98, 0.9);
+            color: #fff;
+            padding: 18px 20px;
+            border-radius: 18px;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            min-width: 240px;
+            font-size: 14px;
+            letter-spacing: 0.4px;
+            transition: opacity 0.3s;
+        }
+
+        .control-panel label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #e0f0ff;
+        }
+
+        .control-panel input[type=range] {
+            width: 100%;
+            margin: 4px 0 14px 0;
+            cursor: pointer;
+            background: #2c5a7a;
+            height: 6px;
+            border-radius: 3px;
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+        }
+
+        .control-panel input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #F9CA24;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 0 6px rgba(0,0,0,0.3);
+        }
+
+        .value-display {
+            display: flex;
+            justify-content: space-between;
+            margin-top: -8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #F9CA24;
+        }
+
+        .eccentricity {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.25);
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .eccentricity span {
+            color: #EA2027;
+            font-size: 1.2em;
+        }
+
+        /* 信息面板 */
+        .info-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(10, 61, 98, 0.85);
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 28px;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+            text-align: center;
+        }
+
+        .info-panel span {
+            color: #F9CA24;
+            font-weight: 600;
+        }
+
+        @media (max-width: 700px) {
+            .control-panel {
+                top: 10px;
+                right: 10px;
+                padding: 14px 16px;
+                min-width: 200px;
+                font-size: 12px;
+                border-radius: 14px;
+            }
+            .info-panel {
+                font-size: 11px;
+                padding: 8px 16px;
+                bottom: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <!-- 参数调节面板 -->
+    <div class="control-panel">
+        <label for="L-slider">📏 铰接距 L <span style="color:#F9CA24;">(滑块间距)</span></label>
+        <input type="range" id="L-slider" min="1.0" max="7.0" value="3.5" step="0.1">
+        <div class="value-display"><span id="L-value">3.5</span></div>
+
+        <label for="k-slider">✏️ 延伸长度 k <span style="color:#EA2027;">(画笔偏移)</span></label>
+        <input type="range" id="k-slider" min="0.5" max="6.0" value="2.5" step="0.1">
+        <div class="value-display"><span id="k-value">2.5</span></div>
+
+        <div class="eccentricity">
+            离心率 e = <span id="ecc-value">0.83</span>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <span>🟡 滑块</span>沿正交方向往复 · <span>🟢 连杆</span>联动 · <span>🔴 画笔</span>绘椭圆
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==================== 固定配置 ====================
+        const CONFIG = {
+            slider_bodyLength: 0.72,
+            slider_bodyWidth: 0.44,
+            slider_bodyDepth: 0.36,
+            linkRod_crossSection: 0.15,
+            pivotSphereRadius: 0.24,
+            trajectoryTubeRadius: 0.07,
+            trajectoryZOffset: 0.015,
+
+            colorSlider: 0xF9CA24,
+            colorLinkRod: 0x26DE81,
+            colorPivot: 0xEA2027,
+            colorTrajectory: 0xEA2027,
+            colorBackground: 0x88EEFF,
+
+            angularSpeed: 1.6,
+            trajectorySegments: 220,
+            tubeRadialSegments: 10,
+
+            ambientIntensity: 0.5,
+            hemisphereIntensity: 0.6,
+            directionalIntensity: 0.75,
+            directionalPos: [6, 8, 10],
+            cameraInitZ: 13.5,
+            cameraNear: 0.5,
+            cameraFar: 60,
+            controlsMinDist: 3,
+            controlsMaxDist: 35,
+            controlsDamping: 0.1,
+        };
+
+        // ==================== 可变参数 ====================
+        let L = 3.5;   // 铰接距
+        let k = 2.5;   // 画笔延伸长度
+        let totalRodLength = L + k;
+        let ellipseSemiAxisX = k;
+        let ellipseSemiAxisY = L + k;
+
+        // ==================== DOM 元素 ====================
+        const container = document.getElementById('canvas-container');
+        const LSlider = document.getElementById('L-slider');
+        const kSlider = document.getElementById('k-slider');
+        const LValue = document.getElementById('L-value');
+        const kValue = document.getElementById('k-value');
+        const eccValue = document.getElementById('ecc-value');
+
+        // ==================== 场景初始化 ====================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(CONFIG.colorBackground);
+        scene.fog = new THREE.Fog(CONFIG.colorBackground, 18, 50);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.15;
+        container.appendChild(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(
+            50,
+            window.innerWidth / window.innerHeight,
+            CONFIG.cameraNear,
+            CONFIG.cameraFar
+        );
+        camera.position.set(0, 0.8, CONFIG.cameraInitZ);
+        camera.lookAt(0, 0, 0);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.2, 0);
+        controls.enableDamping = true;
+        controls.dampingFactor = CONFIG.controlsDamping;
+        controls.minDistance = CONFIG.controlsMinDist;
+        controls.maxDistance = CONFIG.controlsMaxDist;
+        controls.maxPolarAngle = Math.PI * 0.75;
+        controls.minPolarAngle = Math.PI * 0.1;
+        controls.update();
+
+        // ==================== 光照 ====================
+        scene.add(new THREE.AmbientLight(0xffffff, CONFIG.ambientIntensity));
+        scene.add(new THREE.HemisphereLight(0xffffff, CONFIG.colorBackground, CONFIG.hemisphereIntensity));
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, CONFIG.directionalIntensity);
+        dirLight.position.set(...CONFIG.directionalPos);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.set(2048, 2048);
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 50;
+        dirLight.shadow.camera.left = -15;
+        dirLight.shadow.camera.right = 15;
+        dirLight.shadow.camera.top = 15;
+        dirLight.shadow.camera.bottom = -15;
+        dirLight.shadow.bias = -0.0003;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.DirectionalLight(0xccddff, 0.4);
+        fillLight.position.set(-4, 2, -3);
+        scene.add(fillLight);
+
+        // 阴影接收面
+        const shadowPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(25, 25),
+            new THREE.ShadowMaterial({ opacity: 0.25 })
+        );
+        shadowPlane.position.z = -2.8;
+        shadowPlane.receiveShadow = true;
+        scene.add(shadowPlane);
+
+        // 背景柔化板
+        const bgPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(22, 22),
+            new THREE.MeshLambertMaterial({ color: 0xc8eef8, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+        );
+        bgPlane.position.z = -2.4;
+        bgPlane.receiveShadow = true;
+        scene.add(bgPlane);
+
+        // ==================== 机构容器 ====================
+        const mechanismGroup = new THREE.Group();
+        scene.add(mechanismGroup);
+
+        // 辅助网格
+        let gridHelper = new THREE.PolarGridHelper(6, 32, 24, 64, 0xcccccc, 0xcccccc);
+        gridHelper.position.z = -0.6;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.3;
+        gridHelper.material.depthWrite = false;
+        scene.add(gridHelper);
+
+        // ==================== 可动部件引用 ====================
+        let horizontalSlider, verticalSlider, linkRod;
+        let pivotH, pivotV, pivotP;
+
+        // ==================== 轨迹生成函数 ====================
+        function createEllipseTrajectory(a, b, zOffset, color, segments, radius, radialSeg) {
+            const points = [];
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                points.push(new THREE.Vector3(-a * Math.cos(angle), b * Math.sin(angle), zOffset));
+            }
+            const curve = new THREE.CatmullRomCurve3(points, true);
+            const tubeGeo = new THREE.TubeGeometry(curve, segments, radius, radialSeg, true);
+            const tubeMat = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.3,
+                metalness: 0.25,
+                emissive: color,
+                emissiveIntensity: 0.4,
+            });
+            const tube = new THREE.Mesh(tubeGeo, tubeMat);
+            tube.castShadow = true;
+            tube.receiveShadow = true;
+            return tube;
+        }
+
+        function createTrajectoryGlow(a, b, zOffset, color, segments, radius, radialSeg) {
+            const points = [];
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                points.push(new THREE.Vector3(-a * Math.cos(angle), b * Math.sin(angle), zOffset + 0.001));
+            }
+            const curve = new THREE.CatmullRomCurve3(points, true);
+            const tubeGeoGlow = new THREE.TubeGeometry(curve, segments, radius * 2.2, radialSeg, true);
+            const glowMat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.15,
+                depthWrite: false,
+            });
+            return new THREE.Mesh(tubeGeoGlow, glowMat);
+        }
+
+        // ==================== 机构重建函数 ====================
+        function rebuildMechanism(newL, newK) {
+            L = newL;
+            k = newK;
+            totalRodLength = L + k;
+            ellipseSemiAxisX = k;
+            ellipseSemiAxisY = L + k;
+
+            // 清空机构容器
+            while (mechanismGroup.children.length > 0) {
+                mechanismGroup.remove(mechanismGroup.children[0]);
+            }
+
+            // 创建滑块 (金黄色)
+            const sliderMat = new THREE.MeshStandardMaterial({
+                color: CONFIG.colorSlider,
+                roughness: 0.25,
+                metalness: 0.4,
+                emissive: new THREE.Color(CONFIG.colorSlider).multiplyScalar(0.3),
+                emissiveIntensity: 0.5,
+            });
+
+            horizontalSlider = new THREE.Mesh(
+                new THREE.BoxGeometry(CONFIG.slider_bodyLength, CONFIG.slider_bodyWidth, CONFIG.slider_bodyDepth),
+                sliderMat
+            );
+            horizontalSlider.castShadow = true;
+            horizontalSlider.receiveShadow = true;
+            mechanismGroup.add(horizontalSlider);
+
+            verticalSlider = new THREE.Mesh(
+                new THREE.BoxGeometry(CONFIG.slider_bodyWidth, CONFIG.slider_bodyLength, CONFIG.slider_bodyDepth),
+                sliderMat
+            );
+            verticalSlider.castShadow = true;
+            verticalSlider.receiveShadow = true;
+            mechanismGroup.add(verticalSlider);
+
+            // 创建连杆 (亮绿色)
+            linkRod = new THREE.Mesh(
+                new THREE.BoxGeometry(totalRodLength, CONFIG.linkRod_crossSection, CONFIG.linkRod_crossSection),
+                new THREE.MeshStandardMaterial({ color: CONFIG.colorLinkRod, roughness: 0.35, metalness: 0.4 })
+            );
+            linkRod.castShadow = true;
+            linkRod.receiveShadow = true;
+            mechanismGroup.add(linkRod);
+
+            // 铰接点与画笔点 (亮红色)
+            const pivotMat = new THREE.MeshStandardMaterial({
+                color: CONFIG.colorPivot,
+                roughness: 0.25,
+                metalness: 0.3,
+                emissive: CONFIG.colorPivot,
+                emissiveIntensity: 0.3,
+            });
+            const sphereGeo = new THREE.SphereGeometry(CONFIG.pivotSphereRadius, 24, 24);
+            pivotH = new THREE.Mesh(sphereGeo, pivotMat);
+            pivotV = new THREE.Mesh(sphereGeo, pivotMat);
+            pivotP = new THREE.Mesh(sphereGeo, pivotMat);
+            [pivotH, pivotV, pivotP].forEach(p => {
+                p.castShadow = true;
+                p.receiveShadow = true;
+                mechanismGroup.add(p);
+            });
+            // 画笔光晕
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(CONFIG.pivotSphereRadius * 1.6, 24, 24),
+                new THREE.MeshBasicMaterial({ color: CONFIG.colorPivot, transparent: true, opacity: 0.3, depthWrite: false })
+            );
+            pivotP.add(glow);
+
+            // 轨迹线
+            const traj = createEllipseTrajectory(
+                ellipseSemiAxisX, ellipseSemiAxisY,
+                CONFIG.trajectoryZOffset,
+                CONFIG.colorTrajectory,
+                CONFIG.trajectorySegments,
+                CONFIG.trajectoryTubeRadius,
+                CONFIG.tubeRadialSegments
+            );
+            mechanismGroup.add(traj);
+
+            const trajGlow = createTrajectoryGlow(
+                ellipseSemiAxisX, ellipseSemiAxisY,
+                CONFIG.trajectoryZOffset,
+                CONFIG.colorTrajectory,
+                CONFIG.trajectorySegments,
+                CONFIG.trajectoryTubeRadius,
+                CONFIG.tubeRadialSegments
+            );
+            mechanismGroup.add(trajGlow);
+
+            // 更新网格大小
+            scene.remove(gridHelper);
+            const maxExtent = Math.max(ellipseSemiAxisY, 5) + 1.5;
+            gridHelper = new THREE.PolarGridHelper(maxExtent, 32, 24, 64, 0xcccccc, 0xcccccc);
+            gridHelper.position.z = -0.6;
+            gridHelper.material.transparent = true;
+            gridHelper.material.opacity = 0.3;
+            gridHelper.material.depthWrite = false;
+            scene.add(gridHelper);
+
+            // 更新离心率显示
+            const ecc = Math.sqrt(1 - (k * k) / ((L + k) * (L + k)));
+            eccValue.textContent = ecc.toFixed(3);
+            LValue.textContent = L.toFixed(1);
+            kValue.textContent = k.toFixed(1);
+        }
+
+        // ==================== UI事件 ====================
+        LSlider.addEventListener('input', () => {
+            rebuildMechanism(parseFloat(LSlider.value), parseFloat(kSlider.value));
+        });
+        kSlider.addEventListener('input', () => {
+            rebuildMechanism(parseFloat(LSlider.value), parseFloat(kSlider.value));
+        });
+
+        // ==================== 运动学 ====================
+        function getMechanismState(theta) {
+            const xH = L * Math.cos(theta);
+            const yH = 0;
+            const xV = 0;
+            const yV = L * Math.sin(theta);
+            const xP = -k * Math.cos(theta);
+            const yP = (L + k) * Math.sin(theta);
+            const midX = (xH + xP) / 2;
+            const midY = (yH + yP) / 2;
+            const rodAngle = Math.atan2(yP - yH, xP - xH);
+            return { xH, yH, xV, yV, xP, yP, midX, midY, rodAngle };
+        }
+
+        // ==================== 动画循环 ====================
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const theta = clock.getElapsedTime() * CONFIG.angularSpeed;
+            const state = getMechanismState(theta);
+
+            if (horizontalSlider) {
+                horizontalSlider.position.set(state.xH, state.yH, 0);
+                verticalSlider.position.set(state.xV, state.yV, 0);
+                linkRod.position.set(state.midX, state.midY, 0);
+                linkRod.rotation.z = state.rodAngle;
+                pivotH.position.set(state.xH, state.yH, 0);
+                pivotV.position.set(state.xV, state.yV, 0);
+                pivotP.position.set(state.xP, state.yP, CONFIG.trajectoryZOffset);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // 窗口自适应
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ==================== 启动 ====================
+        rebuildMechanism(L, k);
+        LSlider.value = L;
+        kSlider.value = k;
+        const initEcc = Math.sqrt(1 - (k * k) / ((L + k) * (L + k)));
+        eccValue.textContent = initEcc.toFixed(3);
+        LValue.textContent = L.toFixed(1);
+        kValue.textContent = k.toFixed(1);
+
+        animate();
+
+        console.log('✅ 椭圆仪仿真已启动 (无导轨)');
+        console.log('   📐 调节L和k可改变椭圆离心率');
+    </script>
+</body>
+</html>

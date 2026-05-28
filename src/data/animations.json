@@ -388,5 +388,21 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "飞轮半径 R = 75 mm，连杆长度 232 mm，摇杆总长 270 mm。曲柄逆时针匀速转动（ω = 1.8 rad/s），滑枕做往复直线运动。回程速度显著快于工作行程（急回特性）。2D Canvas 渲染，实时相位标注。"
+  },
+  {
+    "slug": "ellipsograph-zhang",
+    "title": "椭圆仪机构 · 无导轨参数可调",
+    "subtitle": "Ellipsograph Mechanism — Parameter-Adjustable, No Guide Rails",
+    "category": "planar-linkage",
+    "tags": ["椭圆仪", "椭圆轨迹", "参数可调", "连杆机构"],
+    "mechanismType": "椭圆仪机构",
+    "fileName": "ellipsograph-zhang.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "无导轨椭圆仪机构的参数可调演示。无需十字导轨即可绘制椭圆轨迹，支持调节机构参数实时改变椭圆形状，直观展示连杆机构生成椭圆曲线的运动学原理。",
+    "author": "张若涵",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "无导轨椭圆仪通过连杆机构实现椭圆轨迹绘制，避免了传统十字导轨结构。可调参数改变椭圆长轴与短轴比例。机构自由度 F = 1，末端执行器轨迹为椭圆。"
   }
 ]

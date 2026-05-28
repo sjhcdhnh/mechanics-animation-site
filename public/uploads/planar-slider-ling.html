@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平面连杆滑块机构 - 3D动画</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #e8edf2 0%, #d5dce4 100%);
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #container { width: 100%; height: 100%; }
+        #info-panel {
+            position: absolute; top: 20px; left: 20px;
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(10px);
+            padding: 18px 24px; border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 10; min-width: 320px;
+        }
+        #info-panel h2 {
+            font-size: 18px; color: #333; margin-bottom: 12px;
+            border-bottom: 2px solid #e74c3c; padding-bottom: 8px;
+        }
+        #info-panel .param {
+            display: flex; justify-content: space-between; margin: 6px 0;
+            font-size: 14px; color: #555;
+        }
+        #info-panel .param span:last-child {
+            font-weight: bold; color: #c0392b; font-family: 'Courier New', monospace;
+        }
+        #info-panel .input-group {
+            display: flex; align-items: center; gap: 8px; margin: 8px 0;
+        }
+        #info-panel .input-group label {
+            font-size: 14px; color: #555; white-space: nowrap;
+        }
+        #info-panel .input-group input {
+            width: 80px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 6px;
+            font-size: 14px; text-align: center;
+        }
+        #info-panel .input-group button {
+            padding: 4px 12px; background: #c0392b; color: white; border: none;
+            border-radius: 6px; cursor: pointer; font-size: 13px;
+        }
+        #info-panel .input-group button:hover { background: #a93226; }
+        #controls {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 12px; z-index: 10; flex-wrap: wrap; justify-content: center;
+        }
+        #controls button {
+            background: rgba(255,255,255,0.9); border: none; padding: 10px 20px;
+            border-radius: 25px; font-size: 13px; cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); transition: all 0.3s; font-weight: 500;
+        }
+        #controls button:hover { background: #c0392b; color: white; }
+        #controls button.active { background: #c0392b; color: white; }
+        #legend {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(255,255,255,0.9); padding: 15px 20px; border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1); z-index: 10;
+        }
+        #legend .item { display: flex; align-items: center; margin: 6px 0; font-size: 13px; color: #555; }
+        #legend .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 10px; }
+        #speed-slider {
+            position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%);
+            z-index: 10; display: flex; align-items: center; gap: 10px;
+            background: rgba(255,255,255,0.9); padding: 10px 20px; border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #speed-slider input { width: 120px; accent-color: #c0392b; }
+        #speed-slider label { font-size: 13px; color: #555; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+
+    <div id="info-panel">
+        <h2>📐 平面连杆滑块机构</h2>
+        <div class="input-group">
+            <label>角速度 ω:</label>
+            <input type="number" id="omega-input" value="2.0" step="0.1" min="0.1" max="10">
+            <span style="font-size:12px;color:#888;">rad/s</span>
+            <button onclick="applyOmega()">应用</button>
+        </div>
+        <div class="param"><span>曲柄角度 θ:</span><span id="theta">90.0°</span></div>
+        <div class="param"><span>AB与BE夹角:</span><span id="angle-ab-be">60.0°</span></div>
+        <div class="param"><span>滑块位置 Ey:</span><span id="slider-pos">0.000 m</span></div>
+        <div class="param"><span>滑块速度 vE:</span><span id="slider-vel">0.000 m/s</span></div>
+        <div class="param"><span>滑块加速度 aE:</span><span id="slider-acc">0.000 m/s²</span></div>
+    </div>
+
+    <div id="legend">
+        <div class="item"><span class="dot" style="background:#fff;border:2px solid #333;"></span> 固定铰 (O, D)</div>
+        <div class="item"><span class="dot" style="background:#2c3e50;"></span> 杆件 (黑色)</div>
+        <div class="item"><span class="dot" style="background:#c0392b;"></span> 滑块E (深红)</div>
+        <div class="item"><span class="dot" style="background:#3498db;"></span> 活动铰接点</div>
+        <div class="item"><span class="dot" style="background:rgba(243,156,18,0.3);border:1px solid #f39c12;"></span> 透明套筒</div>
+    </div>
+
+    <div id="controls">
+        <button id="btn-play" class="active" onclick="togglePlay()">⏯️ 暂停</button>
+        <button onclick="resetView()">🔄 重置</button>
+        <button onclick="viewFront()">🔲 正视</button>
+        <button onclick="viewTop()">📐 俯视</button>
+        <button onclick="viewSide()">📏 侧视</button>
+        <button id="btn-record" onclick="startRecord()">🔴 录制</button>
+        <button id="btn-stop" onclick="stopRecord()" disabled>⏹️ 停止</button>
+    </div>
+
+    <div id="speed-slider">
+        <label>🐢 慢</label>
+        <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" oninput="updateSpeed(this.value)">
+        <label>快 🐇</label>
+        <span id="speed-value" style="font-weight:bold;color:#c0392b;">1.0x</span>
+    </div>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        const container = document.getElementById('container');
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        container.appendChild(labelRenderer.domElement);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xe8edf2);
+        scene.fog = new THREE.Fog(0xe8edf2, 5, 20);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 50);
+        camera.position.set(2.5, 1.5, 4);
+        camera.lookAt(1, -0.3, 0);
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(1, -0.3, 0);
+        controls.enableDamping = true; controls.dampingFactor = 0.08;
+        controls.minDistance = 2; controls.maxDistance = 10;
+        controls.maxPolarAngle = Math.PI * 0.75; controls.update();
+
+        scene.add(new THREE.AmbientLight(0xffffff, 2.5));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x8d9cb0, 1.5));
+        const sunLight = new THREE.DirectionalLight(0xffffff, 6);
+        sunLight.position.set(5, 8, 3); sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048; sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5; sunLight.shadow.camera.far = 30;
+        sunLight.shadow.camera.left = -5; sunLight.shadow.camera.right = 5;
+        sunLight.shadow.camera.top = 5; sunLight.shadow.camera.bottom = -5;
+        scene.add(sunLight);
+        scene.add(new THREE.DirectionalLight(0xffffff, 2).translateX(-2).translateY(1).translateZ(-1));
+
+        const L = 2.0, R = 0.8;
+        const sqrt3L2 = Math.sqrt(3) * L / 2;
+        const Ey_min = -R - sqrt3L2;
+        const PLATFORM_Y = 0.3, PLATFORM_THICKNESS = 0.05;
+        let w_OA = 2.0;
+
+        // 材质
+        const fixedJointMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.3 });
+        const linkMat = new THREE.MeshStandardMaterial({ color: 0x2c3e50, roughness: 0.3, metalness: 0.1 });
+        const sliderMat = new THREE.MeshStandardMaterial({ color: 0xc0392b, roughness: 0.25, metalness: 0.2 });
+        const jointMat = new THREE.MeshStandardMaterial({ color: 0x3498db, roughness: 0.2, metalness: 0.4 });
+        const sleeveMat = new THREE.MeshPhysicalMaterial({
+            color: 0xf39c12, roughness: 0.1, metalness: 0.1,
+            transparent: true, opacity: 0.25, clearcoat: 0.3
+        });
+        const platformMat = new THREE.MeshStandardMaterial({ color: 0x7f8c8d, roughness: 0.4, metalness: 0.3 });
+
+        function createDynamicCylinder(r, m) { const g = new THREE.CylinderGeometry(r, r, 1, 32); const o = new THREE.Mesh(g, m); o.castShadow = true; o.receiveShadow = true; return o; }
+        function createSphere(r, m) { const g = new THREE.SphereGeometry(r, 32, 32); const o = new THREE.Mesh(g, m); o.castShadow = true; o.receiveShadow = true; return o; }
+        function createBox(w, h, d, m) { const g = new THREE.BoxGeometry(w, h, d); const o = new THREE.Mesh(g, m); o.castShadow = true; o.receiveShadow = true; return o; }
+        function createHollowSleeve(innerR, outerR, length, material) {
+            const g = new THREE.CylinderGeometry(outerR, outerR, length, 32, 1, true);
+            const innerG = new THREE.CylinderGeometry(innerR, innerR, length, 32, 1, true);
+            const outerMesh = new THREE.Mesh(g, material);
+            const innerMesh = new THREE.Mesh(innerG, material);
+            innerMesh.scale.y = 1.001;
+            const group = new THREE.Group();
+            group.add(outerMesh);
+            group.add(innerMesh);
+            return group;
+        }
+        function createLabel(text, pos, ox = 0, oy = 0.15) { const div = document.createElement('div'); div.textContent = text; div.style.fontWeight = 'bold'; div.style.fontSize = '14px'; div.style.color = '#333'; const l = new CSS2DObject(div); l.position.set(pos.x + ox, pos.y + oy, pos.z); return l; }
+        function updateDynamicCylinder(mesh, start, end) { const d = new THREE.Vector3().subVectors(end, start); const len = d.length(); if (len < 0.0001) return; const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5); mesh.position.copy(mid); mesh.scale.set(1, len, 1); const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0), d.normalize()); mesh.setRotationFromQuaternion(q); }
+
+        const allObjects = new THREE.Group();
+        scene.add(allObjects);
+
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshStandardMaterial({ color: 0xd5dce4, roughness: 0.9 }));
+        ground.rotation.x = -Math.PI / 2; ground.position.y = Ey_min - 0.5; ground.receiveShadow = true; scene.add(ground);
+
+        const platform = createBox(L + 0.6, PLATFORM_THICKNESS, 0.5, platformMat);
+        platform.position.set(L / 2, PLATFORM_Y - PLATFORM_THICKNESS / 2, 0);
+        allObjects.add(platform);
+
+        // 透明套筒轨道
+        const railX = L / 2;
+        const sleeveInnerR = 0.06;
+        const sleeveOuterR = 0.08;
+        const sleeveY_top = PLATFORM_Y - PLATFORM_THICKNESS / 2 - 0.08;
+        const sleeveY_bottom = Ey_min - 0.15;
+        const sleeveLength = sleeveY_top - sleeveY_bottom;
+        const sleeveMidY = (sleeveY_top + sleeveY_bottom) / 2;
+
+        const leftSleeve = createHollowSleeve(sleeveInnerR, sleeveOuterR, sleeveLength, sleeveMat);
+        leftSleeve.position.set(railX - 0.07, sleeveMidY, 0);
+        allObjects.add(leftSleeve);
+
+        const rightSleeve = createHollowSleeve(sleeveInnerR, sleeveOuterR, sleeveLength, sleeveMat);
+        rightSleeve.position.set(railX + 0.07, sleeveMidY, 0);
+        allObjects.add(rightSleeve);
+
+        const pinO = createSphere(0.08, fixedJointMat); pinO.position.set(0, PLATFORM_Y, 0); allObjects.add(pinO);
+        const pinD = createSphere(0.08, fixedJointMat); pinD.position.set(L / 2, PLATFORM_Y, 0); allObjects.add(pinD);
+        allObjects.add(createLabel('O', new THREE.Vector3(0, PLATFORM_Y, 0), -0.15, 0.15));
+        allObjects.add(createLabel('D', new THREE.Vector3(L / 2, PLATFORM_Y, 0), 0.15, 0.15));
+
+        const crankOA = createDynamicCylinder(0.04, linkMat); allObjects.add(crankOA);
+        const linkDC = createDynamicCylinder(0.04, linkMat); allObjects.add(linkDC);
+        const linkAB = createDynamicCylinder(0.04, linkMat); allObjects.add(linkAB);
+        const linkBE = createDynamicCylinder(0.04, linkMat); allObjects.add(linkBE);
+
+        const sliderGroup = new THREE.Group();
+        sliderGroup.add(createBox(0.1, 0.16, 0.1, sliderMat));
+        allObjects.add(sliderGroup);
+
+        const pinA = createSphere(0.06, jointMat); allObjects.add(pinA);
+        const pinC = createSphere(0.06, jointMat); allObjects.add(pinC);
+        const pinB = createSphere(0.06, jointMat); allObjects.add(pinB);
+        const pinE = createSphere(0.06, jointMat); allObjects.add(pinE);
+
+        const labelA = createLabel('A', new THREE.Vector3(), 0.1, 0.1); allObjects.add(labelA);
+        const labelB = createLabel('B', new THREE.Vector3(), 0.1, 0.1); allObjects.add(labelB);
+        const labelC = createLabel('C', new THREE.Vector3(), 0.1, 0.1); allObjects.add(labelC);
+        const labelE = createLabel('E', new THREE.Vector3(), 0, 0.18); allObjects.add(labelE);
+
+        const tracePoints = [];
+        const traceGeom = new THREE.BufferGeometry();
+        const traceLine = new THREE.Line(traceGeom, new THREE.LineBasicMaterial({ color: 0x3498db, transparent: true, opacity: 0.5 }));
+        allObjects.add(traceLine);
+
+        let time = 0, isPlaying = true, speedMultiplier = 1.0;
+        const O_fixed = new THREE.Vector3(0, PLATFORM_Y, 0);
+        const D_fixed = new THREE.Vector3(L / 2, PLATFORM_Y, 0);
+
+        window.applyOmega = () => {
+            const val = parseFloat(document.getElementById('omega-input').value);
+            if (val > 0) { w_OA = val; console.log('角速度已更新:', w_OA, 'rad/s'); }
+        };
+
+        window.updateSpeed = v => { speedMultiplier = parseFloat(v); document.getElementById('speed-value').textContent = speedMultiplier.toFixed(1)+'x'; };
+        window.togglePlay = () => { isPlaying = !isPlaying; const b = document.getElementById('btn-play'); b.textContent = isPlaying ? '⏯️ 暂停' : '▶️ 播放'; if(isPlaying) b.classList.add('active'); else b.classList.remove('active'); };
+        window.resetView = () => { camera.position.set(2.5, 1.5, 4); controls.target.set(1, -0.3, 0); controls.update(); };
+        window.viewFront = () => { camera.position.set(1, -0.3, 4); controls.target.set(1, -0.3, 0); controls.update(); };
+        window.viewTop = () => { camera.position.set(1, 4, 0.01); controls.target.set(1, -0.3, 0); controls.update(); };
+        window.viewSide = () => { camera.position.set(3, -0.3, 0.01); controls.target.set(1, -0.3, 0); controls.update(); };
+
+        // 录制功能
+        let mediaRecorder, recordedChunks;
+        window.startRecord = () => {
+            recordedChunks = [];
+            const stream = renderer.domElement.captureStream(60);
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url; a.download = '机构动画.webm'; a.click();
+                URL.revokeObjectURL(url);
+            };
+            mediaRecorder.start();
+            document.getElementById('btn-record').disabled = true;
+            document.getElementById('btn-stop').disabled = false;
+            console.log('🔴 开始录制...');
+        };
+        window.stopRecord = () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                document.getElementById('btn-record').disabled = false;
+                document.getElementById('btn-stop').disabled = true;
+                console.log('✅ 录制完成，正在下载...');
+            }
+        };
+
+        let lastTimestamp = performance.now();
+
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+            const dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+            lastTimestamp = timestamp;
+            if (isPlaying) time += dt * speedMultiplier;
+
+            const period = 2 * Math.PI / w_OA;
+            const t_mod = time % (2 * period);
+            const theta = t_mod < period ? (t_mod / period) * Math.PI : (2 - t_mod / period) * Math.PI;
+            const cosT = Math.cos(theta);
+            const sinT = Math.sin(theta);
+
+            const Ax = R * cosT;
+            const Ay = R * sinT + PLATFORM_Y;
+            const Cx = L / 2 + R * cosT;
+            const Cy = R * sinT + PLATFORM_Y;
+            const Bx = L + R * cosT;
+            const By = R * sinT + PLATFORM_Y;
+            const dx = L / 2 - Bx;
+            const disc = L * L - dx * dx;
+            const Ey = disc >= 0 ? By - Math.sqrt(disc) : By;
+
+            const A = new THREE.Vector3(Ax, Ay, 0);
+            const C = new THREE.Vector3(Cx, Cy, 0);
+            const B = new THREE.Vector3(Bx, By, 0);
+            const E = new THREE.Vector3(L / 2, Ey, 0);
+
+            updateDynamicCylinder(crankOA, O_fixed, A);
+            pinA.position.copy(A); labelA.position.set(A.x+0.1, A.y+0.1, 0);
+            updateDynamicCylinder(linkDC, D_fixed, C);
+            pinC.position.copy(C); labelC.position.set(C.x+0.1, C.y+0.1, 0);
+            updateDynamicCylinder(linkAB, A, B);
+            pinB.position.copy(B); labelB.position.set(B.x+0.1, B.y+0.1, 0);
+            updateDynamicCylinder(linkBE, B, E);
+            sliderGroup.position.copy(E);
+            pinE.position.copy(E); labelE.position.set(E.x, E.y+0.18, 0);
+
+            const abDir = new THREE.Vector3().subVectors(B, A).normalize();
+            const beDir = new THREE.Vector3().subVectors(E, B).normalize();
+            const angleAB_BE = Math.acos(Math.max(-1, Math.min(1, abDir.dot(beDir)))) * 180 / Math.PI;
+
+            tracePoints.push(E.clone());
+            if (tracePoints.length > 600) tracePoints.shift();
+            traceGeom.setFromPoints(tracePoints);
+
+            const goingForward = (time % (2 * period)) < period;
+            const vE = R * w_OA * cosT * (goingForward ? 1 : -1);
+            const aE = -R * w_OA * w_OA * sinT;
+
+            document.getElementById('theta').textContent = (theta*180/Math.PI).toFixed(1)+'°';
+            document.getElementById('angle-ab-be').textContent = angleAB_BE.toFixed(1)+'°';
+            document.getElementById('slider-pos').textContent = Ey.toFixed(3)+' m';
+            document.getElementById('slider-vel').textContent = Math.abs(vE).toFixed(3)+' m/s';
+            document.getElementById('slider-acc').textContent = aE.toFixed(3)+' m/s²';
+
+            controls.update();
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        requestAnimationFrame(animate);
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); labelRenderer.setSize(window.innerWidth, window.innerHeight); });
+
+        console.log('✅ 平面连杆滑块机构已就绪');
+        console.log('🛤️ 透明套筒轨道 | ⚫ 黑色杆件 | ⚪ 白色固定铰 | 🔴 深红滑块');
+        console.log('🔢 可输入角速度 (rad/s) | 🔴 可录制视频');
+    </script>
+</body>
+</html>

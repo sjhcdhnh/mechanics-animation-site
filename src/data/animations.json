@@ -404,5 +404,21 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "无导轨椭圆仪通过连杆机构实现椭圆轨迹绘制，避免了传统十字导轨结构。可调参数改变椭圆长轴与短轴比例。机构自由度 F = 1，末端执行器轨迹为椭圆。"
+  },
+  {
+    "slug": "planar-slider-ling",
+    "title": "平面连杆滑块机构 · 3D动画",
+    "subtitle": "Planar Linkage Slider Mechanism — 3D Animation",
+    "category": "planar-linkage",
+    "tags": ["连杆", "滑块", "平面机构", "3D"],
+    "mechanismType": "平面连杆滑块机构",
+    "fileName": "planar-slider-ling.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "平面连杆滑块机构的3D交互动画。曲柄驱动连杆-滑块系统，展示滑块往复直线运动的位移、速度变化规律，适合运动学教学演示。",
+    "author": "凌钰璨",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "曲柄绕固定铰链转动，经连杆驱动滑块沿导轨做往复直线运动。机构自由度 F = 1。3D渲染支持OrbitControls交互旋转缩放。"
   }
 ]

@@ -72,8 +72,8 @@ scene.background = new THREE.Color(0x0a0a14);
 scene.fog = new THREE.Fog(0x0a0a14, 8, 30);
 
 const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.2, 60);
-camera.position.set(3.5, 2.8, 4.5);
-camera.lookAt(1.0, 0.4, 0);
+camera.position.set(4, 5, 4);
+camera.lookAt(1.0, 0, 0.5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -82,11 +82,11 @@ renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(1.0, 0.5, 0);
+controls.target.set(1.0, 0, 0.5);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 2;
-controls.maxDistance = 10;
+controls.maxDistance = 12;
 controls.update();
 
 // ── Lights ──
@@ -310,7 +310,7 @@ function animate(timestamp) {
     // Link rotation = cumulative angle up to this link
     let cum = 0;
     for (let j = 0; j <= i; j++) cum += angles[j];
-    linkGroups[i].rotation.set(0, 0, cum);
+    linkGroups[i].rotation.set(0, cum, 0);
     // Joint sphere
     jointMeshes[i].position.set(pts[i].x, 0, pts[i].y);
   }

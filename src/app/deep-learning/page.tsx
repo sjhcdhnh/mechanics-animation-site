@@ -180,7 +180,7 @@ export default function DeepLearningPage() {
               <p className="text-xs text-muted/60 mt-0.5">完整PPT演示文稿（16页）</p>
             </div>
             <a
-              href="/deep-learning/赵大志教改部分 V2.pptx"
+              href="/downloads/赵大志教改部分 V2.pptx"
               download
               className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-fg text-sm font-semibold rounded-xl hover:bg-accent-hover transition-colors duration-200"
             >

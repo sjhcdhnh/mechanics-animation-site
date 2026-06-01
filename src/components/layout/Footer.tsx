@@ -33,6 +33,9 @@ export function Footer() {
           <Link href="/about" className="hover:text-foreground transition-colors duration-200">
             关于
           </Link>
+          <Link href="/deep-learning" className="hover:text-foreground transition-colors duration-200">
+            深度学习
+          </Link>
           <Link href="/upload" className="hover:text-foreground transition-colors duration-200">
             上传
           </Link>

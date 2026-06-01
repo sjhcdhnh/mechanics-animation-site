@@ -454,6 +454,22 @@
     "modelDescription": "曲柄驱动连杆-滑道机构，支持多组参数并行对比。可调节曲柄长度、连杆长度、滑道角度等关键参数，实时计算位移、速度、加速度曲线并支持数据导出。机构自由度 F = 1。"
   },
   {
+    "slug": "deep-learning-4bar-rl",
+    "title": "四连杆检测机器人 · 深度强化学习控制探索",
+    "subtitle": "4-Bar Inspection Robot — Data-Driven Grasping via Deep Reinforcement Learning",
+    "category": "serial-robot",
+    "tags": ["深度强化学习", "4R机械臂", "四连杆", "数据驱动", "RL训练", "力矩控制"],
+    "mechanismType": "四连杆检测机器人",
+    "fileName": "deep-learning-4bar-rl.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "四连杆平面检测机器人的深度强化学习控制演示。4个转动副串联的平面机械臂，通过模拟RL训练过程（早期探索→中期收敛→后期优化→最终策略），展示数据驱动方法如何使机械臂学会精准抓取目标物。演示关节力矩控制、末端轨迹追踪与训练阶段可视化。",
+    "author": "赵大志 / 深度探索组",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "4自由度平面串联机械臂，连杆长度 L1~L4。机械臂基座位于原点，末端执行器通过4个串联转动副联动。RL状态空间：4个关节角 + 末端位置 (x,y)；动作空间：4个关节力矩增量；奖励函数：末端距目标点的负距离。展示50k/100k/200k/500k交互步的训练阶段。力矩通过欧拉积分转化为关节角加速度，含关节阻尼与探索噪声。"
+  },
+  {
     "slug": "crank-swing-slide-dai",
     "title": "曲柄摆杆滑道机构 · 复合运动与科氏加速度",
     "subtitle": "Crank-Swing-Bar Slide Mechanism — Compound Motion & Coriolis Acceleration",

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>高精度揉面机 3D 仿真 (缩径上移深缸版)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f4f7f6; font-family: 'Segoe UI', sans-serif; }
+        #info {
+            position: absolute; top: 15px; left: 15px; color: #333;
+            background: rgba(255, 255, 255, 0.9); padding: 20px;
+            border-radius: 8px; border: 1px solid #ddd;
+            pointer-events: none; line-height: 1.6;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h2 { margin: 0 0 12px 0; font-size: 18px; color: #2c3e50; font-weight: bold; }
+        .item { font-size: 13px; margin-bottom: 6px; display: flex; align-items: center;}
+        span.legend { display: inline-block; width: 14px; height: 14px; margin-right: 10px; border-radius: 3px; }
+        .note { margin-top: 15px; font-size: 12px; color: #666; border-top: 1px solid #eee; padding-top: 10px;}
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>揉面机运动学仿真 [深缸微公差版]</h2>
+        <div class="item"><span class="legend" style="background:#e67e22;"></span>高精度蜗轮蜗杆 (1:36减速比)</div>
+        <div class="item"><span class="legend" style="background:#3498db;"></span>摇杆 l4 与刀具 (中层 Z = 0)</div>
+        <div class="item"><span class="legend" style="background:#2ecc71;"></span>联动支撑臂 l2 (前层 Z = +30)</div>
+        <div class="item"><span class="legend" style="background:#2c3e50;"></span>深色收口高盆 (极致公差避让)</div>
+        <div class="note">操作：左键拖拽旋转视角 | 滚轮缩放<br>※ 调整：面盆直径极限缩小，整体高度大幅拔高至 Y=-120</div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        class HelixCurve extends THREE.Curve {
+            constructor(radius, pitch, length) {
+                super();
+                this.radius = radius; this.pitch = pitch; this.length = length;
+            }
+            getPoint(t, optionalTarget = new THREE.Vector3()) {
+                const y = (t - 0.5) * this.length; 
+                const turns = this.length / this.pitch;
+                const angle = t * turns * Math.PI * 2;
+                return optionalTarget.set(this.radius * Math.cos(angle), y, this.radius * Math.sin(angle));
+            }
+        }
+
+        // 1. 机构核心参数
+        const l1 = 231.824, l2 = 189.602, l3 = 100.233, l4 = 278.577;
+        const l5 = 57.352, l6 = 165.944, r = 330.000;
+        const xA = -486.099, yA = 0.000; 
+        const alpha = 46.385 * Math.PI / 180;
+        const theta = 103.038 * Math.PI / 180;
+        const varphi = 147.866 * Math.PI / 180;
+
+        const zGear = -30, zCoupler = 0, zRocker = 30;
+
+        function getKinematicPoints(beta) {
+            const A = new THREE.Vector3(xA, yA, 0);
+            const B = new THREE.Vector3(xA - l1 * Math.cos(alpha), yA + l1 * Math.sin(alpha), 0);
+            const C = new THREE.Vector3(B.x + l3 * Math.cos(beta), B.y + l3 * Math.sin(beta), 0);
+            const lAC = A.distanceTo(C);
+            if (lAC > l2 + l4 || lAC < Math.abs(l2 - l4)) return null;
+            const psi1 = Math.atan2(C.y - A.y, C.x - A.x);
+            const cos_psi2 = (l2*l2 + lAC*lAC - l4*l4) / (2 * l2 * lAC);
+            const psi2 = Math.acos(Math.max(-1, Math.min(1, cos_psi2)));
+            const D = new THREE.Vector3(A.x + l2 * Math.cos(psi1 - psi2), A.y + l2 * Math.sin(psi1 - psi2), 0);
+            const E = new THREE.Vector3(D.x + (l5/l4)*(D.x - C.x), D.y + (l5/l4)*(D.y - C.y), 0);
+            const phi1 = Math.atan2(C.y - D.y, C.x - D.x);
+            const phi = Math.PI/2 + phi1 - theta;
+            const O1 = new THREE.Vector3(E.x - r * Math.cos(phi), E.y - r * Math.sin(phi), 0);
+            const F = new THREE.Vector3(O1.x + r * Math.cos(phi - varphi), O1.y + r * Math.sin(phi - varphi), 0);
+            const M = new THREE.Vector3(F.x + l6 * Math.sin(phi - varphi), F.y - l6 * Math.cos(phi - varphi), 0);
+            return { A, B, C, D, E, O1, F, M, phi };
+        }
+
+        // 2. 场景初始化
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf4f7f6);
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 8000);
+        camera.position.set(100, -50, 1600); // 配合升高的缸体，视线微调
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.target.set(-50, -100, 0); 
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        mainLight.position.set(400, 1000, 800);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048; mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.left = -600; mainLight.shadow.camera.right = 600;
+        mainLight.shadow.camera.top = 600; mainLight.shadow.camera.bottom = -600;
+        scene.add(mainLight);
+
+        // 3. 材质定义
+        const matBase = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.7, metalness: 0.4 }); 
+        const matBearing = new THREE.MeshStandardMaterial({ color: 0x78909c, roughness: 0.3, metalness: 0.8 }); 
+        const matGear = new THREE.MeshStandardMaterial({ color: 0xe67e22, roughness: 0.3, metalness: 0.6 }); 
+        const matLink2 = new THREE.MeshStandardMaterial({ color: 0x2ecc71, roughness: 0.4, metalness: 0.2 }); 
+        const matLink4 = new THREE.MeshStandardMaterial({ color: 0x3498db, roughness: 0.4, metalness: 0.2 }); 
+        const matKneader = new THREE.MeshStandardMaterial({ color: 0xe91e63, roughness: 0.2, metalness: 0.4 }); 
+        const matBowl = new THREE.MeshPhysicalMaterial({
+            color: 0x11161a, transparent: true, opacity: 0.85, roughness: 0.1, metalness: 0.7, transmission: 0.2, side: THREE.DoubleSide
+        });
+
+        // 4. 精密传动组
+        const joints = { B: new THREE.Vector3(xA - l1 * Math.cos(alpha), yA + l1 * Math.sin(alpha), 0) };
+        const gearTeeth = 36;
+        const outR = l3 * 1.3, inR = l3 * 1.12; 
+        
+        const gearGroup = new THREE.Group();
+        gearGroup.position.set(joints.B.x, joints.B.y, zGear);
+        scene.add(gearGroup);
+
+        const gearShape = new THREE.Shape();
+        for (let i = 0; i < gearTeeth * 2; i++) {
+            const radius = i % 2 === 0 ? outR : inR;
+            const angle = (i / (gearTeeth * 2)) * Math.PI * 2;
+            if (i === 0) gearShape.moveTo(radius * Math.cos(angle), radius * Math.sin(angle));
+            else gearShape.lineTo(radius * Math.cos(angle), radius * Math.sin(angle));
+        }
+        gearShape.holes.push(new THREE.Path().absarc(0, 0, l3 * 0.2, 0, Math.PI * 2, false));
+
+        const gearMesh = new THREE.Mesh(new THREE.ExtrudeGeometry(gearShape, { depth: 22, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 2, bevelThickness: 2 }), matGear);
+        gearMesh.translateZ(-11); gearMesh.castShadow = true; gearGroup.add(gearMesh);
+
+        const gearPitch = (2 * Math.PI * outR) / gearTeeth; 
+        const wormRadius = 14, wormLength = 160;
+
+        const wormAssembly = new THREE.Group();
+        wormAssembly.position.set(joints.B.x, joints.B.y - outR - wormRadius + 4, zGear);
+        wormAssembly.rotation.z = Math.PI / 2; 
+        scene.add(wormAssembly);
+
+        const wormRotor = new THREE.Group();
+        wormAssembly.add(wormRotor);
+        wormRotor.add(new THREE.Mesh(new THREE.CylinderGeometry(wormRadius*0.7, wormRadius*0.7, wormLength + 100, 32), matGear));
+        wormRotor.add(new THREE.Mesh(new THREE.TubeGeometry(new HelixCurve(wormRadius, gearPitch, wormLength), 300, 3.5, 12, false), matGear));
+
+        const bearingBlockGeo = new THREE.BoxGeometry(40, 50, 40); bearingBlockGeo.translate(0, -5, 0); 
+        const bearingLeft = new THREE.Mesh(bearingBlockGeo, matBearing);
+        bearingLeft.position.set(joints.B.x - wormLength/2 - 20, joints.B.y - outR - wormRadius + 4, zGear); scene.add(bearingLeft);
+        const bearingRight = new THREE.Mesh(bearingBlockGeo, matBearing);
+        bearingRight.position.set(joints.B.x + wormLength/2 + 20, joints.B.y - outR - wormRadius + 4, zGear); scene.add(bearingRight);
+
+        // 5. 支撑构件、连杆与刀具
+        const baseA = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 30, 32), matBase);
+        baseA.rotation.x = Math.PI/2; baseA.position.set(xA, yA, zRocker); scene.add(baseA);
+        const frameAxisA = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 80, 32), matBase);
+        frameAxisA.rotation.x = Math.PI/2; frameAxisA.position.set(xA, yA, 0); scene.add(frameAxisA);
+        const centerBearing = new THREE.Mesh(new THREE.CylinderGeometry(l3*0.3, l3*0.3, 30, 32), matBase);
+        centerBearing.rotation.x = Math.PI / 2; centerBearing.position.set(joints.B.x, joints.B.y, zGear); scene.add(centerBearing);
+
+        function createLinkMesh(material) {
+            const geo = new THREE.BoxGeometry(20, 1, 16); geo.translate(0, 0.5, 0);
+            const mesh = new THREE.Mesh(geo, material); mesh.castShadow = true; scene.add(mesh); return mesh;
+        }
+        const linkL2Mesh = createLinkMesh(matLink2);
+        const linkL4Mesh = createLinkMesh(matLink4);
+
+        const pinC = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, Math.abs(zGear - zCoupler) + 16, 32), matBearing);
+        pinC.rotation.x = Math.PI/2; scene.add(pinC);
+        const pinD = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, Math.abs(zRocker - zCoupler) + 16, 32), matBearing);
+        pinD.rotation.x = Math.PI/2; scene.add(pinD);
+
+        function updateLink(mesh, p1, p2) {
+            mesh.scale.set(1, p1.distanceTo(p2), 1);
+            mesh.position.copy(p1);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), p2.clone().sub(p1).normalize());
+        }
+
+        let kneaderMesh = null;
+        function updateKneader(pts) {
+            if (kneaderMesh) { scene.remove(kneaderMesh); kneaderMesh.geometry.dispose(); }
+            const shape = new THREE.Shape();
+            const dirDE = new THREE.Vector3().subVectors(pts.E, pts.D).normalize();
+            const side = new THREE.Vector3().crossVectors(dirDE, new THREE.Vector3(0,0,1)).normalize();
+            const w = 12, spurLen = 40; 
+            shape.moveTo(pts.D.x - side.x*w, pts.D.y - side.y*w);
+            shape.lineTo(pts.E.x - side.x*w, pts.E.y - side.y*w);
+            for(let i=0; i<=20; i++) {
+                const angle = pts.phi - (i/20)*varphi;
+                shape.lineTo(pts.O1.x + (r+w)*Math.cos(angle), pts.O1.y + (r+w)*Math.sin(angle));
+            }
+            const tipDir = new THREE.Vector3().subVectors(pts.M, pts.F).normalize();
+            shape.lineTo(pts.M.x + tipDir.x*15, pts.M.y + tipDir.y*15);
+            shape.lineTo(pts.M.x - side.x*10, pts.M.y - side.y*10); 
+            for(let i=20; i>=0; i--) {
+                const angle = pts.phi - (i/20)*varphi;
+                shape.lineTo(pts.O1.x + (r-w)*Math.cos(angle), pts.O1.y + (r-w)*Math.sin(angle));
+            }
+            const spurDirX = Math.cos(pts.phi - varphi + Math.PI*0.8);
+            const spurDirY = Math.sin(pts.phi - varphi + Math.PI*0.8);
+            shape.lineTo(pts.F.x + spurDirX*spurLen, pts.F.y + spurDirY*spurLen); 
+            shape.lineTo(pts.F.x + spurDirX*(spurLen-10) - side.x*20, pts.F.y + spurDirY*(spurLen-10) - side.y*20);
+            shape.lineTo(pts.E.x + side.x*w, pts.E.y + side.y*w);
+            shape.lineTo(pts.D.x + side.x*w, pts.D.y + side.y*w);
+            shape.closePath();
+
+            const geo = new THREE.ExtrudeGeometry(shape, { depth: 24, bevelEnabled: true, bevelSegments: 3, steps: 1, bevelSize: 2, bevelThickness: 2 });
+            geo.translate(0, 0, zCoupler - 12);
+            kneaderMesh = new THREE.Mesh(geo, matKneader);
+            kneaderMesh.castShadow = true; scene.add(kneaderMesh);
+        }
+
+        // ==========================================
+        // 6. 【核心调整】缩小直径 + 大幅拔高
+        // ==========================================
+        let minX = Infinity, maxX = -Infinity, minY = Infinity;
+        for (let b = 0; b <= Math.PI * 2; b += 0.05) {
+            const p = getKinematicPoints(b);
+            if (p && p.M.y < 50) { // 采集底部和侧部的扫描边界
+                const sx = Math.cos(p.phi - varphi + Math.PI*0.8);
+                const sy = Math.sin(p.phi - varphi + Math.PI*0.8);
+                const ptsToCheck = [ p.M, { x: p.F.x + sx*55, y: p.F.y + sy*55 }, { x: p.O1.x, y: p.O1.y - r - 22 } ];
+                for(let pt of ptsToCheck) {
+                    if(pt.x < minX) minX = pt.x; if(pt.x > maxX) maxX = pt.x; if(pt.y < minY) minY = pt.y;
+                }
+            }
+        }
+        
+        minY -= 15; // 底部物理间隙收小，更显紧凑
+        
+        // 核心修改1：大幅度提升容器高度
+        // 之前压到 -200。现在拉升至 -120，使其成为一个高深缸体
+        const topY = -120; 
+        
+        // 核心修改2：极限缩圈
+        // 我们放弃完全对称，紧贴刀具最大横向扫掠边界 maxX (约285)，留极小5mm缝隙
+        const bowlRadius = maxX + 5; 
+        const flatBottomRadius = bowlRadius * 0.65; // 底部也同步收窄
+        const bowlHeight = topY - minY;
+
+        const bowlPoints = [];
+        bowlPoints.push(new THREE.Vector2(0, minY), new THREE.Vector2(flatBottomRadius, minY)); 
+        for(let i=0; i<=30; i++) {
+            const t = i / 30;
+            // 采用更平滑陡峭的弧线 t^0.6 塑形侧壁
+            const cx = flatBottomRadius + (bowlRadius - flatBottomRadius) * Math.pow(t, 0.6);
+            const cy = minY + t * bowlHeight; 
+            bowlPoints.push(new THREE.Vector2(cx, cy));
+        }
+        
+        // 核心修改3：砍掉向外突出的厚宽边沿，仅留3mm微小翻边
+        // 因为 bowlRadius ≈ 290，左侧边缘会在 X = -293。
+        // 而绿色连杆 l2 向右的极限摆动是 X = -296.5。
+        // 两者由于精巧的几何公差计算，错开了3.5毫米，在高位安全避让！
+        bowlPoints.push(new THREE.Vector2(bowlRadius + 3, topY), new THREE.Vector2(bowlRadius + 3, topY - 10));
+
+        const bowlMesh = new THREE.Mesh(new THREE.LatheGeometry(bowlPoints, 80), matBowl);
+        bowlMesh.position.set(0, 0, zCoupler);
+        scene.add(bowlMesh);
+
+        const basePad = new THREE.Mesh(new THREE.CylinderGeometry(flatBottomRadius*0.8, flatBottomRadius*0.85, 25, 64), matBase);
+        basePad.position.set(0, minY - 12.5, zCoupler); 
+        scene.add(basePad);
+
+        // ==========================================
+        // 7. 动画渲染循环
+        // ==========================================
+        let beta = 0;
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            const delta = clock.getDelta();
+            beta -= 0.6 * delta; 
+            if (beta < 0) beta += Math.PI * 2;
+
+            gearGroup.rotation.z = beta; 
+            wormRotor.rotation.y = beta * gearTeeth; 
+
+            const pts = getKinematicPoints(beta);
+            if (pts) {
+                const pA = pts.A.clone().setZ(zRocker);
+                const pD_rocker = pts.D.clone().setZ(zRocker);
+                updateLink(linkL2Mesh, pA, pD_rocker); 
+
+                const pC_coupler = pts.C.clone().setZ(zCoupler);
+                const pD_coupler = pts.D.clone().setZ(zCoupler);
+                updateLink(linkL4Mesh, pC_coupler, pD_coupler); 
+
+                pinC.position.set(pts.C.x, pts.C.y, (zGear + zCoupler) / 2);
+                pinD.position.set(pts.D.x, pts.D.y, (zRocker + zCoupler) / 2);
+                updateKneader(pts);
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

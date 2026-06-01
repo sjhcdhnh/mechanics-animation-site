@@ -420,5 +420,21 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "曲柄绕固定铰链转动，经连杆驱动滑块沿导轨做往复直线运动。机构自由度 F = 1。3D渲染支持OrbitControls交互旋转缩放。"
+  },
+  {
+    "slug": "dough-kneader",
+    "title": "高精度揉面机 · 3D仿真",
+    "subtitle": "Precision Dough Kneader — 3D Simulation (Reduced-Diameter Deep-Bowl)",
+    "category": "cam-drive",
+    "tags": ["揉面机", "连杆机构", "3D", "仿真"],
+    "mechanismType": "揉面机机构",
+    "fileName": "dough-kneader.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "高精度揉面机的3D仿真模型。采用缩径上移深缸设计，通过连杆机构驱动揉面杆在深缸内做往复揉压运动，直观展示食品机械中的机构运动学应用。",
+    "author": "邓晓雨",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "揉面杆通过曲柄-连杆机构驱动，在深缸内做往复揉压运动。缩径上移设计优化揉面轨迹。机构自由度 F = 1，3D渲染支持OrbitControls旋转缩放。"
   }
 ]

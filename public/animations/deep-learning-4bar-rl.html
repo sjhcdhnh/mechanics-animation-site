@@ -5,376 +5,299 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>四连杆检测机器人 · 深度强化学习控制探索</title>
 <style>
-  :root { --bg: #0a0a14; --panel: rgba(20,22,38,0.78); --border: #2a2f4a; --text: #cdd6f4; --muted: #8787a0; --accent: #4ecdc4; --red: #e63946; --amber: #f4a261; --violet: #c4a0dc; --sky: #7dc4e4; }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: var(--bg); overflow: hidden; font-family: 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; height: 100vh; width: 100vw; user-select: none; -webkit-user-select: none; }
-  canvas { display: block; }
-  #hud { position: fixed; top: 20px; left: 20px; background: var(--panel); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; color: var(--text); font-size: 12px; line-height: 1.7; min-width: 200px; z-index: 10; }
-  #hud .stage { font-size: 13px; font-weight: 600; color: var(--accent); margin-bottom: 4px; }
-  #hud .stat { display: flex; justify-content: space-between; gap: 20px; }
-  #hud .stat span:first-child { color: var(--muted); }
-  #hud .stat span:last-child { font-variant-numeric: tabular-nums; }
-  #torque-bars { position: fixed; top: 20px; right: 20px; background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; z-index: 10; min-width: 140px; }
-  #torque-bars .label { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
-  #torque-bars .bar-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-  #torque-bars .bar-row .jname { font-size: 10px; width: 20px; color: var(--muted); }
-  #torque-bars .bar-row .track { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
-  #torque-bars .bar-row .fill { height: 100%; border-radius: 3px; transition: width 0.1s linear; }
-  #hint { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); color: var(--muted); font-size: 11px; opacity: 0.6; z-index: 10; pointer-events: none; }
-  #title-bar { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); color: var(--text); font-size: 14px; font-weight: 600; letter-spacing: 0.5px; z-index: 10; pointer-events: none; text-align: center; }
-  #dist-indicator { position: fixed; bottom: 40px; right: 20px; background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; z-index: 10; text-align: center; }
-  #dist-indicator .dist-val { font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
-  #dist-indicator .dist-label { font-size: 10px; color: var(--muted); margin-top: 2px; }
+:root{--bg:#0a0a14;--panel:rgba(20,22,38,0.82);--border:#2a2f4a;--text:#cdd6f4;--muted:#8787a0;--accent:#4ecdc4}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);overflow:hidden;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;height:100vh;width:100vw;user-select:none}
+canvas{display:block}
+#stage-badge{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:20px;padding:8px 20px;color:var(--text);font-size:14px;font-weight:600;z-index:10;pointer-events:none;letter-spacing:0.5px}
+#info{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:11px;opacity:0.5;z-index:10;pointer-events:none}
+#hud{position:fixed;top:20px;right:20px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:12px 16px;z-index:10;font-size:11px;line-height:1.8;color:var(--text)}
+#hud .val{color:var(--accent);font-variant-numeric:tabular-nums}
+#dist{position:fixed;bottom:80px;right:20px;background:var(--panel);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:12px;padding:10px 16px;z-index:10;text-align:center}
+#dist .dv{font-size:24px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+#dist .dl{font-size:10px;color:var(--muted);margin-top:2px}
 </style>
 </head>
 <body>
-<div id="title-bar">四连杆检测机器人的数据驱动抓物探索</div>
+<div id="stage-badge">阶段一：早期探索 (50k 次交互)</div>
 <div id="hud">
-  <div class="stage" id="stage-label">早期探索 (50k)</div>
-  <div class="stat"><span>θ₁</span><span id="th1">0.0°</span></div>
-  <div class="stat"><span>θ₂</span><span id="th2">0.0°</span></div>
-  <div class="stat"><span>θ₃</span><span id="th3">0.0°</span></div>
-  <div class="stat"><span>θ₄</span><span id="th4">0.0°</span></div>
-  <div class="stat"><span>末端 (x,y)</span><span id="ee-pos">(0.0, 0.0)</span></div>
+  <div>θ₁ <span class="val" id="j1">0°</span></div>
+  <div>θ₂ <span class="val" id="j2">0°</span></div>
+  <div>θ₃ <span class="val" id="j3">0°</span></div>
+  <div>θ₄ <span class="val" id="j4">0°</span></div>
+  <div style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px">末端 <span class="val" id="ee-pos">(0,0)</span></div>
 </div>
-<div id="torque-bars">
-  <div class="label">关节力矩</div>
-  <div class="bar-row"><span class="jname">J1</span><div class="track"><div class="fill" id="bar1" style="width:0%;background:var(--red)"></div></div></div>
-  <div class="bar-row"><span class="jname">J2</span><div class="track"><div class="fill" id="bar2" style="width:0%;background:var(--amber)"></div></div></div>
-  <div class="bar-row"><span class="jname">J3</span><div class="track"><div class="fill" id="bar3" style="width:0%;background:var(--violet)"></div></div></div>
-  <div class="bar-row"><span class="jname">J4</span><div class="track"><div class="fill" id="bar4" style="width:0%;background:var(--sky)"></div></div></div>
-</div>
-<div id="dist-indicator">
-  <div class="dist-val" id="dist-val">0.00</div>
-  <div class="dist-label">距目标 (mm)</div>
-</div>
-<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
+<div id="dist"><div class="dv" id="dist-val">0.0</div><div class="dl">距目标 (cm)</div></div>
+<div id="info">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 
 <script type="importmap">
-{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
 </script>
 
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ── Geometry ──
-const L = [0.8, 0.7, 0.6, 0.5]; // link lengths (m)
-const N = 4;
-
-// Colors per link
+// ── Arm params ──
+const L = [0.8, 0.65, 0.55, 0.45];
 const LINK_COLORS = [0xf5a97f, 0xa6da95, 0xc4a0dc, 0x7dc4e4];
-const JOINT_COLORS = [0xe63946, 0xf4a261, 0xc4a0dc, 0x7dc4e4];
+const JOINT_COLORS = [0xe63946, 0xf4a261, 0x9b6dff, 0x4ecdc4];
+const TARGET = { x: 1.3, y: 0.7 };
+const PHASE_DURATION = 10; // seconds per phase
 
-// ── Scene setup ──
+// ── Pre-compute 4 phase trajectories ──
+// Each phase has a series of joint angle keyframes
+// Phase 1: random exploration → bumping around
+// Phase 2: learning → getting closer but wobbling
+// Phase 3: refining → smooth approach
+// Phase 4: mastery → direct clean path
+
+function ik4R(tx, ty) {
+  // Simple CCD IK for 4R planar arm
+  let a = [0.2, -0.8, 0.6, -0.3];
+  for (let iter = 0; iter < 40; iter++) {
+    for (let i = 3; i >= 0; i--) {
+      // Compute current joint positions
+      let cx = 0, cy = 0, ca = 0;
+      for (let k = 0; k < i; k++) { ca += a[k]; cx += L[k] * Math.cos(ca); cy += L[k] * Math.sin(ca); }
+      // End-effector
+      let ex = cx, ey = cy; ca += a[i];
+      for (let k = i; k < 4; k++) { ca += (k === i ? 0 : a[k]); ex += L[k] * Math.cos(ca); ey += L[k] * Math.sin(ca); }
+      // Angle to EE
+      let eeAng = Math.atan2(ey - cy, ex - cx);
+      // Angle to target
+      let tAng = Math.atan2(ty - cy, tx - cx);
+      let delta = tAng - eeAng;
+      while (delta > Math.PI) delta -= 2 * Math.PI;
+      while (delta < -Math.PI) delta += 2 * Math.PI;
+      a[i] += delta * 0.25;
+    }
+  }
+  return a;
+}
+
+const ikTarget = ik4R(TARGET.x, TARGET.y);
+
+function eePos(angles) {
+  let x = 0, y = 0, cum = 0;
+  for (let i = 0; i < 4; i++) { cum += angles[i]; x += L[i] * Math.cos(cum); y += L[i] * Math.sin(cum); }
+  return [x, y];
+}
+
+// Pre-generate phase trajectories
+function genPhase(ikSol, noiseLevel, smoothFactor) {
+  const steps = 200;
+  const traj = [];
+  let angles = [0.0, -1.2, 1.0, -0.6]; // start from rest-ish
+  for (let t = 0; t < steps; t++) {
+    const progress = t / steps;
+    // Blend toward IK solution
+    for (let i = 0; i < 4; i++) {
+      const target = ikSol[i];
+      const noise = (Math.sin(t * 0.37 + i * 1.7) * Math.cos(t * 0.53 + i)) * noiseLevel;
+      angles[i] += (target - angles[i]) * smoothFactor + noise * 0.15;
+    }
+    // Random target perturbation for early phases
+    const [ex, ey] = eePos(angles);
+    traj.push({ angles: [...angles], ee: [ex, ey], dist: Math.hypot(ex - TARGET.x, ey - TARGET.y) });
+  }
+  return traj;
+}
+
+const phases = [
+  { name: '阶段一：早期探索 (50k 次交互)', traj: genPhase(ikTarget, 2.5, 0.03), color: '#e63946' },
+  { name: '阶段二：中期学习 (100k 次交互)', traj: genPhase(ikTarget, 1.2, 0.06), color: '#f4a261' },
+  { name: '阶段三：后期优化 (200k 次交互)', traj: genPhase(ikTarget, 0.4, 0.10), color: '#c4a0dc' },
+  { name: '阶段四：最终策略 (500k 次交互)', traj: genPhase(ikTarget, 0.05, 0.18), color: '#4ecdc4' },
+];
+
+let phaseIdx = 0;
+let frameIdx = 0;
+let phaseTime = 0;
+
+// ── Scene ──
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0a0a14);
-scene.fog = new THREE.Fog(0x0a0a14, 8, 30);
 
-const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.2, 60);
-camera.position.set(4, 5, 4);
-camera.lookAt(1.0, 0, 0.5);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.2, 50);
+camera.position.set(2.5, 2.5, 3.8);
+camera.lookAt(0.7, 0.3, 0);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(1.0, 0, 0.5);
+controls.target.set(0.7, 0.3, 0);
 controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.minDistance = 2;
-controls.maxDistance = 12;
+controls.dampingFactor = 0.1;
+controls.minDistance = 1.5;
+controls.maxDistance = 8;
 controls.update();
 
-// ── Lights ──
-scene.add(new THREE.AmbientLight(0x404060, 2.5));
-const sun = new THREE.DirectionalLight(0xffffff, 3.5);
-sun.position.set(5, 8, 3);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-scene.add(sun);
-const fill = new THREE.DirectionalLight(0x8899cc, 1.5);
-fill.position.set(-3, 1, -2);
-scene.add(fill);
+// ── Lighting ──
+scene.add(new THREE.AmbientLight(0x606080, 3));
+const key = new THREE.DirectionalLight(0xffffff, 4);
+key.position.set(3, 5, 6);
+scene.add(key);
+const back = new THREE.DirectionalLight(0x8899cc, 2);
+back.position.set(-2, 1, -3);
+scene.add(back);
 
-// ── Ground ──
-const grid = new THREE.GridHelper(5, 20, 0x2a2f4a, 0x141428);
-grid.position.y = -0.5;
+// ── Ground plane ──
+const gpGeo = new THREE.PlaneGeometry(8, 8);
+const gpMat = new THREE.MeshStandardMaterial({ color: 0x111122, roughness: 0.9 });
+const gp = new THREE.Mesh(gpGeo, gpMat);
+gp.rotation.x = -Math.PI / 2;
+gp.position.z = -0.02;
+scene.add(gp);
+
+const grid = new THREE.GridHelper(4, 20, 0x222244, 0x111122);
+grid.position.z = -0.01;
 scene.add(grid);
 
-const groundGeo = new THREE.PlaneGeometry(6, 6);
-const groundMat = new THREE.MeshStandardMaterial({ color: 0x141428, roughness: 0.9, metalness: 0.1 });
-const ground = new THREE.Mesh(groundGeo, groundMat);
-ground.rotation.x = -Math.PI / 2;
-ground.position.y = -0.52;
-ground.receiveShadow = true;
-scene.add(ground);
-
 // ── Base ──
-const baseGeo = new THREE.CylinderGeometry(0.12, 0.15, 0.25, 32);
-const baseMat = new THREE.MeshStandardMaterial({ color: 0x3a3a50, roughness: 0.4, metalness: 0.6 });
-const base = new THREE.Mesh(baseGeo, baseMat);
-base.position.y = -0.375;
-base.castShadow = true;
-base.receiveShadow = true;
-scene.add(base);
+const baseGeo = new THREE.CylinderGeometry(0.1, 0.13, 0.3, 32);
+const baseMesh = new THREE.Mesh(baseGeo, new THREE.MeshStandardMaterial({ color: 0x3a3a50, roughness: 0.3, metalness: 0.6 }));
+baseMesh.position.z = -0.15;
+scene.add(baseMesh);
 
-// ── Target sphere ──
-const targetGeo = new THREE.SphereGeometry(0.06, 32, 32);
-const targetMat = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.2, emissive: 0xff6b35, emissiveIntensity: 0.6 });
-const targetMesh = new THREE.Mesh(targetGeo, targetMat);
-targetMesh.userData.ring = (() => {
-  const rGeo = new THREE.TorusGeometry(0.09, 0.012, 16, 32);
-  const rMat = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.2, emissive: 0xff6b35, emissiveIntensity: 0.4, transparent: true, opacity: 0.6 });
-  const ring = new THREE.Mesh(rGeo, rMat);
-  targetMesh.add(ring);
-  return ring;
-})();
-scene.add(targetMesh);
+// ── Target ──
+const tgtGroup = new THREE.Group();
+const tgtGeo = new THREE.SphereGeometry(0.08, 32, 32);
+const tgtMat = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.1, emissive: 0xff6b35, emissiveIntensity: 0.7 });
+const tgtMesh = new THREE.Mesh(tgtGeo, tgtMat);
+tgtGroup.add(tgtMesh);
+// Pulsing ring
+const ringGeo = new THREE.TorusGeometry(0.14, 0.015, 16, 32);
+const ringMat = new THREE.MeshStandardMaterial({ color: 0xff6b35, roughness: 0.2, emissive: 0xff6b35, emissiveIntensity: 0.5, transparent: true, opacity: 0.6 });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+tgtGroup.add(ring);
+tgtGroup.position.set(TARGET.x, TARGET.y, 0.01);
+scene.add(tgtGroup);
 
-// ── Arm meshes ──
-const jointMeshes = [];
+// ── Build arm ──
+const jointSpheres = [];
 const linkGroups = [];
-for (let i = 0; i < N; i++) {
-  const jGeo = new THREE.SphereGeometry(0.05, 24, 24);
-  const jMat = new THREE.MeshStandardMaterial({ color: JOINT_COLORS[i], roughness: 0.3, metalness: 0.4, emissive: JOINT_COLORS[i], emissiveIntensity: 0.3 });
-  const jMesh = new THREE.Mesh(jGeo, jMat);
-  jMesh.castShadow = true;
-  scene.add(jMesh);
-  jointMeshes.push(jMesh);
+for (let i = 0; i < 4; i++) {
+  const jsGeo = new THREE.SphereGeometry(0.06, 24, 24);
+  const jsMesh = new THREE.Mesh(jsGeo, new THREE.MeshStandardMaterial({ color: JOINT_COLORS[i], roughness: 0.2, metalness: 0.4, emissive: JOINT_COLORS[i], emissiveIntensity: 0.4 }));
+  jsMesh.position.z = 0.01;
+  scene.add(jsMesh);
+  jointSpheres.push(jsMesh);
 
-  const group = new THREE.Group();
-  const boxGeo = new THREE.BoxGeometry(L[i], 0.06, 0.06);
-  const boxMat = new THREE.MeshStandardMaterial({ color: LINK_COLORS[i], roughness: 0.35, metalness: 0.3 });
-  const box = new THREE.Mesh(boxGeo, boxMat);
+  const lg = new THREE.Group();
+  const boxGeo = new THREE.BoxGeometry(L[i], 0.08, 0.08);
+  const box = new THREE.Mesh(boxGeo, new THREE.MeshStandardMaterial({ color: LINK_COLORS[i], roughness: 0.3, metalness: 0.3 }));
   box.position.set(L[i] / 2, 0, 0);
-  box.castShadow = true;
-  box.receiveShadow = true;
-  group.add(box);
-  scene.add(group);
-  linkGroups.push(group);
+  lg.add(box);
+  // End cap
+  const capGeo = new THREE.SphereGeometry(0.04, 16, 16);
+  const cap = new THREE.Mesh(capGeo, new THREE.MeshStandardMaterial({ color: JOINT_COLORS[i], roughness: 0.2, metalness: 0.4 }));
+  cap.position.set(L[i], 0, 0);
+  lg.add(cap);
+  scene.add(lg);
+  linkGroups.push(lg);
 }
 
-// End-effector
-const eeGeo = new THREE.SphereGeometry(0.07, 32, 32);
-const eeMat = new THREE.MeshStandardMaterial({ color: 0x4ecdc4, roughness: 0.15, metalness: 0.5, emissive: 0x4ecdc4, emissiveIntensity: 0.5 });
-const eeMesh = new THREE.Mesh(eeGeo, eeMat);
-eeMesh.castShadow = true;
+// End-effector ball
+const eeGeo = new THREE.SphereGeometry(0.09, 32, 32);
+const eeMesh = new THREE.Mesh(eeGeo, new THREE.MeshStandardMaterial({ color: 0x4ecdc4, roughness: 0.1, metalness: 0.5, emissive: 0x4ecdc4, emissiveIntensity: 0.6 }));
+eeMesh.position.z = 0.02;
 scene.add(eeMesh);
 
-// ── Trajectory trail ──
-const MAX_TRAIL = 300;
-const trailPositions = new Float32Array(MAX_TRAIL * 3);
-const trailColors = new Float32Array(MAX_TRAIL * 3);
-for (let i = 0; i < MAX_TRAIL; i++) {
-  trailPositions[i * 3] = 0;
-  trailPositions[i * 3 + 1] = -999;
-  trailPositions[i * 3 + 2] = 0.01;
-  const t = i / MAX_TRAIL;
-  trailColors[i * 3] = 0.3 + 0.7 * (1 - t);
-  trailColors[i * 3 + 1] = 0.8 * (1 - t);
-  trailColors[i * 3 + 2] = 0.85 * (1 - t);
-}
+// ── Trail ──
+const MAX_TRAIL = 200;
+const trailArr = new Float32Array(MAX_TRAIL * 3);
 const trailGeo = new THREE.BufferGeometry();
-trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-trailGeo.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
-const trailMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.6, linewidth: 1 });
-const trailLine = new THREE.Line(trailGeo, trailMat);
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailArr, 3));
+const trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0x4ecdc4, transparent: true, opacity: 0.5 }));
+trailLine.position.z = 0.02;
 scene.add(trailLine);
-let trailWriteIdx = 0;
-let trailFrameCount = 0;
+let trailPtr = 0;
 
-// ── Forward kinematics ──
-function fk(angles) {
-  const pts = [{ x: 0, y: 0 }];
-  let cum = 0;
-  for (let i = 0; i < N; i++) {
+function addTrailPoint(x, y) {
+  trailArr[trailPtr * 3] = x;
+  trailArr[trailPtr * 3 + 1] = y;
+  trailArr[trailPtr * 3 + 2] = 0;
+  trailPtr = (trailPtr + 1) % MAX_TRAIL;
+  trailGeo.attributes.position.needsUpdate = true;
+  // Set draw range
+  trailGeo.setDrawRange(0, Math.min(MAX_TRAIL, trailPtr + (trailPtr < phaseIdx * 50 ? MAX_TRAIL : 0)));
+}
+
+// ── Update arm ──
+function updateArm(angles) {
+  let cum = 0, px = 0, py = 0;
+  for (let i = 0; i < 4; i++) {
+    jointSpheres[i].position.set(px, py, 0.01);
+    linkGroups[i].position.set(px, py, 0);
     cum += angles[i];
-    const prev = pts[pts.length - 1];
-    pts.push({ x: prev.x + L[i] * Math.cos(cum), y: prev.y + L[i] * Math.sin(cum) });
+    linkGroups[i].rotation.set(0, 0, cum);
+    px += L[i] * Math.cos(cum);
+    py += L[i] * Math.sin(cum);
   }
-  return pts; // [joint0, joint1, ..., jointN(=ee)]
+  eeMesh.position.set(px, py, 0.02);
+  return [px, py];
 }
-
-// ── RL Sim State ──
-let angles = [0.5, -1.0, 0.8, -0.4];
-let angVel = [0, 0, 0, 0];
-let target = { x: 1.2, y: 0.9 };
-const STAGE_DURATION = 8.0; // seconds per stage
-let stageTime = 0;
-let stageIdx = 0;
-
-const STAGES = [
-  { name: '早期探索 (50k)', noise: 2.5, gain: 0.4, damping: 1.8 },
-  { name: '中期收敛 (100k)', noise: 1.2, gain: 1.0, damping: 2.5 },
-  { name: '后期优化 (200k)', noise: 0.4, gain: 2.0, damping: 3.5 },
-  { name: '最终策略 (500k)', noise: 0.08, gain: 4.0, damping: 4.5 },
-];
-
-let lastTime = performance.now();
-let torqueMag = [0, 0, 0, 0];
-const TARGET_SWITCH_TIME = 16.0; // change target every 2 stage cycles
-
-// ── Simple IK (CCD for 4R planar) ──
-function ccdIk(targetPt, maxIter = 30) {
-  const result = [...angles];
-  const pts = fk(result);
-  for (let iter = 0; iter < maxIter; iter++) {
-    for (let i = N - 1; i >= 0; i--) {
-      const basePt = i === 0 ? { x: 0, y: 0 } : (() => {
-        const p = fk(result.slice(0, i));
-        return p[p.length - 1];
-      })();
-      const ee = fk(result);
-      const eePt = ee[ee.length - 1];
-      const toEE = Math.atan2(eePt.y - basePt.y, eePt.x - basePt.x);
-      const toTarget = Math.atan2(targetPt.y - basePt.y, targetPt.x - basePt.x);
-      let delta = toTarget - toEE;
-      while (delta > Math.PI) delta -= 2 * Math.PI;
-      while (delta < -Math.PI) delta += 2 * Math.PI;
-      result[i] += delta * 0.3;
-    }
-    const ee = fk(result);
-    const eePt = ee[ee.length - 1];
-    const err = Math.hypot(eePt.x - targetPt.x, eePt.y - targetPt.y);
-    if (err < 0.02) break;
-  }
-  return result;
-}
-
-let ikSolution = [...angles];
 
 // ── Animation loop ──
-function animate(timestamp) {
+const clock = new THREE.Clock();
+let elapsedInPhase = 0;
+
+function animate() {
   requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.1);
+  elapsedInPhase += dt;
 
-  let dt = (timestamp - lastTime) / 1000;
-  if (dt <= 0 || dt > 0.2) dt = 0.016;
-  lastTime = timestamp;
-
-  // Stage management
-  stageTime += dt;
-  if (stageTime >= STAGE_DURATION) {
-    stageTime -= STAGE_DURATION;
-    stageIdx = (stageIdx + 1) % STAGES.length;
-    // Recompute IK for new stage target reference
-    ikSolution = ccdIk(target);
+  if (elapsedInPhase >= PHASE_DURATION) {
+    elapsedInPhase -= PHASE_DURATION;
+    phaseIdx = (phaseIdx + 1) % 4;
+    frameIdx = 0;
+    // Clear trail for new phase
+    trailPtr = 0;
+    for (let i = 0; i < MAX_TRAIL; i++) { trailArr[i * 3 + 2] = -99; }
   }
 
-  // Target switching
-  if (Math.floor(stageTime + stageIdx * STAGE_DURATION) % Math.floor(TARGET_SWITCH_TIME) < dt * 2
-      && stageTime < dt * 3 && stageIdx === 0) {
-    // Pick new random target in workspace
-    const r = 0.6 + Math.random() * 1.4;
-    const a = Math.random() * Math.PI * 2;
-    target = { x: r * Math.cos(a), y: 0.2 + Math.abs(r * Math.sin(a)) * 0.8 };
-    ikSolution = ccdIk(target);
-  }
+  const phase = phases[phaseIdx];
+  const progress = elapsedInPhase / PHASE_DURATION;
+  frameIdx = Math.min(Math.floor(progress * phase.traj.length), phase.traj.length - 1);
+  const frame = phase.traj[frameIdx];
 
-  const stage = STAGES[stageIdx];
+  const [ex, ey] = updateArm(frame.angles);
 
-  // RL-like torque computation
-  const currentPts = fk(angles);
-  const eePt = currentPts[currentPts.length - 1];
-  const dist = Math.hypot(eePt.x - target.x, eePt.y - target.y);
+  // Trail every 3 frames
+  if (frameIdx % 3 === 0) addTrailPoint(ex, ey);
 
-  const newTorques = [0, 0, 0, 0];
-  for (let i = 0; i < N; i++) {
-    // Proportional torque toward IK solution
-    const angleErr = ikSolution[i] - angles[i];
-    const propTorque = stage.gain * 15 * angleErr;
-    // Exploration noise (decreases with stage)
-    const noiseTorque = (Math.random() - 0.5) * 2 * stage.noise * 3;
-    // Gravity compensation (simplified: links hanging down)
-    let cumAngle = 0;
-    for (let k = 0; k < i; k++) cumAngle += angles[k];
-    const gravTorque = -0.3 * L[i] * Math.cos(cumAngle + angles[i] / 2);
-    newTorques[i] = propTorque + noiseTorque + gravTorque;
-  }
+  // Animate target ring
+  ring.rotation.x += dt * 1.2;
+  ring.rotation.y += dt * 0.7;
+  ring.scale.setScalar(1 + Math.sin(elapsedInPhase * 3) * 0.15);
 
-  // Euler integration with damping
-  for (let i = 0; i < N; i++) {
-    angVel[i] += (newTorques[i] - stage.damping * angVel[i]) * dt;
-    angles[i] += angVel[i] * dt;
-    torqueMag[i] = Math.abs(newTorques[i]);
-  }
-
-  // ── Update Three.js ──
-  const pts = fk(angles);
-  for (let i = 0; i < N; i++) {
-    // Link group position = joint i position
-    linkGroups[i].position.set(pts[i].x, 0, pts[i].y);
-    // Link rotation = cumulative angle up to this link
-    let cum = 0;
-    for (let j = 0; j <= i; j++) cum += angles[j];
-    linkGroups[i].rotation.set(0, cum, 0);
-    // Joint sphere
-    jointMeshes[i].position.set(pts[i].x, 0, pts[i].y);
-  }
-  // End-effector
-  eeMesh.position.set(pts[N].x, 0, pts[N].y);
-
-  // Target
-  targetMesh.position.set(target.x, 0, target.y);
-  targetMesh.userData.ring.rotation.x += dt * 1.5;
-  targetMesh.userData.ring.rotation.y += dt * 0.8;
-
-  // Trail
-  trailFrameCount++;
-  if (trailFrameCount % 2 === 0) {
-    trailPositions[trailWriteIdx * 3] = pts[N].x;
-    trailPositions[trailWriteIdx * 3 + 1] = 0.01;
-    trailPositions[trailWriteIdx * 3 + 2] = pts[N].y;
-    const t = 1;
-    trailColors[trailWriteIdx * 3] = 0.3;
-    trailColors[trailWriteIdx * 3 + 1] = 0.8;
-    trailColors[trailWriteIdx * 3 + 2] = 0.85;
-    trailWriteIdx = (trailWriteIdx + 1) % MAX_TRAIL;
-    // Fade older points
-    for (let i = 0; i < MAX_TRAIL; i++) {
-      const age = (trailWriteIdx - i + MAX_TRAIL) % MAX_TRAIL;
-      const fade = 1 - age / MAX_TRAIL;
-      const idx = i * 3;
-      trailColors[idx + 1] = 0.8 * fade;
-      trailColors[idx + 2] = 0.85 * fade;
-      // Hide old points by setting Y below ground
-      if (fade < 0.05) trailPositions[idx + 1] = -999;
-    }
-  }
-  trailGeo.attributes.position.needsUpdate = true;
-  trailGeo.attributes.color.needsUpdate = true;
-
-  // ── Update HUD ──
-  document.getElementById('stage-label').textContent = stage.name;
-  for (let i = 0; i < N; i++) {
-    document.getElementById('th' + (i + 1)).textContent = (angles[i] * 180 / Math.PI).toFixed(1) + '°';
+  // Update HUD
+  document.getElementById('stage-badge').textContent = phase.name;
+  document.getElementById('stage-badge').style.color = phase.color;
+  for (let i = 0; i < 4; i++) {
+    document.getElementById('j' + (i + 1)).textContent = (frame.angles[i] * 180 / Math.PI).toFixed(1) + '°';
   }
   document.getElementById('ee-pos').textContent =
-    `(${(pts[N].x * 100).toFixed(1)}, ${(pts[N].y * 100).toFixed(1)}) cm`;
-  document.getElementById('dist-val').textContent = (dist * 100).toFixed(1);
-
-  // Torque bars
-  const maxTorque = Math.max(...torqueMag, 0.01);
-  for (let i = 0; i < N; i++) {
-    document.getElementById('bar' + (i + 1)).style.width = (torqueMag[i] / maxTorque * 100).toFixed(0) + '%';
-  }
+    '(' + (ex * 100).toFixed(1) + ', ' + (ey * 100).toFixed(1) + ') cm';
+  document.getElementById('dist-val').textContent = (frame.dist * 100).toFixed(1);
 
   controls.update();
   renderer.render(scene, camera);
 }
 
-// Start
-ikSolution = ccdIk(target);
-requestAnimationFrame(animate);
-
+// Handle window resize
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
+
+// Kick off
+animate();
 </script>
 </body>
 </html>

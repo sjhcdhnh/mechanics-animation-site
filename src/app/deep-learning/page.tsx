@@ -171,27 +171,6 @@ export default function DeepLearningPage() {
           </div>
         </section>
 
-        {/* Download */}
-        <section className="space-y-5 border-t border-border pt-12">
-          <h2 className="text-lg font-semibold text-foreground">下载资源</h2>
-          <div className="glass-sm p-5 flex items-center justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <p className="text-sm text-foreground font-medium truncate">赵大志教改部分 V2.pptx</p>
-              <p className="text-xs text-muted/60 mt-0.5">完整PPT演示文稿（16页）</p>
-            </div>
-            <a
-              href="/downloads/赵大志教改部分 V2.pptx"
-              download
-              className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 bg-accent text-accent-fg text-sm font-semibold rounded-xl hover:bg-accent-hover transition-colors duration-200"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              下载 PPT
-            </a>
-          </div>
-        </section>
-
         {/* References */}
         <section className="space-y-5 border-t border-border pt-12">
           <h2 className="text-lg font-semibold text-foreground">参考资料</h2>

@@ -436,5 +436,21 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "揉面杆通过曲柄-连杆机构驱动，在深缸内做往复揉压运动。缩径上移设计优化揉面轨迹。机构自由度 F = 1，3D渲染支持OrbitControls旋转缩放。"
+  },
+  {
+    "slug": "crank-slide-dai",
+    "title": "曲柄滑道连杆机构 · 参数化探究",
+    "subtitle": "Crank-Slide Linkage — Parametric Study, Multi-Group Comparison & Impact Analysis",
+    "category": "planar-linkage",
+    "tags": ["曲柄滑道", "连杆", "参数化", "对比分析", "冲击", "数据导出"],
+    "mechanismType": "曲柄滑道连杆机构",
+    "fileName": "crank-slide-dai.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "曲柄滑道连杆机构的参数化探究工具。支持多组参数对比、冲击分析与数据导出，直观展示不同参数配置下机构运动学性能的差异，适合理论力学实验教学与机构优化设计。",
+    "author": "戴奕馨",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "曲柄驱动连杆-滑道机构，支持多组参数并行对比。可调节曲柄长度、连杆长度、滑道角度等关键参数，实时计算位移、速度、加速度曲线并支持数据导出。机构自由度 F = 1。"
   }
 ]

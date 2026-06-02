@@ -484,5 +484,21 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "曲柄驱动摆杆绕定轴摆动，滑块在摆杆滑道中做相对滑动。复合运动分解：牵连运动（摆杆转动）+ 相对运动（滑块沿滑道滑动）。科氏加速度 a_cor = 2ω × v_rel，方向垂直于滑道。修复版确保滑块全程不脱离滑槽约束。"
+  },
+  {
+    "slug": "drs-linkage-yang",
+    "title": "DRS 滑块驱动机构 · 连杆仿真",
+    "subtitle": "DRS Slider-Driven Linkage — Real-Time Circle Intersection Solver",
+    "category": "planar-linkage",
+    "tags": ["滑块驱动", "连杆", "DRS", "圆交点解算", "实时求解"],
+    "mechanismType": "滑块驱动连杆机构",
+    "fileName": "drs-linkage-yang.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "DRS滑块驱动连杆机构仿真。滑块沿导轨平动，通过连杆AB驱动摇杆BC绕固定铰C摆动。B点坐标通过两圆交点实时解算，无需求解非线性方程组。按O键打开机构，按C键闭合。",
+    "author": "杨狄佳",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "导轨位于 y = -2，固定铰C在 (0, 2)。连杆AB长4.5，摇杆BC长4.0。滑块A沿导轨从x=0滑至x=5，B点为以C为圆心r=BC、以A为圆心r=AB的两圆交点（取上方解）。附带Python Solver独立计算模块。"
   }
 ]

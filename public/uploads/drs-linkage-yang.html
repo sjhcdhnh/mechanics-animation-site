@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DRS 连杆机构仿真</title>
+    <style>
+      body { margin: 0; overflow: hidden; background-color: #f0f0f0; font-family: "Microsoft YaHei", sans-serif; }
+      #info { position: absolute; top: 20px; left: 20px; padding: 15px; background: rgba(255, 255, 255, 0.95); border-radius: 8px; z-index: 100; }
+      h1 { margin: 0 0 10px 0; font-size: 18px; color: #d32f2f; }
+      kbd { background: #eee; padding: 2px 5px; border-radius: 4px; font-family: monospace; border: 1px solid #ccc; }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <h1>DRS 滑块驱动机构</h1>
+      <p>状态: <span id="state-text">闭合</span></p>
+      <p>操作: 按 <kbd>O</kbd> 打开 | 按 <kbd>C</kbd> 闭合</p>
+      <p>约束: AB与BC杆长固定，B点实时解算</p>
+    </div>
+
+    <script type="importmap">
+      { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+    <script type="module">
+      import * as THREE from "three";
+      import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+      // --- 全局变量 ---
+      let scene, camera, renderer, controls;
+      
+      // 机械部件 Mesh
+      let meshSlider, meshRodAB, meshRodBC;
+      
+      // 运动状态
+      let targetT = 0; // 目标状态 0(闭合) ~ 1(打开)
+      let currentT = 0;
+
+      // --- 机构参数 ---
+      const L_BC = 4.0;       // 摇杆 BC 长度
+      const L_AB = 4.5;       // 连杆 AB 长度
+      const TRACK_Y = -2.0;   // 导轨 Y 坐标
+      const C_POS = new THREE.Vector3(0, 2, 0); // 固定铰 C 坐标
+
+      init();
+      animate();
+
+      function init() {
+        // 1. 场景设置
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(10, 6, 10);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // 灯光
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(5, 10, 5);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
+        // 辅助网格
+        const grid = new THREE.GridHelper(20, 20, 0x888888, 0xcccccc);
+        scene.add(grid);
+
+        // 2. 创建机械部件
+        createMechanism();
+
+        // 3. 事件监听
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "o" || e.key === "O") {
+            targetT = 1;
+            document.getElementById("state-text").innerText = "打开";
+          } else if (e.key === "c" || e.key === "C") {
+            targetT = 0;
+            document.getElementById("state-text").innerText = "闭合";
+          }
+        });
+        window.addEventListener("resize", onWindowResize);
+      }
+
+      function createMechanism() {
+        const matSlider = new THREE.MeshStandardMaterial({ color: 0x607d8b }); 
+        const matRodAB = new THREE.MeshStandardMaterial({ color: 0x2196f3 });  
+        const matRodBC = new THREE.MeshStandardMaterial({ color: 0xffeb3b });  
+        const matPivot = new THREE.MeshStandardMaterial({ color: 0x000000 }); 
+
+        // --- 导轨 ---
+        const trackGeo = new THREE.BoxGeometry(15, 0.2, 0.5);
+        const track = new THREE.Mesh(trackGeo, matSlider);
+        track.position.set(0, TRACK_Y, 0);
+        track.receiveShadow = true;
+        scene.add(track);
+
+        // --- 固定点 C (视觉辅助) ---
+        const pivotGeo = new THREE.SphereGeometry(0.15, 16, 16);
+        const pivotC = new THREE.Mesh(pivotGeo, matPivot);
+        pivotC.position.copy(C_POS);
+        scene.add(pivotC);
+
+        // --- 滑块 A ---
+        const sliderGeo = new THREE.BoxGeometry(1, 1, 1);
+        meshSlider = new THREE.Mesh(sliderGeo, matSlider);
+        meshSlider.castShadow = true;
+        scene.add(meshSlider);
+
+        // --- 连杆 AB ---
+        const rodABGeo = new THREE.CylinderGeometry(0.1, 0.1, L_AB, 16);
+        meshRodAB = new THREE.Mesh(rodABGeo, matRodAB);
+        meshRodAB.geometry.translate(0, L_AB / 2, 0); 
+        meshRodAB.castShadow = true;
+        scene.add(meshRodAB);
+
+        // --- 摇杆 BC ---
+        const rodBCGeo = new THREE.CylinderGeometry(0.1, 0.1, L_BC, 16);
+        meshRodBC = new THREE.Mesh(rodBCGeo, matRodBC);
+        meshRodBC.geometry.translate(0, L_BC / 2, 0); 
+        meshRodBC.castShadow = true;
+        scene.add(meshRodBC);
+      }
+
+      /**
+       * 核心数学逻辑：更新机构位置
+       */
+      function updateMechanism(t) {
+        // 【已修改】A滑块初始时在C点正下方
+        const startX = 0;     // C点的x坐标是0，所以A初始也在x=0
+        const endX = 5.0;     // 结束时向右移动
+        
+        const Ax = startX + (endX - startX) * t;
+        const Ay = TRACK_Y;
+        
+        meshSlider.position.set(Ax, Ay, 0);
+
+        // 计算 B 点位置 (两圆交点)
+        const B = getCircleIntersection(
+          C_POS.x, C_POS.y, L_BC,
+          Ax, Ay, L_AB
+        );
+
+        if (!B) {
+          console.error("机构死锁：杆长不足，无法连接 A 和 C");
+          return;
+        }
+
+        // 更新摇杆 BC
+        meshRodBC.position.copy(C_POS);
+        const angleBC = Math.atan2(B.y - C_POS.y, B.x - C_POS.x) - Math.PI / 2;
+        meshRodBC.rotation.z = angleBC;
+
+        // 更新连杆 AB
+        meshRodAB.position.set(Ax, Ay, 0);
+        const angleAB = Math.atan2(B.y - Ay, B.x - Ax) - Math.PI / 2;
+        meshRodAB.rotation.z = angleAB;
+      }
+
+      /**
+       * 数学工具：计算两个圆的交点
+       */
+      function getCircleIntersection(x0, y0, r0, x1, y1, r1) {
+        const d = Math.sqrt((x1 - x0) ** 2 + (y1 - y0) ** 2); 
+
+        if (d > r0 + r1 || d < Math.abs(r0 - r1)) {
+          return null; 
+        }
+
+        const a = (r0 * r0 - r1 * r1 + d * d) / (2 * d);
+        const h = Math.sqrt(r0 * r0 - a * a);
+
+        const x2 = x0 + a * (x1 - x0) / d;
+        const y2 = y0 + a * (y1 - y0) / d;
+
+        const x3_a = x2 + h * (y1 - y0) / d;
+        const y3_a = y2 - h * (x1 - x0) / d;
+
+        const x3_b = x2 - h * (y1 - y0) / d;
+        const y3_b = y2 + h * (x1 - x0) / d;
+
+        // 取 Y 值较大的那个点 (上方解)
+        if (y3_a > y3_b) {
+          return { x: x3_a, y: y3_a };
+        } else {
+          return { x: x3_b, y: y3_b };
+        }
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        currentT += (targetT - currentT) * 0.08;
+        updateMechanism(currentT);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
+    </script>
+  </body>
+</html>

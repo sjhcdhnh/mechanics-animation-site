@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Three.js - 铰链四杆机构 (曲柄摇杆机构) 3D 动画</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Microsoft YaHei', 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+            z-index: 10;
+            font-size: 14px;
+            font-weight: bold;
+            border-left: 4px solid #ffaa00;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        #angle-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(30, 30, 40, 0.85);
+            backdrop-filter: blur(8px);
+            color: #eee;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: right;
+            border-right: 3px solid #ffaa44;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+            z-index: 10;
+            letter-spacing: 1px;
+        }
+        .angle-label {
+            font-size: 14px;
+            color: #ddd;
+            margin-right: 8px;
+        }
+        .angle-value {
+            color: #ffaa66;
+        }
+        @media (max-width: 600px) {
+            #angle-panel { font-size: 14px; padding: 8px 15px; }
+            .angle-label { font-size: 11px; }
+            #info { font-size: 10px; top: 12px; left: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        🔧 铰链四杆机构 | 曲柄摇杆机构 | 运动平面: XZ | 鼠标拖拽/右键平移/滚轮缩放
+    </div>
+    <div id="angle-panel">
+        <div>🎯 曲柄转角 (θ): <span id="crank-angle" class="angle-value">0.0</span> °</div>
+        <div>🔄 摇杆摆角 (ψ): <span id="rocker-angle" class="angle-value">0.0</span> °</div>
+        <div style="font-size:12px; margin-top:6px; opacity:0.7;">⏱️ ω = 1 rad/s | 实时几何求解</div>
+    </div>
+
+    <!-- 引入Three.js核心库以及扩展 -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- 初始化场景、相机、渲染器 (WebGL) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf5f7fa); // 浅米色/淡灰背景
+        scene.fog = new THREE.FogExp2(0xf5f7fa, 0.008); // 轻微雾效增强景深
+
+        // 透视相机 (视角, 宽高比, 近平面, 远平面)
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(10, 8, 12);
+        camera.lookAt(2.5, 0, 2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // 开启阴影映射增强质感
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- CSS2渲染文字标签 ---
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        document.body.appendChild(labelRenderer.domElement);
+
+        // --- 轨道控制，支持交互 ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;      // 惯性效果
+        controls.dampingFactor = 0.05;
+        controls.rotateSpeed = 1.0;
+        controls.zoomSpeed = 1.2;
+        controls.panSpeed = 0.8;
+        controls.enableZoom = true;
+        controls.enablePan = true;
+        controls.target.set(2.5, 0, 2);
+
+        // --- 光照系统: 环境光 + 主光源(方向光) + 背光补光 ---
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.65);
+        scene.add(ambientLight);
+        
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 10, 7);
+        mainLight.castShadow = true;
+        mainLight.receiveShadow = false;
+        mainLight.shadow.mapSize.width = 1024;
+        mainLight.shadow.mapSize.height = 1024;
+        scene.add(mainLight);
+        
+        const fillLight = new THREE.PointLight(0xccaa88, 0.4);
+        fillLight.position.set(-2, 3, 4);
+        scene.add(fillLight);
+        
+        const backLight = new THREE.PointLight(0x88aaff, 0.3);
+        backLight.position.set(0, 2, -5);
+        scene.add(backLight);
+        
+        const rimLight = new THREE.PointLight(0xffaa66, 0.25);
+        rimLight.position.set(3, 2, -4);
+        scene.add(rimLight);
+        
+        // 辅助地面网格 (半透明浅色)
+        const gridHelper = new THREE.GridHelper(20, 20, 0xccccdd, 0xaaaaaa);
+        gridHelper.position.y = -0.05;
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.35;
+        scene.add(gridHelper);
+        
+        // 简易参考地平面半透明圆环/辅助圆 (可选，增加视觉参考)
+        const groundPlaneHelper = new THREE.Mesh(
+            new THREE.PlaneGeometry(14, 14),
+            new THREE.MeshStandardMaterial({ color: 0xeef2f7, side: THREE.DoubleSide, transparent: true, opacity: 0.12 })
+        );
+        groundPlaneHelper.rotation.x = -Math.PI / 2;
+        groundPlaneHelper.position.y = -0.08;
+        scene.add(groundPlaneHelper);
+        
+        // --- 半透明坐标轴 (自定义，带透明度) ---
+        function createAxis(length, color, origin, direction) {
+            const material = new THREE.LineBasicMaterial({ color: color, transparent: true, opacity: 0.45 });
+            const points = [];
+            points.push(new THREE.Vector3(origin.x, origin.y, origin.z));
+            points.push(new THREE.Vector3(origin.x + direction.x * length, origin.y + direction.y * length, origin.z + direction.z * length));
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            return new THREE.Line(geometry, material);
+        }
+        // X轴 (红色) 范围 -6 到 10
+        const xAxis = createAxis(14, 0xff3333, new THREE.Vector3(-4, 0, 0), new THREE.Vector3(1, 0, 0));
+        // Z轴 (蓝色)
+        const zAxis = createAxis(14, 0x33aaff, new THREE.Vector3(0, 0, -4), new THREE.Vector3(0, 0, 1));
+        // Y轴 (绿色) 短一点，主要指示向上
+        const yAxis = createAxis(5, 0x66ff66, new THREE.Vector3(0, -0.5, 0), new THREE.Vector3(0, 1, 0));
+        scene.add(xAxis);
+        scene.add(zAxis);
+        scene.add(yAxis);
+        
+        // 添加原点辅助小标记 (小半透明球体增加科技感)
+        const originSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.08, 6, 6),
+            new THREE.MeshStandardMaterial({ color: 0x88aaff, emissive: 0x224466, transparent: true, opacity: 0.5 })
+        );
+        scene.add(originSphere);
+        
+        // --- 机构参数 ---
+        const d = 5.0;      // 固定铰链点间距 O(0,0,0) 到 A(d,0,0)
+        const a = 2.0;      // 曲柄长度
+        const b = 5.0;      // 连杆长度
+        const c = 4.0;      // 摇杆长度
+        const omega = 1.0;  // 角速度 rad/s
+        
+        // 固定点位置
+        const O_point = new THREE.Vector3(0, 0, 0);
+        const A_point = new THREE.Vector3(d, 0, 0);
+        
+        // 动态点: P (曲柄端点), Q (摇杆/连杆交点)
+        let P_point = new THREE.Vector3(a, 0, 0);
+        let Q_point = new THREE.Vector3(d - c, 0, 1.5); // 初始估计值，第一帧会更新
+        
+        // --- 几何法求解两圆交点 (XZ平面, Y=0) 返回Z>0的解 ---
+        // 圆1: 圆心A, 半径c ; 圆2: 圆心P, 半径b
+        function computeQIntersection(A, radiusA, P, radiusB) {
+            // 二维向量 (x, z)
+            const Ax = A.x, Az = A.z;
+            const Px = P.x, Pz = P.z;
+            
+            const dx = Px - Ax;
+            const dz = Pz - Az;
+            const L_sq = dx*dx + dz*dz;
+            const L = Math.sqrt(L_sq);
+            
+            // 防止除以零或数值错误
+            if (L < 1e-6) return null;
+            
+            // 圆心距与半径关系检查 (理论永远相交, 但浮点安全)
+            const sumR = radiusA + radiusB;
+            const diffR = Math.abs(radiusA - radiusB);
+            if (L > sumR + 1e-5 || L < diffR - 1e-5) {
+                // 极端情况回退近似解 (实际机构保证有解)
+                console.warn("距离异常, 采用近似");
+                return null;
+            }
+            
+            // 计算交点 (几何法)
+            const a_dist = (radiusA*radiusA - radiusB*radiusB + L_sq) / (2 * L);
+            const h_sq = radiusA*radiusA - a_dist*a_dist;
+            const h = Math.sqrt(Math.max(0, h_sq));
+            
+            // 中点 M
+            const Mx = Ax + (dx * a_dist / L);
+            const Mz = Az + (dz * a_dist / L);
+            
+            // 垂直向量 (单位向量 旋转90度)
+            let perpX = -dz / L;
+            let perpZ = dx / L;
+            
+            // 两个交点
+            const Q1 = { x: Mx + perpX * h, z: Mz + perpZ * h };
+            const Q2 = { x: Mx - perpX * h, z: Mz - perpZ * h };
+            
+            // 选取 Z > 0 的解 (并且确保摇杆在平面上方运动，维持运动连续性)
+            let selected = null;
+            if (Q1.z > 0.001 && Q2.z > 0.001) {
+                // 如果两个都为正, 选择更合理的那个(根据上一帧连续性? 简单选Z较大的，通常机构运动时Q点Z值正且变化连续)
+                selected = Q1.z > Q2.z ? Q1 : Q2;
+            } else if (Q1.z > 0.001) {
+                selected = Q1;
+            } else if (Q2.z > 0.001) {
+                selected = Q2;
+            } else {
+                // 异常时取绝对值较大的那个
+                selected = (Math.abs(Q1.z) > Math.abs(Q2.z)) ? Q1 : Q2;
+            }
+            
+            if (selected) {
+                return new THREE.Vector3(selected.x, 0, selected.z);
+            }
+            return new THREE.Vector3(Mx, 0, 0); // fallback
+        }
+        
+        // --- 辅助函数: 更新圆柱体位置和方向 (两点之间圆柱, 半径固定) ---
+        function updateCylinderBetween(cylinder, p1, p2, radiusVal) {
+            if (!cylinder) return;
+            const start = new THREE.Vector3(p1.x, p1.y, p1.z);
+            const end = new THREE.Vector3(p2.x, p2.y, p2.z);
+            const direction = new THREE.Vector3().subVectors(end, start);
+            const length = direction.length();
+            if (length < 0.001) return;
+            
+            // 中心点
+            const center = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+            cylinder.position.copy(center);
+            
+            // 缩放: 原本几何体高度为1, 半径 radiusVal (几何体创建时半径0.12，通过scale调节半径/长度)
+            // 为了视觉统一，保持半径在缩放后一致 (原几何半径0.12, 目标半径0.12*scaleX => 设置scale.x = radiusVal/0.12)
+            // 简便方式: 创建时几何半径=radiusVal，高度=1，再scale.y = length
+            // 但为了代码清晰，这里使用几何半径固定0.12, 缩放半径系数: scale.x = scale.z = radiusVal/0.12, scale.y = length
+            const baseRadius = 0.12;
+            const scaleFactorRadius = radiusVal / baseRadius;
+            cylinder.scale.set(scaleFactorRadius, length, scaleFactorRadius);
+            
+            // 旋转: 使圆柱体默认Y轴对齐到方向向量
+            const quaternion = new THREE.Quaternion().setFromUnitVectors(
+                new THREE.Vector3(0, 1, 0),
+                direction.clone().normalize()
+            );
+            cylinder.quaternion.copy(quaternion);
+        }
+        
+        // --- 创建圆柱体部件 (曲柄红色, 连杆灰色, 摇杆蓝色, 机架深灰色半透明) ---
+        // 通用圆柱几何: 半径0.12, 高度1 (后续scale)
+        const cylGeom = new THREE.CylinderGeometry(0.12, 0.12, 1, 16);
+        
+        // 曲柄 (红色)
+        const crankMat = new THREE.MeshStandardMaterial({ color: 0xdd3b3b, metalness: 0.6, roughness: 0.3, emissive: 0x331100 });
+        const crankCyl = new THREE.Mesh(cylGeom, crankMat);
+        crankCyl.castShadow = true;
+        crankCyl.receiveShadow = false;
+        scene.add(crankCyl);
+        
+        // 连杆 (灰色)
+        const linkMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.5, roughness: 0.4 });
+        const linkCyl = new THREE.Mesh(cylGeom, linkMat);
+        linkCyl.castShadow = true;
+        scene.add(linkCyl);
+        
+        // 摇杆 (蓝色)
+        const rockerMat = new THREE.MeshStandardMaterial({ color: 0x3a86ff, metalness: 0.4, roughness: 0.4 });
+        const rockerCyl = new THREE.Mesh(cylGeom, rockerMat);
+        rockerCyl.castShadow = true;
+        scene.add(rockerCyl);
+        
+        // 机架 (棕色半透明, 连接O和A)
+        const frameMat = new THREE.MeshStandardMaterial({ color: 0xbc9a6c, metalness: 0.3, roughness: 0.7, transparent: true, opacity: 0.65 });
+        const frameCyl = new THREE.Mesh(cylGeom, frameMat);
+        frameCyl.castShadow = false;
+        scene.add(frameCyl);
+        // 固定机架初始更新
+        updateCylinderBetween(frameCyl, O_point, A_point, 0.1);
+        
+        // --- 铰链小球体 (金色/铜色) ---
+        const jointMat = new THREE.MeshStandardMaterial({ color: 0xcc8844, metalness: 0.85, roughness: 0.25, emissive: 0x442200 });
+        const sphereGeom = new THREE.SphereGeometry(0.22, 32, 32);
+        
+        // 固定铰链 O 和 A
+        const sphereO = new THREE.Mesh(sphereGeom, jointMat);
+        sphereO.position.copy(O_point);
+        scene.add(sphereO);
+        
+        const sphereA = new THREE.Mesh(sphereGeom, jointMat);
+        sphereA.position.copy(A_point);
+        scene.add(sphereA);
+        
+        // 动态铰链 P 和 Q
+        const sphereP = new THREE.Mesh(sphereGeom, jointMat);
+        scene.add(sphereP);
+        const sphereQ = new THREE.Mesh(sphereGeom, jointMat);
+        scene.add(sphereQ);
+        
+        // 额外增加一点亮边效果
+        const highlightMat = new THREE.MeshStandardMaterial({ color: 0xffaa66, emissive: 0x552200 });
+        const edgeGlow = new THREE.SphereGeometry(0.28, 16, 16);
+        // 可省略, 美观用
+        
+        // --- CSS2D 文字标签 ---
+        function makeLabel(text, color, bgOpacity = 0.7, fontSize = '16px') {
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = color;
+            div.style.fontSize = fontSize;
+            div.style.fontWeight = 'bold';
+            div.style.textShadow = '1px 1px 0px black';
+            div.style.background = `rgba(20, 20, 30, ${bgOpacity})`;
+            div.style.padding = '2px 8px';
+            div.style.borderRadius = '20px';
+            div.style.borderLeft = `3px solid ${color}`;
+            div.style.fontFamily = 'system-ui, "Segoe UI", monospace';
+            div.style.backdropFilter = 'blur(4px)';
+            div.style.pointerEvents = 'none';
+            div.style.whiteSpace = 'nowrap';
+            return new CSS2DObject(div);
+        }
+        
+        // 固定标签: O 和 A
+        const labelO = makeLabel('🔩 O', '#ffaa66', 0.6, '14px');
+        labelO.position.copy(O_point.clone().add(new THREE.Vector3(-0.3, 0.4, -0.3)));
+        scene.add(labelO);
+        
+        const labelA = makeLabel('🔩 A', '#ffaa66', 0.6, '14px');
+        labelA.position.copy(A_point.clone().add(new THREE.Vector3(0.3, 0.4, -0.3)));
+        scene.add(labelA);
+        
+        // 构件标签 (动态跟随构件中点)
+        const labelCrank = makeLabel('曲柄 (主动)', '#ff8888', 0.65, '13px');
+        const labelLink = makeLabel('连杆', '#cccccc', 0.65, '13px');
+        const labelRocker = makeLabel('摇杆', '#88aaff', 0.65, '13px');
+        const labelFrame = makeLabel('机架', '#bc9a6c', 0.55, '12px');
+        
+        scene.add(labelCrank);
+        scene.add(labelLink);
+        scene.add(labelRocker);
+        scene.add(labelFrame);
+        
+        // 机架标签位置固定在中点偏移
+        const frameMid = new THREE.Vector3().addVectors(O_point, A_point).multiplyScalar(0.5);
+        labelFrame.position.copy(frameMid.clone().add(new THREE.Vector3(0, 0.45, 0)));
+        
+        // --- 辅助额外显示曲柄摇杆角度实时 (DOM已经存在)---
+        const crankAngleElem = document.getElementById('crank-angle');
+        const rockerAngleElem = document.getElementById('rocker-angle');
+        
+        // --- 动画循环所需时间变量 ---
+        let lastTime = performance.now() / 1000;
+        let theta = 0.0;    // 当前曲柄转角弧度
+        
+        // 确保初始正确求解一次Q
+        function updateKinematics(currentTheta) {
+            // 计算曲柄端点 P
+            const px = a * Math.cos(currentTheta);
+            const pz = a * Math.sin(currentTheta);
+            P_point.set(px, 0, pz);
+            
+            // 基于几何法解 Q 点 (两圆交点)
+            const newQ = computeQIntersection(A_point, c, P_point, b);
+            if (newQ) {
+                Q_point = newQ;
+            } else {
+                // 备用: 使用近似解 (一般不会)
+                console.warn("几何解算失败，保持原Q");
+            }
+            return { P: P_point, Q: Q_point };
+        }
+        
+        // 第一次计算确保初始位置合理 (theta=0)
+        updateKinematics(0);
+        
+        // 更新所有部件的位置和方向
+        function updateMechanismVisuals(P, Q) {
+            // 更新圆柱体: 曲柄 O->P
+            updateCylinderBetween(crankCyl, O_point, P, 0.13);
+            // 连杆 P->Q
+            updateCylinderBetween(linkCyl, P, Q, 0.12);
+            // 摇杆 A->Q
+            updateCylinderBetween(rockerCyl, A_point, Q, 0.12);
+            
+            // 更新动态小球体
+            sphereP.position.copy(P);
+            sphereQ.position.copy(Q);
+            
+            // 更新标签位置 (跟随构件中点)
+            const crankMid = new THREE.Vector3().addVectors(O_point, P).multiplyScalar(0.5);
+            labelCrank.position.copy(crankMid.clone().add(new THREE.Vector3(0, 0.5, 0)));
+            
+            const linkMid = new THREE.Vector3().addVectors(P, Q).multiplyScalar(0.5);
+            labelLink.position.copy(linkMid.clone().add(new THREE.Vector3(0, 0.5, 0)));
+            
+            const rockerMid = new THREE.Vector3().addVectors(A_point, Q).multiplyScalar(0.5);
+            labelRocker.position.copy(rockerMid.clone().add(new THREE.Vector3(0, 0.55, 0)));
+        }
+        
+        // 计算摇杆角度 ψ (弧度) 并转换为度数
+        function computeRockerAngleDeg(Q) {
+            // ψ = atan2(Q.z, Q.x - d)
+            const dx = Q.x - d;
+            const dz = Q.z;
+            let psiRad = Math.atan2(dz, dx);
+            // 转为度数
+            let psiDeg = psiRad * 180 / Math.PI;
+            // 使显示范围 -180~180 便于观察, 但摇杆在正负区间摆动, 保持原值
+            return psiDeg;
+        }
+        
+        // 更新角度显示
+        function updateAngleDisplay(thetaRad, Q) {
+            const thetaDeg = thetaRad * 180 / Math.PI;
+            crankAngleElem.textContent = thetaDeg.toFixed(1);
+            const psiDeg = computeRockerAngleDeg(Q);
+            rockerAngleElem.textContent = psiDeg.toFixed(1);
+        }
+        
+        // 可选: 添加小辅助轴指示器 (增加视觉效果)
+        const arrowHelperX = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(-2, -0.2, -2), 3.5, 0xff6666, 0.8, 0.5);
+        const arrowHelperZ = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-2, -0.2, -2), 3.5, 0x66aaff, 0.8, 0.5);
+        arrowHelperX.line.material.transparent = true; arrowHelperX.line.material.opacity = 0.4;
+        arrowHelperZ.line.material.transparent = true; arrowHelperZ.line.material.opacity = 0.4;
+        scene.add(arrowHelperX);
+        scene.add(arrowHelperZ);
+        
+        // 提升小球体金属反光
+        const extraLight = new THREE.PointLight(0xffaa66, 0.3);
+        extraLight.position.set(2, 1.5, 2);
+        scene.add(extraLight);
+        
+        // 简单的粒子效果围绕铰链? 可省略 保持简洁
+        
+        // --- 动画循环: 基于时间增量更新theta ---
+        function animate() {
+            const now = performance.now() / 1000;
+            let dt = Math.min(0.033, now - (lastTime || now));
+            if (dt < 0) dt = 0.016;
+            lastTime = now;
+            
+            // 角度增量
+            theta += omega * dt;
+            // 规范化角度范围 0~2pi 防止过大
+            theta = theta % (2 * Math.PI);
+            
+            // 运动学求解
+            const { P, Q } = updateKinematics(theta);
+            
+            // 更新可视化模型
+            updateMechanismVisuals(P, Q);
+            
+            // 更新角度显示
+            updateAngleDisplay(theta, Q);
+            
+            // 动态微调光源增加动感 (轻微变化)
+            const timeSec = now;
+            extraLight.intensity = 0.35 + Math.sin(timeSec * 3) * 0.08;
+            
+            // 控制相机和渲染
+            controls.update(); // 更新轨道控制
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // 启动动画前进行一次完整更新，确保标签机架等正确
+        function initVisual() {
+            updateCylinderBetween(frameCyl, O_point, A_point, 0.1);
+            const initTheta = 0;
+            const { P, Q } = updateKinematics(initTheta);
+            updateMechanismVisuals(P, Q);
+            updateAngleDisplay(initTheta, Q);
+            // 额外设置机架标签位置固定
+            labelFrame.position.copy(frameMid.clone().add(new THREE.Vector3(0, 0.45, 0)));
+            // 添加一个小装饰圆环，表示轨迹示意 (可选)
+            const crankPathPoints = [];
+            const curvePoints = [];
+            for (let i = 0; i <= 64; i++) {
+                const ang = (i / 64) * Math.PI * 2;
+                const px = a * Math.cos(ang);
+                const pz = a * Math.sin(ang);
+                crankPathPoints.push(new THREE.Vector3(px, 0.02, pz));
+            }
+            const crankTrailGeo = new THREE.BufferGeometry().setFromPoints(crankPathPoints);
+            const trailMat = new THREE.LineBasicMaterial({ color: 0xff8866, transparent: true, opacity: 0.3 });
+            const crankTrail = new THREE.LineLoop(crankTrailGeo, trailMat);
+            scene.add(crankTrail);
+            
+            // 摇杆摆动圆弧示意 (粗略)
+            const rockerArcPoints = [];
+            const radiusArc = c;
+            const centerArc = A_point;
+            for (let ang = -0.8; ang <= 0.8; ang += 0.05) {
+                const x = centerArc.x + radiusArc * Math.cos(ang);
+                const z = centerArc.z + radiusArc * Math.sin(ang);
+                if (z > -0.5)
+                    rockerArcPoints.push(new THREE.Vector3(x, 0.02, z));
+            }
+            if (rockerArcPoints.length > 1) {
+                const arcGeo = new THREE.BufferGeometry().setFromPoints(rockerArcPoints);
+                const arcMat = new THREE.LineBasicMaterial({ color: 0x88aaff, transparent: true, opacity: 0.35 });
+                const rockerArc = new THREE.Line(arcGeo, arcMat);
+                scene.add(rockerArc);
+            }
+        }
+        
+        initVisual();
+        
+        // 窗口适配
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // 启动动画
+        lastTime = performance.now() / 1000;
+        animate();
+        
+        // 控制台输出启动信息
+        console.log('铰链四杆机构已启动 | 曲柄长度=2, 连杆=5, 摇杆=4, 机架=5, 角速度=1 rad/s');
+    </script>
+</body>
+</html>

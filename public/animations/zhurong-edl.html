@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>天问一号 · 祝融号 EDL 下降着陆演示</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000005;
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#cdd6f4;}
+  #title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:18px;
+    letter-spacing:2px;color:#ff8c42;pointer-events:none;text-shadow:0 2px 8px rgba(255,100,20,0.4);}
+  #subtitle{position:absolute;top:40px;left:50%;transform:translateX(-50%);font-size:12px;
+    color:#8b95b8;pointer-events:none;}
+  #hud{position:absolute;top:80px;left:16px;padding:14px 18px;min-width:280px;
+    background:rgba(10,12,24,0.8);border:1px solid #2a2f4a;border-radius:8px;font-size:13px;
+    line-height:2.0;backdrop-filter:blur(6px);}
+  #hud b{color:#ffb347;font-weight:600;}
+  #hud .v{color:#a6e3a1;font-family:Consolas,monospace;}
+  #hud .phase{color:#ff6b6b;font-weight:700;}
+  #phase-indicator{position:absolute;top:80px;right:16px;padding:12px 18px;
+    background:rgba(10,12,24,0.8);border:1px solid #2a2f4a;border-radius:8px;font-size:13px;line-height:1.8;}
+  #phase-indicator .active{color:#ff6b35;font-weight:700;}
+  #phase-indicator .done{color:#4ecdc4;}
+  #phase-indicator .pending{color:#555;}
+  #hint{position:absolute;bottom:14px;right:14px;padding:8px 12px;
+    background:rgba(10,12,24,0.5);border:1px solid #2a2f4a;border-radius:6px;font-size:11px;color:#8b95b8;}
+  #restart-btn{position:absolute;bottom:14px;left:14px;padding:8px 16px;
+    background:rgba(255,107,53,0.2);border:1px solid #ff6b35;border-radius:6px;
+    color:#ff8c42;font-size:12px;cursor:pointer;transition:background 0.3s;}
+  #restart-btn:hover{background:rgba(255,107,53,0.4);}
+  #bottom-bar{position:absolute;bottom:14px;left:14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;max-width:95vw;}
+  #speed-box{padding:8px 14px;background:rgba(10,12,24,0.6);border:1px solid #2a2f4a;
+    border-radius:6px;font-size:11px;color:#cdd6f4;}
+  #speed-box input{vertical-align:middle;accent-color:#ff6b35;}
+  #cam-box{padding:8px 14px;background:rgba(10,12,24,0.6);border:1px solid #2a2f4a;
+    border-radius:6px;font-size:11px;color:#cdd6f4;}
+  #cam-box .active{color:#ffb347;font-weight:600;}
+</style>
+</head>
+<body>
+<div id="title">天问一号 · 祝融号火星车 EDL 下降着陆</div>
+<div id="subtitle">Tianwen-1 Zhurong — Entry, Descent & Landing · 乌托邦平原 25.1°N 109.9°E</div>
+
+<div id="hud">
+  <div><b>实时遥测</b></div>
+  <div>阶段 : <span id="v_phase" class="phase">—</span></div>
+  <div>高度 : <span id="v_alt" class="v">—</span></div>
+  <div>速度 : <span id="v_vel" class="v">—</span></div>
+  <div>时间 : <span id="v_time" class="v">—</span></div>
+  <div>坐标 : <span id="v_coords" class="v">25.1°N, 109.9°E</span></div>
+</div>
+<div id="phase-indicator">
+  <div><b>EDL 阶段</b></div>
+  <div id="p1" class="pending">① 气动减速 · 进入大气层</div>
+  <div id="p2" class="pending">② 降落伞减速 · 超声速开伞</div>
+  <div id="p3" class="pending">③ 动力减速 · 反推点火</div>
+  <div id="p4" class="pending">④ 悬停避障 · 软着陆</div>
+</div>
+<div id="hint">拖拽旋转 | 滚轮缩放 | 右键平移 | <b>C</b> 切换视角</div>
+<div id="bottom-bar">
+  <button id="restart-btn" onclick="restartEDL()">↻ 重新开始</button>
+  <div id="speed-box">⏱ <input type="range" id="speed-slider" min="0.5" max="5" step="0.5" value="1.5"> <span id="speed-label">×1.5</span></div>
+  <div id="cam-box">📷 <b>C</b> <span id="cam-label">自由视角</span> <span style="color:#666">| 点击切换</span></div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ============================================================
+ *  EDL 阶段数据
+ * ============================================================ */
+const PHASES = [
+  {id:0,name:'气动减速 · 进入大气层',sAlt:125000,eAlt:10000,sVel:4800,eVel:460,color:'#ff4500'},
+  {id:1,name:'降落伞减速 · 超声速开伞',sAlt:10000, eAlt:1500, sVel:460, eVel:100, color:'#ff8c00'},
+  {id:2,name:'动力减速 · 反推发动机点火',sAlt:1500,  eAlt:100,  sVel:100, eVel:2,   color:'#00bfff'},
+  {id:3,name:'悬停避障 · 触地软着陆',  sAlt:100,   eAlt:0,    sVel:2,   eVel:0,   color:'#00ff88'},
+  {id:4,name:'着陆成功！祝融号就位',   sAlt:0,     eAlt:0,    sVel:0,   eVel:0,   color:'#ffd700'},
+];
+
+/* ---- 场景 ---- */
+const scene = new THREE.Scene();
+scene.background=new THREE.Color(0x000008);
+scene.fog=new THREE.FogExp2(0x000010,0.00000012);
+
+const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.5,300000);
+camera.position.set(600,800,1600);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
+document.body.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.target.set(0,500,0);controls.enableDamping=true;controls.dampingFactor=0.08;
+controls.minDistance=100;controls.maxDistance=20000;
+// 防止相机穿透火星表面（Mars R=500）
+controls.addEventListener('change',()=>{
+  const cp=camera.position;
+  const dist=Math.sqrt(cp.x*cp.x+cp.y*cp.y+cp.z*cp.z);
+  if(dist<520){const s=520/dist;cp.multiplyScalar(s);}
+});
+controls.update();
+
+/* ---- 灯光（确保整个场景可见） ---- */
+scene.add(new THREE.AmbientLight(0x443322, 1.2));
+scene.add(new THREE.HemisphereLight(0xffeedd, 0x8b5a3c, 0.8));
+const sunLight2 = new THREE.DirectionalLight(0xfff5e8, 4.0);
+sunLight2.position.set(3000, 5000, -2000);
+sunLight2.castShadow = true;
+sunLight2.shadow.mapSize.set(1024, 1024);
+sunLight2.shadow.camera.near = 5;
+sunLight2.shadow.camera.far = 50000;
+sunLight2.shadow.camera.left = -500;
+sunLight2.shadow.camera.right = 500;
+sunLight2.shadow.camera.top = 500;
+sunLight2.shadow.camera.bottom = -500;
+scene.add(sunLight2);
+// 着陆器附近的补光（动态跟随）
+const nearLight = new THREE.PointLight(0xffccaa, 200, 5000);
+scene.add(nearLight);
+
+/* ---- 深空星空（暗底色 + 小星点 + 淡银河）---- */
+function createStarfield(w,h){
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='#000105';ctx.fillRect(0,0,w,h);
+  // 淡银河带
+  const mg=ctx.createLinearGradient(0,h*0.32,0,h*0.68);
+  mg.addColorStop(0,'rgba(8,10,25,0)');mg.addColorStop(0.5,'rgba(18,22,45,0.04)');mg.addColorStop(1,'rgba(8,10,25,0)');
+  ctx.fillStyle=mg;ctx.fillRect(0,0,w,h);
+  const bg2=ctx.createLinearGradient(0,0,w,0);
+  bg2.addColorStop(0,'rgba(10,12,30,0.04)');bg2.addColorStop(0.5,'rgba(25,28,55,0.08)');bg2.addColorStop(1,'rgba(10,12,30,0.04)');
+  ctx.fillStyle=bg2;ctx.beginPath();ctx.ellipse(w/2,h*0.47,w*0.55,h*0.06,-0.15,0,Math.PI*2);ctx.fill();
+  // 12000颗小星（大多暗淡，偶有亮点）
+  for(let i=0;i<12000;i++){
+    const x=Math.random()*w,y=Math.random()*h;
+    const mag=Math.random(); // 0=最暗, 1=少量亮星
+    const r=mag<0.92?0.08+Math.random()*0.35:0.3+Math.random()*0.9;
+    const alpha=mag<0.92?0.08+Math.random()*0.35:0.4+Math.random()*0.4;
+    const temp=Math.random();
+    let hue=temp<0.55?215:temp<0.82?45:temp<0.94?25:0;
+    const sat=temp<0.55?3+Math.random()*8:15+Math.random()*20;
+    const lum=68+Math.random()*28;
+    ctx.fillStyle=`hsla(${hue},${sat}%,${lum}%,${alpha})`;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+const starSph=new THREE.Mesh(new THREE.SphereGeometry(120000,64,32),
+  new THREE.MeshBasicMaterial({map:createStarfield(2048,1024),side:THREE.BackSide}));
+scene.add(starSph);
+
+/* ---- 火星纹理 ---- */
+function createMarsTex(size){
+  const c=document.createElement('canvas');c.width=size;c.height=size/2;
+  const ctx=c.getContext('2d');
+  const id=ctx.createImageData(size,size/2);const d=id.data;
+  function h(x,y){return((Math.sin(x*127.1+y*311.7)*43758.5453)%1+1)%1;}
+  function sn(x,y,s){
+    const ix=Math.floor(x*s),iy=Math.floor(y*s),fx=x*s-ix,fy=y*s-iy;
+    const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+    return(h(ix,iy)*(1-sx)+h(ix+1,iy)*sx)*(1-sy)+(h(ix,iy+1)*(1-sx)+h(ix+1,iy+1)*sx)*sy;
+  }
+  function fbm(x,y){let v=0,a=1,f=1;for(let i=0;i<7;i++){v+=sn(x,y,f)*a;f*=2.0;a*=0.5;}return v;}
+  for(let py=0;py<size/2;py++){
+    for(let px=0;px<size;px++){
+      const idx=(py*size+px)*4,u=px/size,v=py/(size/2);
+      const n=fbm(u*3.5,v*2);
+      const polar=Math.abs(v-0.5)>0.42,pm=polar?Math.min(1,(Math.abs(v-0.5)-0.42)/0.08):0;
+      const isP=pm>0.3,pm2=isP?Math.min(1,(pm-0.3)*2):0;
+      let r,g,b2;
+      if(pm2>0.3){r=210+pm2*45;g=195+pm2*60;b2=175+pm2*80;}
+      else{const val=n*0.35+0.35;r=175+val*65;g=95+val*55;b2=50+val*35;}
+      const mi=sn(u,v,45)*10;
+      d[idx]=Math.min(255,r+mi);d[idx+1]=Math.min(255,g+mi*0.7);
+      d[idx+2]=Math.min(255,b2+mi*0.4);d[idx+3]=255;
+    }
+  }
+  ctx.putImageData(id,0,0);
+  for(let i=0;i<60;i++){
+    const cx=Math.random()*size,cy=size*0.1+Math.random()*size*0.4;
+    const cr=2+Math.random()*20;
+    ctx.fillStyle='rgba(170,120,80,0.2)';ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(190,140,100,0.25)';ctx.lineWidth=1;ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(130,80,40,0.2)';ctx.lineWidth=2;
+  for(let i=0;i<6;i++){
+    ctx.beginPath();let sx=Math.random()*size,sy=size*0.28+Math.random()*size*0.44;
+    ctx.moveTo(sx,sy);
+    for(let j=0;j<8;j++){sx+=(Math.random()-0.5)*250;sy+=(Math.random()-0.5)*30;ctx.lineTo(sx,sy);}
+    ctx.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
+const marsTex=createMarsTex(2048);marsTex.colorSpace=THREE.SRGBColorSpace;
+const marsBump=createMarsTex(1024);
+const marsGlobe=new THREE.Mesh(new THREE.SphereGeometry(500,96,64),
+  new THREE.MeshStandardMaterial({map:marsTex,bumpMap:marsBump,bumpScale:6,roughness:0.85,metalness:0.05,color:new THREE.Color('#d2956a')}));
+scene.add(marsGlobe);
+
+// 大气光晕
+const atmoG=new THREE.SphereGeometry(512,64,32);
+const atmoM=new THREE.ShaderMaterial({
+  uniforms:{uColor:{value:new THREE.Color('#e8b88a')},uTime:{value:0}},
+  vertexShader:`varying vec3 vN;varying vec3 vW;
+    void main(){vec4 wp=modelMatrix*vec4(position,1.0);vW=wp.xyz;
+    vN=normalize(mat3(modelMatrix)*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`varying vec3 vN;varying vec3 vW;uniform vec3 uColor;uniform float uTime;
+    void main(){vec3 vd=normalize(cameraPosition-vW);float f=1.0-abs(dot(vd,vN));f=pow(f,4.5);
+    gl_FragColor=vec4(uColor,f*0.38+0.03);}`,transparent:true,depthWrite:false,
+});
+const atmo=new THREE.Mesh(atmoG,atmoM);scene.add(atmo);
+
+/* ---- 着陆器 ---- */
+const ALPHA=0.1;
+const lander=new THREE.Group();
+lander.scale.setScalar(0.07); // 着陆器实际~3m高, 场景比例还原
+scene.add(lander);
+
+// 防热大底
+const hs=new THREE.Mesh(new THREE.SphereGeometry(14,40,20,0,Math.PI*2,0,Math.PI/3),
+  new THREE.MeshStandardMaterial({color:0x3a2510,roughness:0.75,metalness:0.25}));
+hs.rotation.x=Math.PI;lander.add(hs);
+lander.add(new THREE.Mesh(new THREE.TorusGeometry(13.5,0.5,16,64),
+  new THREE.MeshStandardMaterial({color:0x777777,roughness:0.25,metalness:0.8})));
+
+// 背罩
+const bs=new THREE.Group();bs.position.y=5;lander.add(bs);
+bs.add(new THREE.Mesh(new THREE.CylinderGeometry(12,14,8,32),
+  new THREE.MeshStandardMaterial({color:0x8b7355,roughness:0.5,metalness:0.4})).position.set(0,4,0));
+bs.add(new THREE.Mesh(new THREE.ConeGeometry(6,3,24),
+  new THREE.MeshStandardMaterial({color:0xa08860,roughness:0.45,metalness:0.5})).position.set(0,9.5,0));
+
+// 着陆平台
+const plat=new THREE.Group();plat.position.y=6;lander.add(plat);
+plat.add(new THREE.Mesh(new THREE.CylinderGeometry(7,8.5,4,32),
+  new THREE.MeshStandardMaterial({color:0xd4a574,roughness:0.4,metalness:0.5})));
+plat.add(new THREE.Mesh(new THREE.CylinderGeometry(6,7,1,32),
+  new THREE.MeshStandardMaterial({color:0xc49464,roughness:0.35,metalness:0.55})).position.set(0,2.5,0));
+plat.add(new THREE.Mesh(new THREE.BoxGeometry(4,0.2,2.5),
+  new THREE.MeshStandardMaterial({color:0xe0c090,roughness:0.3,metalness:0.6})).position.set(0,3.1,0));
+
+// 反推喷口(4)
+const tg=new THREE.CylinderGeometry(0.8,1.3,4,16,1,true);
+const tm2=new THREE.MeshStandardMaterial({color:0x333333,roughness:0.2,metalness:0.9,emissive:0x110000,emissiveIntensity:0.5});
+for(let i=0;i<4;i++){
+  const a=i/4*Math.PI*2+Math.PI/4;
+  const t=new THREE.Mesh(tg,tm2);t.position.set(Math.cos(a)*5.5,-2.5,Math.sin(a)*5.5);
+  t.rotation.x=Math.PI;plat.add(t);
+}
+
+// 着陆腿(4)
+const lg2=new THREE.CylinderGeometry(0.35,0.5,9,8);
+const fg2=new THREE.CylinderGeometry(1.2,1.5,0.4,16);
+const lm2=new THREE.MeshStandardMaterial({color:0x999999,roughness:0.3,metalness:0.75});
+for(let i=0;i<4;i++){
+  const a=i/4*Math.PI*2;
+  const lr=new THREE.Group();
+  lr.add(new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,5),lm2).rotation.set(0,0,Math.PI/2));
+  const arm2=new THREE.Mesh(lg2,lm2);arm2.position.y=-4.5;arm2.rotation.z=0.35;lr.add(arm2);
+  const ft=new THREE.Mesh(fg2,lm2);ft.position.set(Math.cos(0.35)*9,-9,0);lr.add(ft);
+  lr.rotation.y=a;lr.position.y=-1.5;plat.add(lr);
+}
+
+// 降落伞 — 伞衣在着陆器上方 60 单位，16 条长伞绳连接背罩顶端
+const chute=new THREE.Group();chute.position.y=60;lander.add(chute);
+const ccCanvas=document.createElement('canvas');ccCanvas.width=1024;ccCanvas.height=512;
+const cc=ccCanvas.getContext('2d');
+cc.fillStyle='#fff';cc.fillRect(0,0,1024,512);
+cc.fillStyle='#c22';
+for(let i=0;i<24;i++){cc.beginPath();cc.moveTo(512,0);cc.arc(512,0,512,i/24*Math.PI*2,(i+0.42)/24*Math.PI*2);cc.fill();}
+cc.fillStyle='#fc0';cc.beginPath();
+for(let k=0;k<5;k++){const sa=-Math.PI/2+k/5*Math.PI*2,ia=sa+Math.PI/5;
+  if(k===0)cc.moveTo(512+Math.cos(sa)*45,30+Math.sin(sa)*45);
+  cc.lineTo(512+Math.cos(sa)*45,30+Math.sin(sa)*45);cc.lineTo(512+Math.cos(ia)*18,30+Math.sin(ia)*18);}
+cc.closePath();cc.fill();
+const cTex=new THREE.CanvasTexture(ccCanvas);
+const canopy=new THREE.Mesh(new THREE.SphereGeometry(22,56,28,0,Math.PI*2,0,Math.PI/2.2),
+  new THREE.MeshStandardMaterial({map:cTex,roughness:0.85,side:THREE.DoubleSide,metalness:0.05}));
+chute.add(canopy);
+const lm3=new THREE.LineBasicMaterial({color:0xcccccc});
+// 伞绳从伞缘 (r=21, y=1.5) 汇聚到背罩连接点 (r=2, y=-45)
+for(let i=0;i<16;i++){
+  const ang=i/16*Math.PI*2;
+  chute.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(Math.cos(ang)*21,1.5,Math.sin(ang)*21),
+    new THREE.Vector3(Math.cos(ang)*2,-45,Math.sin(ang)*2)]),lm3));
+}
+chute.visible=false;
+
+// 粒子池（预分配 — 避免每帧创建/销毁导致卡顿）
+const PLASMA_N = 300, FLAME_N = 400;
+const plasmaGrp = new THREE.Group(); scene.add(plasmaGrp);
+const plasmaPool = [];
+for (let i = 0; i < PLASMA_N; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 5, 5),
+    new THREE.MeshBasicMaterial({ color: 0xff4400, transparent: true, opacity: 0, depthWrite: false }));
+  m.visible = false; m.userData = { life: 0, age: 0 };
+  plasmaGrp.add(m); plasmaPool.push(m);
+}
+const flamePool = [];
+for (let i = 0; i < FLAME_N; i++) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 5, 5),
+    new THREE.MeshBasicMaterial({ color: 0x00bbff, transparent: true, opacity: 0, depthWrite: false }));
+  m.visible = false; m.userData = { life: 0, age: 0, nozzle: 0 };
+  lander.add(m); flamePool.push(m);
+}
+
+function updatePlasma() {
+  const int = (state.phase === 0 && state.altitude < 80000) ? Math.max(0, 1 - (state.altitude - 10000) / 70000) : 0;
+  const need = Math.floor(int * PLASMA_N);
+  for (let i = 0; i < PLASMA_N; i++) {
+    const p = plasmaPool[i];
+    if (i < need) {
+      p.visible = true; p.userData.age += 0.016;
+      if (p.userData.age > p.userData.life || !p.visible) {
+        p.userData.age = 0; p.userData.life = 0.3 + Math.random() * 0.8;
+        p.scale.setScalar(0.3 + Math.random() * 2.0);
+        p.material.color.setHSL(0.06 + Math.random() * 0.08, 1, 0.4 + Math.random() * 0.6);
+        p.material.opacity = 0.75;
+        p.position.copy(lander.position).add(
+          new THREE.Vector3((Math.random() - 0.5) * 30, -5 - Math.random() * 20, (Math.random() - 0.5) * 30));
+      }
+      p.material.opacity = 0.75 * (1 - p.userData.age / p.userData.life);
+      p.position.y -= 0.3 + Math.random() * 0.5;
+    } else { p.visible = false; }
+  }
+}
+
+function updateFlames() {
+  if (state.phase < 2) { flamePool.forEach(p => p.visible = false); return; }
+  const thrust = state.phase === 2 ? 0.65 : state.phase === 3 ? 0.4 : 0;
+  const need = Math.floor(thrust * FLAME_N);
+  const nozzles = [];
+  for (let i = 0; i < 4; i++) {
+    const a = i / 4 * Math.PI * 2 + Math.PI / 4;
+    nozzles.push(new THREE.Vector3(Math.cos(a) * 5.5, -6, Math.sin(a) * 5.5));
+  }
+  for (let i = 0; i < FLAME_N; i++) {
+    const p = flamePool[i];
+    if (i < need) {
+      p.visible = true; p.userData.age += 0.016;
+      if (p.userData.age > p.userData.life) {
+        p.userData.age = 0; p.userData.life = 0.15 + Math.random() * 0.35;
+        p.userData.nozzle = i % 4;
+        p.scale.setScalar(0.3 + Math.random() * 0.8);
+        const t = Math.random();
+        p.material.color.setHSL(0.12 + t * 0.1, 1, 0.35 + t * 0.65);
+        p.material.opacity = 0.85;
+      }
+      const n = nozzles[p.userData.nozzle];
+      const spread = 1.5;
+      p.position.set(
+        n.x + (Math.random() - 0.5) * spread,
+        n.y - p.userData.age * 25,
+        n.z + (Math.random() - 0.5) * spread
+      );
+      p.material.opacity = 0.85 * (1 - p.userData.age / p.userData.life);
+    } else { p.visible = false; }
+  }
+}
+
+// 着陆标记
+const marker = new THREE.Mesh(new THREE.RingGeometry(3, 5, 48),
+  new THREE.MeshBasicMaterial({ color: 0x00ff88, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
+marker.rotation.x = -Math.PI / 2; marker.position.set(0, 500.1, 0); marker.visible = false; scene.add(marker);
+
+const hBeam = new THREE.Mesh(new THREE.CylinderGeometry(2, 18, 40, 32, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false }));
+hBeam.position.y = 520; hBeam.visible = false; scene.add(hBeam);
+
+// 表面环形山
+const cm2 = new THREE.MeshStandardMaterial({ color: 0x8b5e3c, roughness: 0.9 });
+for (let k = 0; k < 40; k++) {
+  const phi = Math.random() * Math.PI * 0.7 + Math.PI * 0.15, theta = Math.random() * Math.PI * 2, r = 500 + Math.random() * 2;
+  const cr22 = new THREE.Mesh(new THREE.TorusGeometry(1 + Math.random() * 4, 0.2 + Math.random() * 0.4, 8, 16), cm2);
+  cr22.position.set(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi), r * Math.sin(phi) * Math.sin(theta));
+  cr22.lookAt(new THREE.Vector3(0, 0, 0)); scene.add(cr22);
+}
+
+// ================================================================
+//  着陆区地表 — 大型地形 + 雾隐边缘，和火星车场景一致
+//  当高度 < 2500m 时激活，替代远距离火星球体
+// ================================================================
+const LZ_SIZE = 900, LZ_SEG = 200;
+
+// 地形高度 — 大尺度缓丘 + 小尺度微起伏
+function lzH(x, z) {
+  let h = 0;
+  h += Math.sin(x * 0.015) * Math.cos(z * 0.018) * 3.5;
+  h += Math.sin(x * 0.035 + z * 0.028) * Math.cos(z * 0.032 - x * 0.022) * 2.0;
+  h += Math.sin(x * 0.08 + z * 0.06) * 0.7;
+  h += Math.sin(x * 0.18) * Math.cos(z * 0.2) * 0.3;
+  return h;
+}
+
+const lzGeom = new THREE.PlaneGeometry(LZ_SIZE, LZ_SIZE, LZ_SEG, LZ_SEG);
+lzGeom.rotateX(-Math.PI / 2);
+const lzp = lzGeom.attributes.position.array;
+for (let i = 0; i < lzp.length; i += 3) {
+  lzp[i + 1] = lzH(lzp[i], lzp[i + 2]);
+}
+lzGeom.computeVertexNormals();
+
+// 无缝平铺纹理 — 均匀一致的铁锈色
+function makeLZTex(sz) {
+  const c = document.createElement('canvas'); c.width = sz; c.height = sz;
+  const ctx = c.getContext('2d');
+
+  // 统一底色的逐像素微扰动（无缝可平铺）
+  const id = ctx.createImageData(sz, sz); const d = id.data;
+  for (let py = 0; py < sz; py++) {
+    for (let px = 0; px < sz; px++) {
+      const idx = (py * sz + px) * 4;
+      // 多层微扰叠加，全程 < 4%
+      const n1 = Math.sin(px * 4.7 + py * 2.3) * Math.cos(py * 5.3 - px * 1.7);
+      const n2 = Math.sin(px * 9.1 - py * 6.5) * Math.cos(py * 11.3 + px * 3.2);
+      const n = (n1 * 0.025 + n2 * 0.018);
+      d[idx] = 185 + n * 30; d[idx + 1] = 112 + n * 25; d[idx + 2] = 74 + n * 18; d[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+
+  // 细小沙砾均匀分布
+  for (let i = 0; i < 8000; i++) {
+    const x = Math.random() * sz, y = Math.random() * sz;
+    const r = Math.random() * 0.8 + 0.15;
+    const shade = 155 + Math.random() * 25;
+    ctx.fillStyle = `rgb(${shade + 12},${shade - 8},${shade - 28})`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  return c;
+}
+
+const lzTexCanvas = makeLZTex(1024);
+const lzTex = new THREE.CanvasTexture(lzTexCanvas);
+lzTex.wrapS = lzTex.wrapT = THREE.RepeatWrapping;
+lzTex.repeat.set(12, 12);
+lzTex.colorSpace = THREE.SRGBColorSpace;
+
+const lzTerrain = new THREE.Mesh(lzGeom, new THREE.MeshStandardMaterial({
+  map: lzTex,
+  roughness: 0.78, metalness: 0.02,
+  color: new THREE.Color('#c08060'),
+}));
+lzTerrain.position.y = 500;
+lzTerrain.receiveShadow = true;
+lzTerrain.visible = false;
+scene.add(lzTerrain);
+
+// 石块 — 均匀随机分布，不在中心 8 单位内
+const lzdRocks = [];
+const RC = [0x9b7653, 0x8b6b4a, 0x7a5a3c, 0x6b4c32, 0x9e7e5e, 0x8c6a48, 0xa88060, 0x755030];
+for (let i = 0; i < 200; i++) {
+  let rx, rz;
+  do {
+    rx = (Math.random() - 0.5) * LZ_SIZE * 0.9;
+    rz = (Math.random() - 0.5) * LZ_SIZE * 0.9;
+  } while (Math.sqrt(rx * rx + rz * rz) < 8);
+  const rh = lzH(rx, rz);
+  // 大小分布
+  const sr = Math.random();
+  let cr;
+  if (sr < 0.55) cr = 0.05 + Math.random() * 0.25;
+  else if (sr < 0.80) cr = 0.22 + Math.random() * 0.55;
+  else if (sr < 0.94) cr = 0.4 + Math.random() * 1.0;
+  else cr = 1.0 + Math.random() * 2.0;
+  // 形状
+  const gt = Math.floor(Math.random() * 3);
+  let geom;
+  if (gt === 0) geom = new THREE.IcosahedronGeometry(cr, Math.random() < 0.3 ? 0 : 1);
+  else if (gt === 1) geom = new THREE.DodecahedronGeometry(cr, 0);
+  else geom = new THREE.TetrahedronGeometry(cr, Math.random() < 0.5 ? 0 : 1);
+  const rp2 = geom.attributes.position.array;
+  const distort = 0.05 + Math.random() * 0.35;
+  for (let j = 0; j < rp2.length; j += 3) {
+    const sc = 1 + (Math.random() - 0.5) * distort;
+    rp2[j] *= sc; rp2[j + 1] *= sc; rp2[j + 2] *= sc;
+  }
+  geom.computeVertexNormals();
+  const rock = new THREE.Mesh(geom, new THREE.MeshStandardMaterial({
+    color: RC[Math.floor(Math.random() * RC.length)],
+    roughness: 0.45 + Math.random() * 0.5,
+    metalness: 0.01 + Math.random() * 0.05,
+  }));
+  rock.position.set(rx, 500 + rh + 0.02, rz);
+  rock.rotation.set(Math.random() * 6.28, Math.random() * 6.28, Math.random() * 6.28);
+  rock.castShadow = true; rock.receiveShadow = true;
+  rock.visible = false;
+  scene.add(rock);
+  lzdRocks.push(rock);
+}
+
+/* ---- 状态 ---- */
+let state={phase:0,altitude:125000,velocity:4800,simTime:0};
+let timeScale=1.5, camTrack=true; // camTrack: true=自动追踪, false=自由
+
+function landerY(){return 500+state.altitude*ALPHA;}
+
+/* ---- HUD ---- */
+const ui2={
+  phase:document.getElementById('v_phase'),alt:document.getElementById('v_alt'),
+  vel:document.getElementById('v_vel'),time:document.getElementById('v_time'),
+};
+const pi={0:document.getElementById('p1'),1:document.getElementById('p2'),2:document.getElementById('p3'),3:document.getElementById('p4')};
+
+/* ---- 相机追踪 ---- */
+function updateCamTrack(){
+  if(!camTrack)return;
+  const lp=lander.position.clone();
+  const alt=state.altitude;
+  let tp,tl;
+  if(state.phase===0&&alt>50000){
+    tp=new THREE.Vector3(200,500,1400);tl=new THREE.Vector3(0,400,0);
+  }else if(state.phase===0){
+    tp=lp.clone().add(new THREE.Vector3(50,60,80));tl=lp.clone();
+  }else if(state.phase===1){
+    tp=lp.clone().add(new THREE.Vector3(60,20,50));tl=lp.clone().add(new THREE.Vector3(0,-15,0));
+  }else if(state.phase===2){
+    tp=lp.clone().add(new THREE.Vector3(25,-20,30));tl=lp.clone();
+  }else if(state.phase===3){
+    tp=lp.clone().add(new THREE.Vector3(10,8,15));tl=new THREE.Vector3(0,500,0);
+  }else{
+    tp=new THREE.Vector3(40,20,100);tl=new THREE.Vector3(0,500.3,0);
+  }
+  camera.position.lerp(tp,0.03);controls.target.lerp(tl,0.04);
+}
+
+/* ---- 仿真 ---- */
+function advance(dt){
+  const sdt=dt*timeScale;state.simTime+=sdt;
+  if(state.phase>=4)return;
+  const p=PHASES[state.phase];
+  const ar=Math.max(1,p.sAlt-p.eAlt);
+  const av2=(p.sVel+p.eVel)/2;
+  state.altitude=Math.max(p.eAlt,state.altitude-av2*sdt);
+  if(ar>0){const pr=1-(state.altitude-p.eAlt)/ar;state.velocity=p.sVel+(p.eVel-p.sVel)*Math.min(1,pr);}
+  else state.velocity=0;
+  if(state.altitude<=p.eAlt&&state.phase<4){state.phase++;if(state.phase===4){state.altitude=0;state.velocity=0;}}
+}
+
+function updateLander(){
+  const y=landerY();lander.position.set(0,y,0);
+  // 着陆器位于火星正上方 Y 轴，默认朝向 -Y 即为火星中心
+
+  chute.visible=(state.phase>=1&&state.phase<3);
+  hs.visible=(state.phase===0);
+  if(state.phase>=1&&state.phase<3){chute.rotation.z=Math.sin(state.simTime*3)*0.06;chute.rotation.x=Math.cos(state.simTime*2.5)*0.04;}
+  hBeam.visible=(state.phase===3);
+  if(state.phase===3){hBeam.position.set(lander.position.x,lander.position.y-25,lander.position.z);}
+  marker.visible=(state.phase>=4);
+  if(state.phase===4){lander.position.y=500.2;}
+
+  // 近地时切换到着陆区高精度地形（比例正确）
+  const showLZ = (state.phase >= 2 && state.altitude < 2000) || state.phase >= 3;
+  lzTerrain.visible = showLZ;
+  lzdRocks.forEach(r => r.visible = showLZ);
+  marsGlobe.visible = !showLZ || state.altitude > 500;
+  atmo.visible = !showLZ;
+  // 近地启用雾来隐藏远处地形边缘
+  scene.fog = showLZ ? new THREE.Fog(0xc49060, 300, 700) : new THREE.FogExp2(0x000010, 0.00000012);
+
+  // 着陆后相机移至降落仓正上方
+  if (state.phase === 4 && camTrack) {
+    const above = new THREE.Vector3(lander.position.x, lander.position.y + 60, lander.position.z + 5);
+    camera.position.lerp(above, 0.02);
+    controls.target.lerp(lander.position.clone(), 0.03);
+  }
+
+  // 补光跟随着陆器
+  nearLight.position.copy(lander.position).add(new THREE.Vector3(10, 15, 10));
+}
+
+function updateHUD(){
+  const p=PHASES[Math.min(state.phase,4)];ui2.phase.textContent=p.name;
+  if(state.phase>=4){ui2.alt.textContent='0 m (已着陆)';ui2.vel.textContent='0 m/s';}
+  else{ui2.alt.textContent=state.altitude.toFixed(0)+' m';
+    ui2.vel.textContent=state.velocity>=100?(state.velocity/1000).toFixed(2)+' km/s':state.velocity.toFixed(1)+' m/s';}
+  const m=Math.floor(state.simTime/60),s=(state.simTime%60).toFixed(1);
+  ui2.time.textContent=m+' 分 '+s+' 秒';
+  for(let i=0;i<4;i++){if(!pi[i])continue;pi[i].className=i<state.phase?'done':i===state.phase?'active':'pending';}
+}
+
+/* ---- 循环 ---- */
+const clock2=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock2.getDelta(),0.1);
+  advance(dt);updatePlasma();updateFlames();updateLander();updateHUD();updateCamTrack();
+  atmoM.uniforms.uTime.value+=dt;
+  controls.update();renderer.render(scene,camera);
+}
+
+/* ---- 重启 ---- */
+window.restartEDL=function(){
+  state={phase:0,altitude:125000,velocity:4800,simTime:0};
+  chute.visible=false;hs.visible=true;marker.visible=false;hBeam.visible=false;
+  plasmaPool.forEach(p=>{p.visible=false;p.userData.age=0;});
+  flamePool.forEach(p=>{p.visible=false;p.userData.age=0;});
+  lzTerrain.visible=false;marsGlobe.visible=true;atmo.visible=true;
+  scene.fog=new THREE.FogExp2(0x000010,0.00000012);
+  lzdRocks.forEach(r=>r.visible=false);
+};
+
+/* ---- 速度滑块 ---- */
+document.getElementById('speed-slider').addEventListener('input',e=>{
+  timeScale=parseFloat(e.target.value);
+  document.getElementById('speed-label').textContent='×'+timeScale.toFixed(1);
+});
+
+/* ---- 相机切换 ---- */
+window.addEventListener('keydown',e=>{
+  if(e.key.toLowerCase()==='c'){
+    camTrack=!camTrack;
+    document.getElementById('cam-label').textContent=camTrack?'自动追踪':'自由视角';
+    document.getElementById('cam-label').className=camTrack?'active':'';
+    e.preventDefault();
+  }
+});
+document.getElementById('cam-box').addEventListener('click',()=>{
+  camTrack=!camTrack;
+  document.getElementById('cam-label').textContent=camTrack?'自动追踪':'自由视角';
+  document.getElementById('cam-label').className=camTrack?'active':'';
+});
+
+animate();
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>

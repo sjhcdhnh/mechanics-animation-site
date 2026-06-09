@@ -11,6 +11,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: '首页' },
+    { href: '/agent', label: 'AI助教' },
     { href: '/about', label: '关于' },
     { href: '/deep-learning', label: '深度学习' },
     { href: '/upload', label: '上传' },

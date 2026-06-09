@@ -1,6 +1,7 @@
 import { getAllAnimations } from "@/lib/animation-registry";
 import { GalleryGrid } from "@/components/gallery/GalleryGrid";
 import { HeroGallery } from "@/components/gallery/HeroGallery";
+import { AgentSection } from "@/components/agent/AgentSection";
 import { MouseIcon, LayersIcon, SparkleIcon } from "@/components/ui/Icons";
 
 export default function HomePage() {
@@ -89,6 +90,11 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* AI Teaching Agent */}
+      <section className="px-4 sm:px-6 pb-16 max-w-7xl mx-auto">
+        <AgentSection />
       </section>
 
       {/* Gallery */}

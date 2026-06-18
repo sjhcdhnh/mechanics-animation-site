@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>完美复刻 - 刚体防穿模物理抱闸系统 (蓝色缓冲版)</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f0f4f8; font-family: 'Segoe UI', Tahoma, sans-serif; }
+        canvas { display: block; outline: none; }
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px; width: 340px;
+            background: rgba(255, 255, 255, 0.95); padding: 25px;
+            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border: 1px solid #e2e8f0; user-select: none;
+        }
+        h2 { margin: 0 0 15px 0; font-size: 19px; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px;}
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: bold; font-size: 15px;}
+        #status { color: #16a34a; transition: color 0.1s;}
+        #status.braking { color: #dc2626; font-weight: 900;}
+        .slider-box { margin-top: 25px; background: #f8fafc; padding: 18px; border-radius: 8px; border: 1px solid #cbd5e1;}
+        label { display: block; font-size: 13px; color: #334155; margin-bottom: 12px; font-weight: bold;}
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #10b981; height: 6px; }
+        .tips { font-size: 12px; color: #64748b; margin-top: 15px; line-height: 1.6; }
+        .rpm-number { font-variant-numeric: tabular-nums; font-size: 18px; color: #2563eb; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h2>对称抱闸系统 (蓝色缓冲版)</h2>
+        <div class="data-row"><span>物理状态:</span><span id="status">自由运转中</span></div>
+        <div class="data-row" style="align-items: center;"><span>实时转速:</span><span class="rpm-number" id="speedDisplay">250 RPM</span></div>
+        
+        <div class="slider-box">
+            <label for="leverSlider">上抬绿色摇杆 (执行夹紧制动)</label>
+            <input type="range" id="leverSlider" min="0" max="15" value="0" step="0.1">
+        </div>
+
+        <div class="tips">
+            * <b>蓝色缓冲垫</b>：蓝色瓦块直接连接粉臂，自适应贴合轮子。<br>
+            * <b>精简结构</b>：已删除左下角多余连杆，还原真实结构。<br>
+            * <b>物理压力传导</b>：碰到圆盘后继续推滑块，行程将转化为摩擦压力，迅速消耗 250 RPM 的动能，瞬间抱死。
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==========================================
+        // 1. 核心渲染与光照
+        // ==========================================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f4f8);
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-10, 5, 35);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 15); dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // ==========================================
+        // 2. 工业级材质库 (替换为蓝色缓冲垫)
+        // ==========================================
+        const mats = {
+            wood: new THREE.MeshStandardMaterial({ color: 0xdcb878, roughness: 0.7 }),
+            woodHole: new THREE.MeshStandardMaterial({ color: 0x8b6534, roughness: 1.0 }), 
+            green: new THREE.MeshStandardMaterial({ color: 0xa8d08d, roughness: 0.4 }),
+            purple: new THREE.MeshStandardMaterial({ color: 0xb4a7d6, roughness: 0.3 }),
+            pink: new THREE.MeshStandardMaterial({ color: 0xea99c9, roughness: 0.4 }),
+            blue: new THREE.MeshStandardMaterial({ color: 0x3b82f6, roughness: 0.7, metalness: 0.1 }), // 蓝色高摩擦缓冲材质
+            grey: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.4 }),
+            silver: new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.8, roughness: 0.2 })
+        };
+        const createM = (geo, mat) => { const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = mesh.receiveShadow = true; return mesh; };
+
+        // ==========================================
+        // 3. 几何体生成器
+        // ==========================================
+        function createArmGeo(length, height, depth) {
+            const sh = new THREE.Shape(), r = height/2;
+            sh.absarc(0, 0, r, Math.PI/2, Math.PI*1.5, false);
+            sh.lineTo(length, -r); sh.absarc(length, 0, r, -Math.PI/2, Math.PI/2, false); sh.lineTo(0, r);
+            return new THREE.ExtrudeGeometry(sh, { depth: depth, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05 }).translate(0,0,-depth/2);
+        }
+
+        // 蓝色刹车缓冲垫生成器（精确贴合圆盘弧度，自带居中用于自适应旋转）
+        function createCenteredBrakePad(radius) {
+            const sh = new THREE.Shape();
+            sh.absarc(0, 0, radius, -Math.PI/6, Math.PI/6, false);
+            sh.lineTo(Math.cos(Math.PI/6) * (radius + 1.2), Math.sin(Math.PI/6) * (radius + 1.2));
+            sh.absarc(0, 0, radius + 1.2, Math.PI/6, -Math.PI/6, true);
+            const geo = new THREE.ExtrudeGeometry(sh, { depth: 1.5, bevelEnabled: false });
+            geo.translate(-(radius + 0.6), 0, -0.75);
+            return geo;
+        }
+
+        // ==========================================
+        // 4. 组装精简后的零穿模刚体系统
+        // ==========================================
+        const wheelGroup = new THREE.Group();
+        wheelGroup.add(createM(new THREE.CylinderGeometry(4.5, 4.5, 1.2, 64).rotateX(Math.PI/2), mats.wood));
+        for(let i=0; i<6; i++) { 
+            const hole = createM(new THREE.CylinderGeometry(0.6, 0.6, 1.25, 16).rotateX(Math.PI/2), mats.woodHole);
+            hole.position.set(Math.cos(i*Math.PI/3)*2.8, Math.sin(i*Math.PI/3)*2.8, 0);
+            wheelGroup.add(hole);
+        }
+        scene.add(wheelGroup);
+        scene.add(createM(new THREE.CylinderGeometry(0.8, 0.8, 4, 32).rotateX(Math.PI/2).translate(0,0,-1.5), mats.silver)); 
+
+        scene.add(createM(new THREE.BoxGeometry(2, 2, 2).translate(8, -7.5, -0.5), mats.grey)); 
+        
+        // 【修改】缩短绿色摇杆，去掉延伸至左下角的多余部分，还原真实比例
+        const greenLever = new THREE.Group(); greenLever.position.set(8, -7.5, 1);
+        greenLever.add(createM(createArmGeo(12, 1.2, 0.8).translate(-12, 0, 0), mats.green));
+        scene.add(greenLever);
+
+        scene.add(createM(new THREE.BoxGeometry(2, 13, 1.5).translate(-6, 0, -0.5), mats.grey)); 
+        
+        const pinkArmBot = new THREE.Group(); pinkArmBot.position.set(-6, -5.5, 0);
+        pinkArmBot.add(createM(createArmGeo(8, 1.2, 0.8), mats.pink));
+        scene.add(pinkArmBot);
+
+        const pinkArmTop = new THREE.Group(); pinkArmTop.position.set(-6, 5.5, 0);
+        pinkArmTop.add(createM(createArmGeo(8, 1.2, 0.8), mats.pink));
+        scene.add(pinkArmTop);
+
+        // 【修改】直接将蓝色垫片加入场景，作为刹车缓冲接触面
+        const padBot = createM(createCenteredBrakePad(4.5), mats.blue); 
+        scene.add(padBot);
+        
+        const padTop = createM(createCenteredBrakePad(4.5), mats.blue); 
+        scene.add(padTop);
+
+        // 【修改】删除了左下角的垂直拉杆 pinkVertLink
+        const createLink = (mat, w, d) => { const m = createM(new THREE.BoxGeometry(w, 1, d).translate(0,0.5,0).rotateX(Math.PI/2), mat); scene.add(m); return m; };
+        const purpleLink = createLink(mats.purple, 0.8, 0.4); 
+
+        // 更新销钉（去掉了多余的销钉）
+        const pins = [1,2,3,4].map(() => createM(new THREE.CylinderGeometry(0.3, 0.3, 1.4, 16).rotateX(Math.PI/2), mats.silver));
+        pins.forEach(p => scene.add(p));
+
+        // ==========================================
+        // 5. 算法边界求解与物理引擎
+        // ==========================================
+        const slider = document.getElementById('leverSlider');
+        const st = document.getElementById('status');
+        const rpmDisplay = document.getElementById('speedDisplay');
+        
+        let speed = 250; 
+        const MAX_SPEED = 250;
+
+        const R_green = 11.0; 
+        const R_pink  = 4.0;  
+        const L_purple = 2.0; 
+        const pinkPivot = new THREE.Vector2(-6, -5.5);
+
+        // 严格圆交点算法
+        function getExactPinkAngle(greenPinX, greenPinY) {
+            const dx = greenPinX - pinkPivot.x, dy = greenPinY - pinkPivot.y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            
+            const a = (R_pink*R_pink - L_purple*L_purple + d*d) / (2*d);
+            const h2 = R_pink*R_pink - a*a;
+            if(h2 < 0) return null; 
+            const h = Math.sqrt(h2);
+            
+            const p2x = pinkPivot.x + a * dx / d, p2y = pinkPivot.y + a * dy / d;
+            const rx = -h * dy / d, ry = h * dx / d;
+            
+            const solY1 = p2y + ry, solY2 = p2y - ry;
+            const finalPoint = (solY1 > solY2) ? {x: p2x + rx, y: solY1} : {x: p2x - rx, y: solY2};
+            return Math.atan2(finalPoint.y - pinkPivot.y, finalPoint.x - pinkPivot.x);
+        }
+
+        const basePinkAngle = getExactPinkAngle(8 - R_green, -7.5);
+        
+        // 计算碰撞阈值角度
+        const collisionThreshold = 0.100; 
+        let maxVisualGreenAngle = 0;
+
+        for (let a = 0; a <= 20; a += 0.01) {
+            let rad = a * Math.PI / 180;
+            let gX = 8 - R_green * Math.cos(rad), gY = -7.5 + R_green * Math.sin(rad);
+            let pAngle = getExactPinkAngle(gX, gY);
+            if (pAngle !== null && (pAngle - basePinkAngle) >= collisionThreshold) {
+                maxVisualGreenAngle = rad;
+                break;
+            }
+        }
+        
+        // 留出压力行程
+        slider.max = (maxVisualGreenAngle * 180 / Math.PI + 4.0).toFixed(1);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            let userGreenAngle = parseFloat(slider.value) * Math.PI / 180;
+            let visualGreenAngle = Math.min(userGreenAngle, maxVisualGreenAngle);
+            greenLever.rotation.z = -visualGreenAngle; 
+
+            const greenPinX = 8 - R_green * Math.cos(visualGreenAngle);
+            const greenPinY = -7.5 + R_green * Math.sin(visualGreenAngle);
+            const ptGreenPin = new THREE.Vector3(greenPinX, greenPinY, 1);
+
+            const visualPinkAngle = getExactPinkAngle(greenPinX, greenPinY);
+            const angleDelta = visualPinkAngle - basePinkAngle;
+
+            // 完美对称：下推上压
+            pinkArmBot.rotation.z = angleDelta; 
+            pinkArmTop.rotation.z = -angleDelta; 
+            
+            scene.updateMatrixWorld();
+
+            // 缝合唯一的紫色传动连杆
+            const ptPinkBotPin = pinkArmBot.localToWorld(new THREE.Vector3(R_pink, 0, 1));
+            const updateLink = (m, p1, p2) => { m.position.copy(p1); m.lookAt(p2); m.scale.z = p1.distanceTo(p2); };
+            updateLink(purpleLink, ptGreenPin, ptPinkBotPin);
+
+            // 蓝色缓冲瓦块自适应对齐轮盘
+            const ptPadBotPin = pinkArmBot.localToWorld(new THREE.Vector3(6, 0.4, 0));
+            const ptPadTopPin = pinkArmTop.localToWorld(new THREE.Vector3(6, -0.4, 0));
+
+            padBot.position.copy(ptPadBotPin);
+            padTop.position.copy(ptPadTopPin);
+            padBot.rotation.z = Math.atan2(ptPadBotPin.y, ptPadBotPin.x);
+            padTop.rotation.z = Math.atan2(ptPadTopPin.y, ptPadTopPin.x);
+
+            // 更新动态销钉
+            pins[0].position.copy(ptGreenPin).setZ(1.3);
+            pins[1].position.copy(ptPinkBotPin).setZ(1.3);
+            pins[2].position.copy(ptPadBotPin).setZ(1.0);
+            pins[3].position.copy(ptPadTopPin).setZ(1.0);
+
+            // ==========================================
+            // 6. 急速摩擦衰减系统 (保持原有完美逻辑)
+            // ==========================================
+            let excessPressure = Math.max(0, userGreenAngle - maxVisualGreenAngle);
+
+            if (excessPressure > 0) {
+                let dragForce = 5 + excessPressure * 1500; 
+                speed -= dragForce;
+                
+                if(speed <= 0) { 
+                    speed = 0; 
+                    st.textContent = "圆盘已完全抱死 (制动满载)"; 
+                    st.className = "braking"; 
+                    rpmDisplay.style.color = "#dc2626";
+                } else { 
+                    st.textContent = "卡钳锁定 / 极速抱死中..."; 
+                    st.className = "braking"; 
+                    rpmDisplay.style.color = "#d97706";
+                }
+            } else if (angleDelta > collisionThreshold * 0.98) {
+                speed -= 2;
+                st.textContent = "缓冲垫接触 / 轻微摩擦"; 
+                st.className = "braking"; 
+                rpmDisplay.style.color = "#d97706";
+            } else {
+                speed += 6; 
+                if(speed > MAX_SPEED) speed = MAX_SPEED;
+                st.textContent = "全速自由运转中"; 
+                st.className = "";
+                rpmDisplay.style.color = "#2563eb";
+            }
+            
+            wheelGroup.rotation.z -= speed * 0.0025;
+            rpmDisplay.textContent = Math.floor(speed).toString().padStart(3, '0') + " RPM";
+
+            controls.update(); 
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

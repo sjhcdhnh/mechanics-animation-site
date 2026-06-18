@@ -1,5 +1,22 @@
 [
   {
+    "slug": "pinn-demo",
+    "title": "PINN对比演示 · 悬臂梁",
+    "subtitle": "Physics-Informed Neural Networks — Analytical vs Data-Driven Beam Deflection",
+    "category": "dynamics",
+    "tags": ["PINN", "悬臂梁", "数据驱动", "AI+力学", "物理信息", "Euler-Bernoulli"],
+    "mechanismType": "物理信息神经网络对比演示",
+    "fileName": "pinn-demo.html",
+    "source": "builtin",
+    "downloadable": true,
+    "fileSize": 28000,
+    "description": "直观展示物理信息神经网络（PINN）核心思想的三维对比动画。左侧为传统Euler-Bernoulli梁解析解（精确），右侧为仅用少量测量点+物理约束（固定端边界条件）拟合的PINN模拟解。拖动滑块增加测量点数，观察PINN曲线如何逐步收敛到解析解。附带AI白话讲解面板。",
+    "author": "匿名",
+    "institution": "",
+    "course": "工程力学前沿导论",
+    "modelDescription": "双悬臂梁对比演示。左梁（绿色）为Euler-Bernoulli解析解 y=ymax·x²(3L−x)/(2L³)。右梁（紫色）为PINN风格拟合：仅用3-20个稀疏测量点+固定端边界约束(y=0, y′=0)通过约束样条插值获得挠度曲线。测量点越多，PINN解越接近解析解。L=2.0m, E=200GPa, P=1000N, 最大挠度≈5mm。"
+  },
+  {
     "slug": "slider-crank",
     "title": "曲柄滑块机构 · 运动学演示",
     "subtitle": "Slider-Crank Mechanism — 内燃机活塞简化模型",
@@ -564,5 +581,37 @@
     "institution": "",
     "course": "理论力学",
     "modelDescription": "祝融号火星车六轮独立驱动，摇臂-转向架悬挂系统适应火星崎岖地形。太阳翼提供电力，导航/地形相机、多光谱相机、地下探测雷达等科学载荷开展火星表面探测。"
+  },
+  {
+    "slug": "lever-brake-jiang",
+    "title": "拨杆式刹车机构 · 偏心杠杆物理模拟",
+    "subtitle": "Lever Brake Mechanism — Eccentric Cam-Actuated Braking Simulation",
+    "category": "cam-drive",
+    "tags": ["刹车机构", "拨杆", "偏心杠杆", "摩擦制动", "3D物理模拟"],
+    "mechanismType": "拨杆式刹车机构",
+    "fileName": "拨杆式刹车机构.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "拨杆式（偏心杠杆）刹车机构的3D物理模拟。通过偏心凸轮驱动拨杆旋转，推动刹车片压紧制动盘产生摩擦力矩。直观展示杠杆增力原理与摩擦制动的工作过程。",
+    "author": "姜韩宇",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "拨杆式刹车机构通过偏心凸轮旋转驱动拨杆，拨杆绕支点转动带动刹车片压紧制动盘。利用杠杆原理放大驱动力，产生足够的摩擦力矩实现制动。Three.js 3D渲染，支持OrbitControls交互。"
+  },
+  {
+    "slug": "caliper-brake-jiang",
+    "title": "钳式刹车机构 · 刚体防穿模物理抱闸系统",
+    "subtitle": "Caliper Brake Mechanism — Rigid-Body Anti-Clipping Physical Braking System",
+    "category": "cam-drive",
+    "tags": ["钳式刹车", "抱闸", "防穿模", "刚体物理", "制动系统", "3D仿真"],
+    "mechanismType": "钳式刹车机构",
+    "fileName": "钳式刹车机构.html",
+    "source": "uploaded",
+    "downloadable": true,
+    "description": "钳式刹车机构（抱闸系统）的3D物理仿真，含刚体防穿模处理。双侧刹车片从两侧夹紧制动盘，模拟真实钳式制动器的工作过程。通过液压/气压驱动活塞，推动刹车片进行摩擦制动。",
+    "author": "姜韩宇",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "钳式刹车机构（抱闸系统）由双侧活塞驱动刹车片从两侧夹紧制动盘产生摩擦力矩。包含刚体碰撞检测与防穿模物理处理。Three.js 3D渲染，支持OrbitControls交互旋转缩放。"
   }
 ]

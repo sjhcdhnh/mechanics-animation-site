@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Three.js 偏心杠杆刹车物理模拟</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f4f4f4; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
+        #ui-panel {
+            position: absolute; top: 20px; left: 20px; width: 320px;
+            background: rgba(255, 255, 255, 0.95); padding: 20px;
+            border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            pointer-events: auto; user-select: none;
+        }
+        h2 { margin: 0 0 15px 0; font-size: 18px; color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px;}
+        .data-row { display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: bold; font-size: 15px;}
+        #status { color: #2e7d32; transition: color 0.3s;}
+        #status.braking { color: #d32f2f; }
+        .slider-group { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd;}
+        .slider-group label { display: block; font-size: 13px; color: #555; margin-bottom: 8px; font-weight: bold;}
+        input[type=range] { width: 100%; cursor: pointer; accent-color: #9ac785; }
+        .tips { font-size: 12px; color: #888; margin-top: 15px; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-panel">
+        <h2>偏心杠杆刹车系统</h2>
+        <div class="data-row">
+            <span>系统状态:</span>
+            <span id="status">自由运转 (引擎驱动)</span>
+        </div>
+        <div class="data-row">
+            <span>当前转速:</span>
+            <span id="speedDisplay" style="color: #1976d2; font-variant-numeric: tabular-nums;">150 RPM</span>
+        </div>
+        
+        <div class="slider-group">
+            <label for="handleSlider">拉动绿色手柄向下制动</label>
+            <input type="range" id="handleSlider" min="-45" max="45" value="45" step="0.5">
+        </div>
+
+        <div class="tips">
+            * 往左拖动滑块：手柄向下，拉动连杆，摇臂下压产生物理摩擦。<br>
+            * 观察中心圆盘孔洞的转速变化。
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // ==========================================
+        // 1. 初始化场景、相机、渲染器
+        // ==========================================
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(-20, 14, 28);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 3, 0);
+        controls.enableDamping = true;
+
+        // ==========================================
+        // 2. 工业级光照
+        // ==========================================
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(15, 25, 15);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.left = -15;
+        dirLight.shadow.camera.right = 15;
+        dirLight.shadow.camera.top = 15;
+        dirLight.shadow.camera.bottom = -15;
+        scene.add(dirLight);
+
+        scene.add(new THREE.DirectionalLight(0xffffff, 0.3)).position.set(-15, -10, -15);
+
+        // ==========================================
+        // 3. 材质设定 (精准还原视频配色)
+        // ==========================================
+        const mats = {
+            wood: new THREE.MeshStandardMaterial({ color: 0xdcb878, roughness: 0.8 }),
+            woodDark: new THREE.MeshStandardMaterial({ color: 0xb58e50, roughness: 0.9 }),
+            blue: new THREE.MeshStandardMaterial({ color: 0x8ab4f8, roughness: 0.3 }),
+            green: new THREE.MeshStandardMaterial({ color: 0xa8d08d, roughness: 0.4 }),
+            pinkArm: new THREE.MeshStandardMaterial({ color: 0xea99c9, roughness: 0.4 }),
+            pinkPad: new THREE.MeshStandardMaterial({ color: 0xc66099, roughness: 0.9 }), // 刹车瓦粗糙度高
+            grey: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.2 }),
+            silver: new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.1, metalness: 0.8 })
+        };
+
+        const addShadow = (mesh) => { mesh.castShadow = true; mesh.receiveShadow = true; return mesh; };
+
+        // 全局结构参数
+        const wheelRadius = 4.5;
+        const hingePos = new THREE.Vector3(-7, 6.5, -1.5);
+        const camEccentricity = 0.8;
+        const mainAxisZ = -1.5;
+        const frontAxisZ = 1.0;
+
+        // ==========================================
+        // 4. 机械零件建模
+        // ==========================================
+
+        // A. 右侧支座与主轴
+        const rightBase = addShadow(new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), mats.grey));
+        rightBase.position.set(6.5, 0, mainAxisZ);
+        scene.add(rightBase);
+
+        const mainShaft = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 8, 32), mats.wood));
+        mainShaft.rotation.z = Math.PI / 2;
+        mainShaft.position.set(3, 0, mainAxisZ);
+        scene.add(mainShaft);
+
+        // B. 核心：带视觉孔洞的大圆盘 (为了肉眼看清减速过程)
+        const wheelGroup = new THREE.Group();
+        wheelGroup.position.set(0, 0, mainAxisZ);
+        
+        const wheel = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(wheelRadius, wheelRadius, 1.2, 64), mats.wood));
+        wheel.rotation.x = Math.PI / 2;
+        wheelGroup.add(wheel);
+
+        // 在圆盘上打 6 个孔/铆钉作为视觉参照物，否则转起来看不出快慢
+        for(let i=0; i<6; i++) {
+            const angle = (i / 6) * Math.PI * 2;
+            const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.25, 16), mats.woodDark);
+            hole.position.set(Math.cos(angle) * 2.8, Math.sin(angle) * 2.8, 0);
+            hole.rotation.x = Math.PI / 2;
+            wheelGroup.add(hole);
+        }
+        
+        const wheelCap = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 1.3, 32), mats.green));
+        wheelCap.rotation.x = Math.PI / 2;
+        wheelGroup.add(wheelCap);
+        scene.add(wheelGroup);
+
+        // C. 绿色输入机构 (把手 + 偏心轮)
+        const inputGroup = new THREE.Group();
+        inputGroup.position.set(0, 0, frontAxisZ);
+        
+        const camCore = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.8, 32), mats.green));
+        camCore.rotation.x = Math.PI / 2;
+        camCore.position.set(camEccentricity, 0, 0); // 偏心设置
+        inputGroup.add(camCore);
+
+        const handleBase = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mats.green));
+        handleBase.position.set(0, 0, 0.9);
+        inputGroup.add(handleBase);
+
+        const handleBar = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 6.5, 16), mats.green));
+        handleBar.rotation.z = -Math.PI / 2;
+        handleBar.position.set(3.25, 0, 0.9);
+        inputGroup.add(handleBar);
+        scene.add(inputGroup);
+
+        // D. 蓝色垂直连杆
+        const blueLinkGroup = new THREE.Group();
+        
+        const blueRing = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.0, 0.9, 32), mats.blue));
+        blueRing.rotation.x = Math.PI / 2;
+        blueLinkGroup.add(blueRing);
+        
+        const blueInner = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(1.52, 1.52, 0.95, 32), mats.wood)); // 假装透出后方颜色
+        blueInner.rotation.x = Math.PI / 2;
+        blueLinkGroup.add(blueInner);
+
+        const blueRod = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1.2, 3.8, 0.9), mats.blue));
+        blueRod.position.set(0, 2.5, 0);
+        blueLinkGroup.add(blueRod);
+
+        const blueTop = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 1.0, 32), mats.blue));
+        blueTop.rotation.x = Math.PI / 2;
+        blueTop.position.set(0, 4.8, 0);
+        blueLinkGroup.add(blueTop);
+        scene.add(blueLinkGroup);
+
+        // E. 左侧固定基座
+        const leftBase = new THREE.Group();
+        const baseBox1 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 3), mats.pinkArm));
+        baseBox1.position.set(-9, 6.5, mainAxisZ);
+        const baseBox2 = addShadow(new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 1.5), mats.pinkArm));
+        baseBox2.position.set(-5, 6.5, mainAxisZ);
+        const greyHinge = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.5, 1.5), mats.grey));
+        greyHinge.position.set(-5.5, 7.5, mainAxisZ);
+        leftBase.add(baseBox1, baseBox2, greyHinge);
+        
+        const hingePin = addShadow(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 3, 16), mats.silver));
+        hingePin.rotation.x = Math.PI / 2;
+        hingePin.position.copy(hingePos);
+        leftBase.add(hingePin);
+        scene.add(leftBase);
+
+        // F. 粉色摇臂与刹车瓦 (杠杆)
+        const rockerGroup = new THREE.Group();
+        rockerGroup.position.copy(hingePos); // 绝对锚点定在铰链上
+        
+        const beamLength = 7.0;
+        const pinkBeam = addShadow(new THREE.Mesh(new THREE.BoxGeometry(beamLength, 1.2, 1.5), mats.pinkArm));
+        pinkBeam.position.set(beamLength / 2 - 0.5, 0, 0);
+        rockerGroup.add(pinkBeam);
+
+        const joint = addShadow(new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.2, 2.5), mats.pinkArm));
+        joint.position.set(beamLength - 0.5, 0, 1.0);
+        rockerGroup.add(joint);
+
+        // 刹车瓦精确挤压建模
+        const padShape = new THREE.Shape();
+        padShape.absarc(0, 0, wheelRadius + 0.1, Math.PI/5, 4*Math.PI/5, false);
+        padShape.lineTo(Math.cos(4*Math.PI/5) * (wheelRadius + 1.2), Math.sin(4*Math.PI/5) * (wheelRadius + 1.2));
+        padShape.absarc(0, 0, wheelRadius + 1.2, 4*Math.PI/5, Math.PI/5, true);
+        
+        const padGeo = new THREE.ExtrudeGeometry(padShape, { depth: 1.3, bevelEnabled: false });
+        padGeo.translate(0, 0, -0.65);
+        const brakePad = addShadow(new THREE.Mesh(padGeo, mats.pinkPad));
+        
+        const padCoverGeo = new THREE.ExtrudeGeometry(padShape, { depth: 1.5, bevelEnabled: false });
+        padCoverGeo.translate(0, 0, -0.75);
+        const brakeCover = addShadow(new THREE.Mesh(padCoverGeo, mats.pinkArm));
+        brakeCover.scale.set(1.05, 1.05, 1);
+        brakeCover.position.y = 0.2;
+
+        const brakeGroup = new THREE.Group();
+        brakeGroup.add(brakeCover, brakePad);
+        brakeGroup.position.set(-hingePos.x, -hingePos.y, 0); // 抵消坐标，对齐世界中心圆盘
+        rockerGroup.add(brakeGroup);
+
+        scene.add(rockerGroup);
+
+        // ==========================================
+        // 5. 核心物理与运动学动画系统
+        // ==========================================
+        const slider = document.getElementById('handleSlider');
+        const uiStatus = document.getElementById('status');
+        const uiSpeed = document.getElementById('speedDisplay');
+
+        // 动力学变量
+        let currentSpeed = 150;     // 当前圆盘转速 (RPM)
+        const maxSpeed = 150;       // 引擎最高转速
+        const engineAccel = 1.0;    // 释放刹车后，引擎恢复动力的加速度
+        const frictionBase = 80;    // 刹车瓦的摩擦阻力系数
+        const brakeThreshold = -0.015; // 摇臂下压到这个角度，刹车瓦刚好碰到圆盘
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // 1. 获取滑块输入角度 (转化为弧度)
+            const inputAngle = parseFloat(slider.value) * Math.PI / 180;
+            inputGroup.rotation.z = inputAngle;
+
+            // 2. 偏心轮带动蓝色连杆位移
+            // 绿色偏心轮产生的垂直位移 y
+            const camY = camEccentricity * Math.sin(inputAngle);
+            const camX = camEccentricity * Math.cos(inputAngle);
+            
+            blueLinkGroup.position.y = camY;
+            blueLinkGroup.position.x = camX;
+            blueLinkGroup.position.z = frontAxisZ;
+
+            // 3. 蓝色连杆顶起粉色摇臂 (杠杆原理)
+            const leverArmDistance = beamLength - 0.5; 
+            // 连杆垂直位移导致摇臂发生的旋转角度
+            const rockerAngle = Math.atan2(camY, leverArmDistance);
+            rockerGroup.rotation.z = rockerAngle;
+
+            // 4. 核心物理逻辑：摩擦力减速与引擎加速
+            if (rockerAngle < brakeThreshold) {
+                // 刹车瓦压紧圆盘，摇臂角度越低，下压深度(压力)越大
+                const pressure = Math.abs(rockerAngle - brakeThreshold);
+                const drag = pressure * frictionBase; // 根据压力计算摩擦阻力
+                
+                // 阻力消耗速度
+                currentSpeed -= drag;
+                if (currentSpeed <= 0) {
+                    currentSpeed = 0; // 完全抱死停止
+                    uiStatus.textContent = "抱死停转 (紧急制动)";
+                } else {
+                    uiStatus.textContent = "减速中 (物理摩擦介入)";
+                }
+                uiStatus.className = "braking";
+
+            } else {
+                // 刹车释放，模拟引擎重新介入驱动
+                currentSpeed += engineAccel;
+                if (currentSpeed >= maxSpeed) {
+                    currentSpeed = maxSpeed;
+                    uiStatus.textContent = "自由运转 (引擎全速驱动)";
+                } else {
+                    uiStatus.textContent = "加速中 (引擎恢复动力)";
+                }
+                uiStatus.className = "";
+            }
+
+            // 5. 应用速度到轮子旋转 (将 RPM 粗略转换为弧度增量)
+            wheelGroup.rotation.z -= currentSpeed * 0.0015;
+            
+            // 更新 UI 数字面板
+            uiSpeed.textContent = Math.floor(currentSpeed).toString().padStart(3, '0') + " RPM";
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // 响应窗口尺寸变化
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

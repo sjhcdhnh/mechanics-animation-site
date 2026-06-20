@@ -102,15 +102,13 @@ export function TeachingAgent() {
       {/* ── Header bar ── */}
       <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-accent/15 flex items-center justify-center">
-            <SparkleIcon className="w-4.5 h-4.5 text-accent" />
-          </div>
+          <img src="/agent-logo.png" alt="" className="w-7 h-7 rounded-full object-cover border border-accent/20" />
           <div>
             <span className="text-sm font-semibold text-foreground">
-              AI 理论力学助教
+              AI助手-力学搭子
             </span>
             <span className="ml-2 text-[10px] text-muted bg-accent/8 px-1.5 py-0.5 rounded-full border border-accent/10">
-              同济版
+              同济版+资料库
             </span>
           </div>
         </div>
@@ -218,7 +216,7 @@ export function TeachingAgent() {
             </div>
             <div>
               <p className="text-sm text-muted font-medium">
-                我是基于同济版《理论力学》教材的 AI 助教
+                我是你的力学搭子，基于同济版《理论力学》教材+练习册+课件
               </p>
               <p className="text-[11px] text-muted/60 mt-1.5 max-w-sm">
                 点击上方快捷提问或在输入框输入你的问题，我将为你解答

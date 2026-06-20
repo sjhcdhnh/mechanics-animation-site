@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 Solver/Solver/
+
+# 理论力学资料（隐私，不提交）
+理论力学电子材料/
+../理论力学电子材料/

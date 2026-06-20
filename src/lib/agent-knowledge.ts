@@ -5,6 +5,8 @@
  * 涵盖静力学、运动学、动力学、分析力学、振动理论等全部核心内容。
  */
 
+import { getMaterialsAugmentation } from './materials-context';
+
 // ── 章节预设问题 ──
 
 export interface ChapterQuestions {
@@ -327,5 +329,6 @@ export function getAgentSystemPrompt(
     return `${base}\n\n## 额外知识库\n${additionalContext}`;
   }
 
-  return base;
+  // 默认注入资料库索引
+  return base + getMaterialsAugmentation();
 }

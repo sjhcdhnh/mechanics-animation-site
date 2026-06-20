@@ -11,7 +11,7 @@ export function Header() {
 
   const navLinks = [
     { href: '/', label: '首页' },
-    { href: '/agent', label: 'AI助教' },
+    { href: '/agent', label: 'AI助手-力学搭子', icon: '/agent-logo.png' },
     { href: '/about', label: '关于' },
     { href: '/deep-learning', label: '深度学习' },
     { href: '/upload', label: '上传' },
@@ -42,12 +42,15 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   prefetch={false}
-                  className={`relative px-3 py-1.5 rounded-lg text-sm transition-colors duration-200 ${
+                  className={`relative px-3 py-1.5 rounded-lg text-sm transition-colors duration-200 flex items-center gap-1.5 ${
                     isActive
                       ? 'text-accent font-medium'
                       : 'text-muted hover:text-foreground'
                   }`}
                 >
+                  {link.icon && (
+                    <img src={link.icon} alt="" className="w-5 h-5 rounded-full object-cover border border-border/50" />
+                  )}
                   {link.label}
                   {isActive && (
                     <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-accent rounded-full" />

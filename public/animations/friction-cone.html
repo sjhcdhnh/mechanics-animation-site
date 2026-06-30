@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><title>摩擦锥与自锁 · 摩擦演示</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#cdd6f4}
+#title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:16px;color:#e0e6f8;pointer-events:none}
+#hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.8);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7;backdrop-filter:blur(4px);min-width:200px}
+#hud b{color:#f5e0dc}#hud .ok{color:#a6e3a1}#hud .warn{color:#f9a8d4}
+#params{position:absolute;top:12px;right:16px;padding:12px 16px;background:rgba(20,22,38,0.8);border:1px solid #2a2f4a;border-radius:8px;font-size:11px;line-height:2;backdrop-filter:blur(4px);min-width:200px}
+#params input{width:100px;accent-color:#a78bfa}#params span.val{color:#a78bfa;font-weight:600}
+#legend{position:absolute;bottom:14px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.75);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7}
+.sw{display:inline-block;width:14px;height:8px;margin-right:5px;border-radius:2px;vertical-align:middle;border:1px solid rgba(255,255,255,0.15)}
+#hint{position:absolute;bottom:14px;right:12px;padding:8px 12px;background:rgba(20,22,38,0.5);border:1px solid #2a2f4a;border-radius:6px;font-size:11px;color:#8b95b8}
+</style></head>
+<body>
+<div id="title">摩擦锥与自锁</div>
+<div id="hud">
+  <b>🔺 摩擦锥与自锁</b><br>
+  μ = <span style="color:#a78bfa" id="v-mu">0.50</span> &nbsp; φ = <span style="color:#f9a8d4" id="v-phi">--</span><br>
+  推力角 α = <span style="color:#89b4fa" id="v-alpha">20°</span><br>
+  状态: <b id="v-state" class="ok">自锁（不动）</b><br>
+  <span style="font-size:10px;color:#71717a">推力在锥内→自锁 | 锥外→滑动</span>
+</div>
+<div id="params">
+  <div>摩擦系数 μ <input type="range" id="s-mu" min="10" max="100" value="50" step="1"> <span class="val" id="l-mu">0.50</span></div>
+  <div>推力角 α <input type="range" id="s-alpha" min="0" max="80" value="20" step="1"> <span class="val" id="l-alpha">20°</span></div>
+  <div>推力大小 P <input type="range" id="s-p" min="1" max="20" value="6" step="1"> <span class="val" id="l-p">6</span></div>
+</div>
+<div id="legend">
+  <span class="sw" style="background:#f9a8d4"></span>摩擦锥 (半角 φ=arctan μ)
+  <span class="sw" style="background:#f5e0dc"></span>重力 mg
+  <span class="sw" style="background:#89b4fa"></span>推力 P
+  <span class="sw" style="background:#f38ba8"></span>法向力 N+摩擦力 f
+</div>
+<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移 · 右上面板调参数</div>
+<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
+<script type=module>
+import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+const S=new T.Scene();S.background=new T.Color('#0a0a14');S.fog=new T.Fog('#0a0a14',8,25);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,20);C.position.set(4,3.5,7);C.lookAt(0,.5,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
+const O=new OrbitControls(C,R.domElement);O.target.set(0,.5,0);O.enableDamping=true;O.minPolarAngle=.2;O.maxPolarAngle=1.3;O.update();
+S.add(new T.AmbientLight('#404060',2.5));const L=new T.DirectionalLight('#fff',5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.camera.far=25;L.shadow.camera.left=-6;L.shadow.camera.right=6;L.shadow.camera.top=5;L.shadow.camera.bottom=-3;S.add(L);
+S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-3,3,-3));
+const grid=new T.GridHelper(8,16,'#2a2f4a','#1a1f2e');grid.position.y=-.6;S.add(grid);
+// Ground
+const ground=new T.Mesh(new T.BoxGeometry(5,.08,3),new T.MeshStandardMaterial({color:'#3a3a48',metalness:.2,roughness:.8}));ground.position.y=-.65;ground.receiveShadow=true;S.add(ground);
+
+const blkW=1.2,blkH=.8,blkD=.6;
+const block=new T.Mesh(new T.BoxGeometry(blkW,blkH,blkD),new T.MeshStandardMaterial({color:'#cba6f7',metalness:.1,roughness:.6}));
+block.position.y=blkH/2;block.castShadow=true;S.add(block);
+
+const coneG=new T.Group(),arrowG=new T.Group();S.add(coneG);S.add(arrowG);
+
+function arrow(from,to,color,r=.025){
+  const d=new T.Vector3().subVectors(to,from);const len=d.length();if(len<.001)return new T.Group();const g=new T.Group();
+  const shaft=new T.Mesh(new T.CylinderGeometry(r,r,len*.82,8),new T.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.4}));
+  shaft.position.y=len*.41;g.add(shaft);
+  const head=new T.Mesh(new T.ConeGeometry(r*2.5,r*3.5,8),new T.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.5}));
+  head.position.y=len*.82;g.add(head);
+  g.position.copy(from);g.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return g;}
+
+function update(){
+  const mu=+document.getElementById('s-mu').value/100;
+  const alpha=+document.getElementById('s-alpha').value*Math.PI/180;
+  const P=+document.getElementById('s-p').value;
+  const phi=Math.atan(mu);
+  document.getElementById('l-mu').textContent=mu.toFixed(2);document.getElementById('v-mu').textContent=mu.toFixed(2);
+  document.getElementById('l-alpha').textContent=+document.getElementById('s-alpha').value+'°';document.getElementById('v-alpha').textContent=+document.getElementById('s-alpha').value+'°';
+  document.getElementById('v-phi').textContent=(phi*180/Math.PI).toFixed(1)+'°';
+  document.getElementById('l-p').textContent=P;
+  const locked=alpha<=phi;
+  document.getElementById('v-state').textContent=locked?'自锁（不动）':'滑动！';
+  document.getElementById('v-state').className=locked?'ok':'warn';
+
+  while(coneG.children.length)coneG.remove(coneG.children[0]);
+  while(arrowG.children.length)arrowG.remove(arrowG.children[0]);
+
+  const contactPt=new T.Vector3(0,0,0); // contact point at origin, surface level
+  // Friction cone — wireframe cone from contact point, half-angle phi, axis upward
+  const coneH=2.0;const coneR=coneH*Math.tan(phi);
+  const coneGeo=new T.ConeGeometry(coneR,coneH,32,1,true);
+  const coneWire=new T.LineSegments(new T.EdgesGeometry(coneGeo),new T.LineBasicMaterial({color:'#f9a8d4',transparent:true,opacity:.5}));
+  coneWire.position.y=coneH/2;coneG.add(coneWire);
+  // Solid semi-transparent cone
+  const coneSolid=new T.Mesh(coneGeo,new T.MeshBasicMaterial({color:'#f9a8d4',transparent:true,opacity:.08,side:T.DoubleSide,depthWrite:false}));
+  coneSolid.position.y=coneH/2;coneG.add(coneSolid);
+
+  // Force arrows
+  // Gravity from block center
+  const blkCenter=new T.Vector3(0,blkH/2,0);
+  arrowG.add(arrow(blkCenter,new T.Vector3(0,-.5,0),'#f5e0dc',.028));
+  // Push force P at angle alpha from contact point
+  const pDir=new T.Vector3(Math.sin(alpha),Math.cos(alpha),0);
+  const pEnd=contactPt.clone().add(pDir.clone().multiplyScalar(P*.35));
+  arrowG.add(arrow(contactPt.clone(),pEnd,locked?'#89b4fa':'#f38ba8',.028));
+
+  // If sliding: also show resultant normal+friction
+  if(!locked){
+    const N=2;const f=mu*N;
+    const nEnd=contactPt.clone().add(new T.Vector3(0,N*.4,0));arrowG.add(arrow(contactPt.clone(),nEnd,'#89b4fa',.02));
+    const fEnd=contactPt.clone().add(new T.Vector3(Math.cos(alpha)*f*.3,0,0));arrowG.add(arrow(contactPt.clone(),fEnd,'#f38ba8',.02));
+  }
+
+  // Label the friction angle
+  const labelAngle=Math.min(phi,.4);
+  const labelPt=contactPt.clone().add(new T.Vector3(Math.sin(labelAngle)*1.2,Math.cos(labelAngle)*1.2,0));
+}
+
+update();
+document.querySelectorAll('input[type=range]').forEach(el=>el.addEventListener('input',update));
+(function a(){requestAnimationFrame(a);O.update();R.render(S,C);})();
+window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+</script></body></html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>输电塔 · 内力可视化</title>
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#cdd6f4;}
+#title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:16px;color:#e0e6f8;pointer-events:none;text-shadow:0 2px 6px #000;}
+#hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.75);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.8;backdrop-filter:blur(4px);min-width:200px;}
+#hud b{color:#f5e0dc;font-weight:600;}
+#toggle{position:absolute;top:12px;right:16px;display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(20,22,38,0.75);border:1px solid #2a2f4a;border-radius:8px;font-size:12px;cursor:pointer;backdrop-filter:blur(4px);user-select:none;}
+#legend{position:absolute;bottom:14px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.75);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.8;}
+.sw{display:inline-block;width:14px;height:8px;margin-right:5px;border-radius:2px;vertical-align:middle;border:1px solid rgba(255,255,255,0.15);}
+#hint{position:absolute;bottom:14px;right:12px;padding:8px 12px;background:rgba(20,22,38,0.5);border:1px solid #2a2f4a;border-radius:6px;font-size:11px;color:#8b95b8;}
+</style>
+</head>
+<body>
+<div id="title">输电塔 · 内力可视化</div>
+<div id="hud">
+  <b>⚡ 输电塔</b><br>
+  塔高: <span style="color:#a6e3a1">45 m</span> · 底宽: <span style="color:#a6e3a1">6 m</span><br>
+  横担: <span style="color:#a6e3a1">3层</span> · 杆件: <span id="mc">--</span><br>
+  最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>
+  最大压力: <span style="color:#f38ba8" id="mc2">--</span>
+</div>
+<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#4ecdc4;box-shadow:0 0 6px #4ecdc4;"></span>内力显示: <span id="tl">开</span></div>
+<div id="legend">
+  <span class="sw" style="background:#4ecdc4;"></span>拉力 (Tension)
+  <span class="sw" style="background:#f38ba8;"></span>压力 (Compression)
+  <span style="margin-left:8px;color:#71717a;">杆粗细正比于内力大小</span>
+</div>
+<div id="hint">🖱 拖拽旋转 · 滚轮缩放 · 右键平移</div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene=new THREE.Scene();scene.background=new THREE.Color('#0a0a14');scene.fog=new THREE.Fog('#0a0a14',8,30);
+const cam=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.2,50);cam.position.set(7,5,10);cam.lookAt(0,4,0);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setSize(innerWidth,innerHeight);ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.shadowMap.enabled=true;ren.shadowMap.type=THREE.PCFSoftShadowMap;ren.toneMapping=THREE.ACESFilmicToneMapping;ren.toneMappingExposure=1.1;document.body.appendChild(ren.domElement);
+const ctrl=new OrbitControls(cam,ren.domElement);ctrl.target.set(0,4,0);ctrl.enableDamping=true;ctrl.update();
+
+scene.add(new THREE.AmbientLight('#404060',2));
+const sun=new THREE.DirectionalLight('#fff',5);sun.position.set(8,12,6);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.near=0.5;sun.shadow.camera.far=50;sun.shadow.camera.left=-8;sun.shadow.camera.right=8;sun.shadow.camera.top=12;sun.shadow.camera.bottom=-2;scene.add(sun);
+scene.add(new THREE.DirectionalLight('#8899cc',1.5).position.set(-4,3,-3));
+scene.add(new THREE.GridHelper(16,16,'#2a2f4a','#1a1f2e').translateY(-1));
+
+// ── Transmission Tower (tapered square-section lattice) ──
+const H=9,levels=[{y:0,w:2.2},{y:3.5,w:0.9},{y:5.2,w:0.9},{y:6.5,w:1.4},{y:H,w:0.6}];
+const joints=[],members=[];
+levels.forEach((lv,i)=>{
+  const hw=lv.w/2;
+  [{x:-hw,z:-hw},{x:hw,z:-hw},{x:hw,z:hw},{x:-hw,z:hw}].forEach(c=>joints.push({x:c.x,y:lv.y,z:c.z}));
+});
+for(let i=0;i<4;i++)joints[i].fixed=true;
+// Legs
+for(let l=0;l<levels.length-1;l++)for(let c=0;c<4;c++)members.push({a:l*4+c,b:(l+1)*4+c});
+// Horizontals each level
+for(let l=0;l<levels.length;l++){const b=l*4;members.push({a:b,b:b+1});members.push({a:b+1,b:b+2});members.push({a:b+2,b:b+3});members.push({a:b+3,b:b});}
+// X-bracing between levels
+for(let l=0;l<levels.length-1;l++){const b0=l*4,b1=(l+1)*4;
+  members.push({a:b0,b:b1+1});members.push({a:b0+1,b:b1});
+  members.push({a:b0+1,b:b1+2});members.push({a:b0+2,b:b1+1});
+  members.push({a:b0+2,b:b1+3});members.push({a:b0+3,b:b1+2});
+  members.push({a:b0+3,b:b1});members.push({a:b0,b:b1+3});
+}
+// Top ring
+const tp=4*4;members.push({a:tp,b:tp+1});members.push({a:tp+1,b:tp+2});members.push({a:tp+2,b:tp+3});members.push({a:tp+3,b:tp});
+
+// ── Solve 3D ──
+function solve3D(){
+  const nJ=joints.length,nM=members.length;
+  const freeJ=joints.map((j,i)=>j.fixed?null:[i*3,i*3+1,i*3+2]).filter(Boolean);
+  const nFree=freeJ.length*3;
+  const A=Array.from({length:nFree},()=>new Array(nM).fill(0));
+  const b=new Array(nFree).fill(0);
+  let eq=0;
+  joints.forEach((j,ji)=>{if(j.fixed)return;
+    members.forEach((m,mi)=>{const j1=joints[m.a],j2=joints[m.b];const dx=j2.x-j1.x,dy=j2.y-j1.y,dz=j2.z-j1.z;const L=Math.sqrt(dx*dx+dy*dy+dz*dz)||1,cx=dx/L,cy=dy/L,cz=dz/L;
+      if(m.a===ji){A[eq][mi]=-cx;A[eq+1][mi]=-cy;A[eq+2][mi]=-cz;}
+      if(m.b===ji){A[eq][mi]=cx;A[eq+1][mi]=cy;A[eq+2][mi]=cz;}
+    });
+    eq+=3;
+  });
+  // Loads: conductor tension at cross-arm levels + wind
+  for(let c=0;c<4;c++){const ji=8+c;if(!joints[ji].fixed){const eeq=joints.slice(0,ji).filter(j=>!j.fixed).length*3;b[eeq]=-3;b[eeq+1]=-15;}}
+  for(let c=0;c<4;c++){const ji=12+c;if(!joints[ji].fixed){const eeq=joints.slice(0,ji).filter(j=>!j.fixed).length*3;b[eeq]=-2;b[eeq+1]=-10;}}
+  for(let c=0;c<4;c++){const ji=16+c;if(!joints[ji].fixed){const eeq=joints.slice(0,ji).filter(j=>!j.fixed).length*3;b[eeq]=-1;b[eeq+1]=-5;}}
+  const sz=nFree,mat=Array.from({length:sz},(_,r)=>{const row=[...A[r],b[r]];return row;});
+  for(let c=0;c<Math.min(sz,nM);c++){
+    let p=-1;for(let r=c;r<sz;r++)if(Math.abs(mat[r][c])>1e-8){p=r;break;}if(p===-1)continue;
+    [mat[c],mat[p]]=[mat[p],mat[c]];
+    for(let r=c+1;r<sz;r++){const f=mat[r][c]/mat[c][c];for(let k=c;k<=nM;k++)mat[r][k]-=f*mat[c][k];}
+  }
+  const forces=new Array(nM).fill(0);
+  for(let i=Math.min(sz,nM)-1;i>=0;i--){if(Math.abs(mat[i][i])<1e-8)continue;let s=mat[i][nM];for(let j=i+1;j<nM;j++)s-=mat[i][j]*forces[j];forces[i]=s/mat[i][i];}
+  return forces;
+}
+const forces=solve3D();
+document.getElementById('mc').textContent=members.length;
+
+// ── Render ──
+const gF=new THREE.Group(),gN=new THREE.Group();let show=true;scene.add(gF);scene.add(gN);
+const matT=new THREE.MeshStandardMaterial({color:'#4ecdc4',metalness:0.15,roughness:0.5,emissive:'#4ecdc4',emissiveIntensity:0.25});
+const matC=new THREE.MeshStandardMaterial({color:'#f38ba8',metalness:0.15,roughness:0.5,emissive:'#f38ba8',emissiveIntensity:0.25});
+const matZ=new THREE.MeshStandardMaterial({color:'#555566',metalness:0.2,roughness:0.6});
+const matGray=new THREE.MeshStandardMaterial({color:'#71717a',metalness:0.3,roughness:0.6});
+const matJ=new THREE.MeshStandardMaterial({color:'#e8e8f0',metalness:0.6,roughness:0.3,emissive:'#fff',emissiveIntensity:0.15});
+
+function beam3D(p1,p2,r,m){const d=new THREE.Vector3().subVectors(p2,p1);const len=d.length();const mid=new THREE.Vector3().addVectors(p1,p2).multiplyScalar(0.5);
+  const geo=new THREE.CylinderGeometry(r,r,len,8);const mesh=new THREE.Mesh(geo,m);mesh.position.copy(mid);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mesh.castShadow=true;return mesh;}
+
+const maxF=Math.max(...forces.map(Math.abs),1);
+let mt=0,mc2=0;forces.forEach(f=>{if(f>mt)mt=f;if(-f>mc2)mc2=-f;});
+members.forEach((m,i)=>{
+  const p1=new THREE.Vector3(joints[m.a].x,joints[m.a].y,joints[m.a].z),p2=new THREE.Vector3(joints[m.b].x,joints[m.b].y,joints[m.b].z);
+  const f=forces[i],af=Math.abs(f)/maxF,r=0.04+af*0.1;
+  let mat;if(f>0.01*maxF)mat=matT;else if(f<-0.01*maxF)mat=matC;else mat=matZ;
+  gF.add(beam3D(p1,p2,r,mat));gN.add(beam3D(p1,p2,0.04,matGray));
+});
+joints.forEach(j=>{const s=new THREE.Mesh(new THREE.SphereGeometry(0.1,12,12),matJ.clone());s.position.set(j.x,j.y,j.z);s.castShadow=true;gF.add(s);gN.add(s.clone());});
+gN.visible=false;
+
+document.getElementById('mt').textContent=mt.toFixed(1)+' kN';
+document.getElementById('mc2').textContent=mc2.toFixed(1)+' kN';
+
+// ── Extras ──
+// Cross arms (3 levels)
+[{y:3.5,w:3.5},{y:5.2,w:3},{y:H,w:2.5}].forEach(({y,w})=>{
+  const arm=new THREE.Mesh(new THREE.BoxGeometry(w,0.06,0.1),new THREE.MeshStandardMaterial({color:'#7a7a8e',metalness:0.5,roughness:0.4}));
+  arm.position.y=y;arm.castShadow=true;scene.add(arm);
+  // Insulators
+  [-w/2,w/2].forEach(x=>{const ins=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.05,0.4,8),new THREE.MeshStandardMaterial({color:'#ccc',metalness:0.1,roughness:0.7}));ins.position.set(x,y-0.22,0);ins.castShadow=true;scene.add(ins);});
+});
+// Base plate
+const bp=new THREE.Mesh(new THREE.BoxGeometry(2.8,0.12,2.8),new THREE.MeshStandardMaterial({color:'#4a4a58',metalness:0.4,roughness:0.6}));
+bp.position.y=-0.1;bp.receiveShadow=true;scene.add(bp);
+
+// ── Toggle ──
+window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;
+  document.getElementById('td').style.background=show?'#4ecdc4':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #4ecdc4':'none';
+  document.getElementById('tl').textContent=show?'开':'关';};
+
+function animate(){requestAnimationFrame(animate);ctrl.update();ren.render(scene,cam);}animate();
+window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight);});
+</script></body></html>

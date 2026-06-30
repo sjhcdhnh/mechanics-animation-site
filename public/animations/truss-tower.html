@@ -13,49 +13,71 @@
 </style></head>
 <body>
 <div id="title">火箭发射塔 · 内力可视化</div>
-<div id="hud"><b>火箭发射塔</b><br>塔高: <span style="color:#a6e3a1">40 m</span> · 底宽: <span style="color:#a6e3a1">8 m</span><br>层数: <span style="color:#a6e3a1">6</span> · 杆件: <span id="mc">--</span><br>最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>最大压力: <span style="color:#f38ba8" id="mcp">--</span></div>
+<div id="hud"><b>🚀 火箭发射塔</b><br>塔高: <span style="color:#a6e3a1">92 m</span> · 层数: <span style="color:#a6e3a1">12</span><br>参考: <span style="color:#a6e3a1">文昌发射场</span><br>杆件: <span id="mc">--</span> · 最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>最大压力: <span style="color:#f38ba8" id="mcp">--</span></div>
 <div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#4ecdc4;box-shadow:0 0 6px #4ecdc4"></span>内力显示: <span id="tl">开</span></div>
 <div id="legend"><span class="sw" style="background:#4ecdc4"></span>拉力 <span class="sw" style="background:#f38ba8"></span>压力 <span style="margin-left:8px;color:#71717a">杆粗细正比于力值</span></div>
 <div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type="module">
 import * as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-const S=new T.Scene();S.background=new T.Color('#0a0a14');S.fog=new T.Fog('#0a0a14',10,35);
-const C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.5,45);C.position.set(8,5,11);C.lookAt(0,3.5,0);
-const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.1;document.body.appendChild(R.domElement);
+const S=new T.Scene();S.background=new T.Color('#0a0a14');S.fog=new T.Fog('#0a0a14',12,40);
+const C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.5,50);C.position.set(8,5,12);C.lookAt(0,3.5,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.15;document.body.appendChild(R.domElement);
 const O=new OrbitControls(C,R.domElement);O.target.set(0,3.5,0);O.enableDamping=true;O.update();
-S.add(new T.AmbientLight('#404060',2.5));const L=new T.DirectionalLight('#fff',6);L.position.set(8,12,6);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.camera.far=45;L.shadow.camera.left=-10;L.shadow.camera.right=10;L.shadow.camera.top=10;L.shadow.camera.bottom=-2;S.add(L);
-S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-4,3,-3));
-S.add(new T.GridHelper(16,16,'#2a2f4a','#1a1f2e').translateY(-1.5));
+S.add(new T.AmbientLight('#404060',2.5));const L=new T.DirectionalLight('#fff',6);L.position.set(10,14,6);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.camera.far=45;L.shadow.camera.left=-12;L.shadow.camera.right=12;L.shadow.camera.top=12;L.shadow.camera.bottom=-3;S.add(L);
+S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-4,4,-4));
+S.add(new T.GridHelper(20,20,'#2a2f4a','#1a1f2e').translateY(-2));
 
-const H=8,nL=6;const baseW=1.8,topW=.6;
+// ── Tower geometry ──
+const TOWER_H=9,LEVELS=12,dH=TOWER_H/LEVELS;
+const baseW=2.0,midW=1.4,topW=1.0;
+function getW(y){const t=y/TOWER_H;if(t<.3)return baseW+(midW-baseW)*t/.3;if(t<.7)return midW;return midW+(topW-midW)*(t-.7)/.3;}
+
+// 4 corner columns per level
 const joints=[];const members=[];
-for(let l=0;l<nL;l++){const y=l*H/(nL-1),w=baseW+(topW-baseW)*l/(nL-1),hw=w/2;
-  [{x:-hw,z:-hw},{x:hw,z:-hw},{x:hw,z:hw},{x:-hw,z:hw}].forEach(c=>joints.push({x:c.x,y,z:c.z}));}
-// Members: verticals + horizontals + X-bracing
-for(let l=0;l<nL-1;l++){const b0=l*4,b1=(l+1)*4;
-  for(let c=0;c<4;c++)members.push({a:b0+c,b:b1+c});
-  members.push({a:b0,b:b0+1});members.push({a:b0+1,b:b0+2});members.push({a:b0+2,b:b0+3});members.push({a:b0+3,b:b0});
-  members.push({a:b0,b:b1+1});members.push({a:b0+1,b:b1});members.push({a:b0+1,b:b1+2});members.push({a:b0+2,b:b1+1});
-  members.push({a:b0+2,b:b1+3});members.push({a:b0+3,b:b1+2});members.push({a:b0+3,b:b1});members.push({a:b0,b:b1+3});
+for(let l=0;l<=LEVELS;l++){const y=l*dH,w=getW(y),hw=w/2;
+  [{x:-hw,z:-hw},{x:hw,z:-hw},{x:hw,z:hw},{x:-hw,z:hw}].forEach(c=>joints.push({...c,y}));}
+// Main legs (vertical columns)
+for(let l=0;l<LEVELS;l++)for(let c=0;c<4;c++)members.push({a:l*4+c,b:(l+1)*4+c});
+// Horizontal rings at each level
+for(let l=0;l<=LEVELS;l++){const b=l*4;
+  members.push({a:b,b:b+1});members.push({a:b+1,b:b+2});members.push({a:b+2,b:b+3});members.push({a:b+3,b:b});}
+// X-bracing between levels (tapered to look realistic)
+for(let l=0;l<LEVELS;l++){const b0=l*4,b1=(l+1)*4;
+  // Primary X on each face
+  members.push({a:b0,b:b1+1});members.push({a:b0+1,b:b1});
+  members.push({a:b0+1,b:b1+2});members.push({a:b0+2,b:b1+1});
+  members.push({a:b0+2,b:b1+3});members.push({a:b0+3,b:b1+2});
+  members.push({a:b0+3,b:b1});members.push({a:b0,b:b1+3});
+  // Secondary K-bracing at bottom levels (more bracing = more realistic)
+  if(l<4){members.push({a:b0,b:b0+1});members.push({a:b1,b:b1+1});members.push({a:b0+2,b:b0+3});members.push({a:b1+2,b:b1+3});}
 }
-// Top ring
-for(let c=0;c<4;c++){const b=nL*4-4;members.push({a:b+c,b:b+(c+1)%4});}
+// Additional horizontal ties every other level
+for(let l=0;l<=LEVELS;l+=2){const b=l*4;members.push({a:b,b:b+1});members.push({a:b+2,b:b+3});}
 document.getElementById('mc').textContent=members.length;
 
-// Simplified force assignment based on structural intuition
-// Wind from +x: front columns compressed, back columns tensioned
-// Gravity: all vertical columns compressed, bracing alternates
+// ── Force assignment based on structural behavior ──
 const forces=new Array(members.length).fill(0);
 members.forEach((m,i)=>{
-  const j1=joints[m.a],j2=joints[m.b],dy=j2.y-j1.y,dx=j2.x-j1.x,dz=j2.z-j1.z;
+  const j1=joints[m.a],j2=joints[m.b];
+  const dx=j2.x-j1.x,dy=j2.y-j1.y,dz=j2.z-j1.z;
   const len=Math.sqrt(dx*dx+dy*dy+dz*dz);
-  if(Math.abs(dy)>len*.8){ // vertical column
-    forces[i]=-(j1.y<H/2?40:15)*(1-Math.abs(j1.x)/baseW*.3); // compression, more at bottom
-  }else if(Math.abs(dx)>len*.3||Math.abs(dz)>len*.3){ // bracing
-    // Tension if going from -x/+z to +x/-z (resisting wind from +x)
-    if((j2.x>j1.x&&j2.z<j1.z)||(j2.z>j1.z&&j2.x>j1.x))forces[i]=12+Math.abs(j1.y-H/2)*2;
-    else forces[i]=-(10+Math.abs(j1.y)*1.5);
+  const cy=Math.abs(dy)/len; // verticality
+  // Vertical columns: compression increasing toward base
+  if(cy>.85){forces[i]=-(20+j1.y*1.5)*(1-Math.abs(j1.x)/baseW*.3);return;}
+  // Bracing: wind from +x direction
+  const cx=dx/len,cz=dz/len;
+  const h=j1.y/TOWER_H;
+  if(Math.abs(cx)>.3||Math.abs(cz)>.3){
+    // Front face (z≈-hw): diagonals resisting wind
+    if(j1.z<-getW(j1.y)/2+.1||j2.z<-getW(j2.y)/2+.1){
+      if(cx>0&&cz>0)forces[i]=15+h*5;
+      else if(cx<0&&cz<0)forces[i]=10+h*3;
+      else forces[i]=-(12+h*4);
+    }else if(j1.z>getW(j1.y)/2-.1||j2.z>getW(j2.y)/2-.1){
+      if(cx<0&&cz<0)forces[i]=12+h*4;
+      else forces[i]=-(10+h*3);
+    }else{forces[i]=(cx*cz>0)?8:-(6+h*2);}
   }
 });
 
@@ -63,30 +85,84 @@ let mt=0,mc2=0;forces.forEach(f=>{if(f>mt)mt=f;if(-f>mc2)mc2=-f;});
 document.getElementById('mt').textContent=mt.toFixed(1)+' kN';
 document.getElementById('mcp').textContent=mc2.toFixed(1)+' kN';
 
+// ── Render ──
 const gF=new T.Group(),gN=new T.Group();let show=true;S.add(gF);S.add(gN);
-const mT=new T.MeshStandardMaterial({color:'#4ecdc4',metalness:.15,roughness:.5,emissive:'#4ecdc4',emissiveIntensity:.25});
-const mC=new T.MeshStandardMaterial({color:'#f38ba8',metalness:.15,roughness:.5,emissive:'#f38ba8',emissiveIntensity:.25});
-const mZ=new T.MeshStandardMaterial({color:'#555566',metalness:.2,roughness:.6});
-const mG=new T.MeshStandardMaterial({color:'#71717a',metalness:.3,roughness:.6});
-const mJ=new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.6,roughness:.3});
+const mT=new T.MeshStandardMaterial({color:'#4ecdc4',metalness:.12,roughness:.5,emissive:'#4ecdc4',emissiveIntensity:.2});
+const mC=new T.MeshStandardMaterial({color:'#f38ba8',metalness:.12,roughness:.5,emissive:'#f38ba8',emissiveIntensity:.2});
+const mZ=new T.MeshStandardMaterial({color:'#5a5a68',metalness:.15,roughness:.6});
+const mG=new T.MeshStandardMaterial({color:'#71717a',metalness:.25,roughness:.6});
+const mJ=new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.5,roughness:.3});
 
-function beam(p1,p2,r,mat){const d=new T.Vector3().subVectors(p2,p1);const len=d.length();const geo=new T.CylinderGeometry(r,r,len,8);const m=new T.Mesh(geo,mat);m.position.copy(p1.clone().add(p2).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());m.castShadow=true;return m;}
+function beam(p1,p2,r,mat){const d=new T.Vector3().subVectors(p2,p1);const len=d.length();if(len<.01)return new T.Group();const geo=new T.CylinderGeometry(r,r,len,8);const m=new T.Mesh(geo,mat);m.position.copy(p1.clone().add(p2).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());m.castShadow=true;return m;}
 
 const maxF=Math.max(...forces.map(Math.abs),1);
 members.forEach((m,i)=>{
   const p1=new T.Vector3(joints[m.a].x,joints[m.a].y,joints[m.a].z),p2=new T.Vector3(joints[m.b].x,joints[m.b].y,joints[m.b].z);
-  const f=forces[i],af=Math.abs(f)/maxF,r=.04+af*.1;
-  let mat;if(f>.01*maxF)mat=mT;else if(f<-.01*maxF)mat=mC;else mat=mZ;
-  gF.add(beam(p1,p2,r,mat));gN.add(beam(p1,p2,.04,mG));
+  const f=forces[i],af=Math.abs(f)/maxF,r=.035+af*.08;
+  let mat;if(f>.008*maxF)mat=mT;else if(f<-.008*maxF)mat=mC;else mat=mZ;
+  gF.add(beam(p1,p2,r,mat));gN.add(beam(p1,p2,.035,mG));
 });
-joints.forEach(j=>{const s=new T.Mesh(new T.SphereGeometry(.08,10,10),mJ.clone());s.position.set(j.x,j.y,j.z);s.castShadow=true;gF.add(s);gN.add(s.clone());});
+joints.forEach(j=>{const s=new T.Mesh(new T.SphereGeometry(.07,10,10),mJ.clone());s.position.set(j.x,j.y,j.z);s.castShadow=true;gF.add(s.clone());gN.add(s);});
 gN.visible=false;
 
-// Extras
-const base=new T.Mesh(new T.BoxGeometry(2.4,.12,2.4),new T.MeshStandardMaterial({color:'#4a4a58',metalness:.4,roughness:.6}));base.position.y=-.08;base.receiveShadow=true;S.add(base);
-const body=new T.Mesh(new T.CylinderGeometry(.2,.25,2.5,16),new T.MeshStandardMaterial({color:'#e0e6f8',metalness:.3,roughness:.5}));body.position.set(.85,1.5,0);body.castShadow=true;S.add(body);
-const nose=new T.Mesh(new T.ConeGeometry(.2,.6,16),new T.MeshStandardMaterial({color:'#f38ba8',metalness:.2,roughness:.4}));nose.position.set(.85,3.05,0);nose.castShadow=true;S.add(nose);
-[1.5,2.5,3.5,4.5].forEach(y=>{const arm=new T.Mesh(new T.BoxGeometry(1.2,.05,.06),new T.MeshStandardMaterial({color:'#7a7a8e',metalness:.5,roughness:.4}));arm.position.set(.3,y,0);arm.castShadow=true;S.add(arm);});
+// ── Extras: base, platforms, rocket, lightning rods ──
+// Concrete base
+const base=new T.Mesh(new T.BoxGeometry(3.5,.2,3.5),new T.MeshStandardMaterial({color:'#5a5a6e',metalness:.3,roughness:.7}));base.position.y=-.15;base.receiveShadow=true;S.add(base);
+// Flame trench opening
+const trench=new T.Mesh(new T.BoxGeometry(1.5,.4,3),new T.MeshStandardMaterial({color:'#1a1a24',roughness:.9}));trench.position.set(-1.2,-.3,0);S.add(trench);
+
+// Service platforms (horizontal decks)
+for(let l=1;l<=LEVELS;l+=1){const y=l*dH,w=getW(y),hw=w/2+0.15;
+  const deck=new T.Mesh(new T.BoxGeometry(w*2+.3,.02,w+.3),new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.7,opacity:.6,transparent:true}));
+  deck.position.y=y;deck.castShadow=true;S.add(deck);
+  // Railing posts (simplified)
+  [hw+.1,-hw-.1].forEach(z=>{[hw+.1,-hw-.1].forEach(x=>{
+    if(Math.abs(x)>hw+.05||Math.abs(z)>hw+.05)return;
+    const post=new T.Mesh(new T.CylinderGeometry(.015,.015,.3,6),new T.MeshStandardMaterial({color:'#888'}));
+    post.position.set(x,y+.15,z);S.add(post);
+  })});
+}
+
+// Umbilical arms extending toward rocket
+[2,4,6,8].forEach(l=>{const y=l*dH,w=getW(y);
+  const arm=new T.Mesh(new T.BoxGeometry(2.5,.05,.08),new T.MeshStandardMaterial({color:'#7a7a8e',metalness:.5,roughness:.4}));
+  arm.position.set(w/2+1.25,y,0);arm.castShadow=true;S.add(arm);
+  // Arm truss supports
+  const sup=new T.Mesh(new T.CylinderGeometry(.02,.02,w/2+.5,6),new T.MeshStandardMaterial({color:'#666'}));
+  sup.position.set(w/4+.25,y-.3,0);S.add(sup);
+});
+
+// Rocket beside tower (长征五号 style)
+const rocketG=new T.Group();
+// Core stage
+const core=new T.Mesh(new T.CylinderGeometry(.22,.25,4.5,24),new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.15,roughness:.5}));
+core.position.y=2.5;core.castShadow=true;rocketG.add(core);
+// Boosters (4 side boosters)
+for(let a=0;a<4;a++){const ang=a*Math.PI/2+Math.PI/4;
+  const bx=Math.cos(ang)*.32,bz=Math.sin(ang)*.32;
+  const booster=new T.Mesh(new T.CylinderGeometry(.08,.09,3.5,16),new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.15,roughness:.5}));
+  booster.position.set(bx,2.2,bz);booster.castShadow=true;rocketG.add(booster);
+}
+// Fairing (nose cone)
+const fairing=new T.Mesh(new T.ConeGeometry(.22,.6,24),new T.MeshStandardMaterial({color:'#f38ba8',metalness:.1,roughness:.4}));
+fairing.position.y=5;fairing.castShadow=true;rocketG.add(fairing);
+rocketG.position.set(2.3,0,0);S.add(rocketG);
+
+// Lightning protection towers at 4 corners
+const top=LEVELS*4;
+[0,1,2,3].forEach(c=>{const j=joints[LEVELS*4+c];
+  const rod=new T.Mesh(new T.CylinderGeometry(.03,.03,.8,8),new T.MeshStandardMaterial({color:'#f5e0dc',metalness:.8,roughness:.2,emissive:'#f5e0dc',emissiveIntensity:.15}));
+  rod.position.set(j.x,TOWER_H+.4,j.z);rod.castShadow=true;S.add(rod);
+  // Tip ball
+  const tip=new T.Mesh(new T.SphereGeometry(.04,8,8),new T.MeshStandardMaterial({color:'#f9a8d4',emissive:'#f9a8d4',emissiveIntensity:.4}));
+  tip.position.set(j.x,TOWER_H+.82,j.z);S.add(tip);
+});
+
+// Hammerhead crane at top
+const crane=new T.Mesh(new T.BoxGeometry(.6,.1,.1),new T.MeshStandardMaterial({color:'#888'}));
+crane.position.set(.5,TOWER_H+.15,0);crane.castShadow=true;S.add(crane);
+const craneHook=new T.Mesh(new T.CylinderGeometry(.015,.015,.3,8),new T.MeshStandardMaterial({color:'#f5e0dc'}));
+craneHook.position.set(.8,TOWER_H,0);S.add(craneHook);
 
 window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;document.getElementById('td').style.background=show?'#4ecdc4':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #4ecdc4':'none';document.getElementById('tl').textContent=show?'开':'关';};
 

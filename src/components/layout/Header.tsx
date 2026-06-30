@@ -23,18 +23,18 @@ export function Header() {
         isWatchPage ? 'opacity-0 pointer-events-none translate-y-[-8px]' : 'opacity-100 translate-y-0'
       }`}
     >
-      <nav className="mx-4 mt-4 max-w-2xl mx-auto">
-        <div className="glass-sm px-5 py-2.5 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group" prefetch={false}>
+      <nav className="px-5 pt-3.5 w-full">
+        <div className="glass-sm px-6 py-3.5 flex items-center justify-between w-full">
+          <Link href="/" className="flex items-center gap-3 group" prefetch={false}>
             <span className="text-accent transition-transform duration-500 group-hover:rotate-[-8deg]">
-              <LogoIcon className="w-5 h-5" />
+              <LogoIcon className="w-6 h-6" />
             </span>
-            <span className="text-sm font-semibold text-foreground tracking-tight">
+            <span className="text-lg font-bold text-foreground tracking-tight">
               力拔·理力创见
             </span>
           </Link>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-1.5">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
@@ -42,23 +42,23 @@ export function Header() {
                   key={link.href}
                   href={link.href}
                   prefetch={false}
-                  className={`relative px-3 py-1.5 rounded-lg text-sm transition-colors duration-200 flex items-center gap-1.5 ${
+                  className={`relative px-4 py-2 rounded-lg text-[15px] transition-colors duration-200 flex items-center gap-2 ${
                     isActive
-                      ? 'text-accent font-medium'
-                      : 'text-muted hover:text-foreground'
+                      ? 'text-accent font-semibold bg-accent/8'
+                      : 'text-muted hover:text-foreground hover:bg-foreground/5'
                   }`}
                 >
                   {link.icon && (
-                    <img src={link.icon} alt="" className="w-5 h-5 rounded-full object-cover border border-border/50" />
+                    <img src={link.icon} alt="" className="w-6 h-6 rounded-full object-cover border border-border/50" />
                   )}
                   {link.label}
                   {isActive && (
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-[2px] bg-accent rounded-full" />
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-5 h-[2px] bg-accent rounded-full" />
                   )}
                 </Link>
               );
             })}
-            <div className="ml-1 pl-1 border-l border-border">
+            <div className="ml-2 pl-2 border-l border-border">
               <ThemeToggle />
             </div>
           </div>

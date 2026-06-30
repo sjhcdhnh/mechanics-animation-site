@@ -14,7 +14,7 @@ interface ChatMessage {
 }
 
 /** Rotate through a small pool of featured questions to keep chips fresh */
-const FEATURED_INDICES = [0, 3, 6, 9, 12, 15];
+const FEATURED_INDICES = [0, 2, 5, 8, 11, 14, 17, 20, 23];
 const FEATURED_QUESTIONS = FEATURED_INDICES.map(
   (i) => FLAT_PRESET_QUESTIONS[i]
 ).filter(Boolean);

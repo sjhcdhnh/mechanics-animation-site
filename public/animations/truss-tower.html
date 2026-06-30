@@ -112,24 +112,21 @@ const base=new T.Mesh(new T.BoxGeometry(3.5,.2,3.5),new T.MeshStandardMaterial({
 const trench=new T.Mesh(new T.BoxGeometry(1.5,.4,3),new T.MeshStandardMaterial({color:'#1a1a24',roughness:.9}));trench.position.set(-1.2,-.3,0);S.add(trench);
 
 // Service platforms (horizontal decks)
-for(let l=1;l<=LEVELS;l+=1){const y=l*dH,w=getW(y),hw=w/2+0.15;
-  const deck=new T.Mesh(new T.BoxGeometry(w*2+.3,.02,w+.3),new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.7,opacity:.6,transparent:true}));
+for(let l=1;l<=LEVELS;l+=1){const y=l*dH,w=getW(y);
+  const deck=new T.Mesh(new T.BoxGeometry(w+.08,.015,w+.08),new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.7,opacity:.6,transparent:true}));
   deck.position.y=y;deck.castShadow=true;S.add(deck);
-  // Railing posts (simplified)
-  [hw+.1,-hw-.1].forEach(z=>{[hw+.1,-hw-.1].forEach(x=>{
-    if(Math.abs(x)>hw+.05||Math.abs(z)>hw+.05)return;
-    const post=new T.Mesh(new T.CylinderGeometry(.015,.015,.3,6),new T.MeshStandardMaterial({color:'#888'}));
-    post.position.set(x,y+.15,z);S.add(post);
-  })});
-}
+  [{x:w/2,z:w/2},{x:-w/2,z:w/2},{x:w/2,z:-w/2},{x:-w/2,z:-w/2}].forEach(p=>{
+    const post=new T.Mesh(new T.CylinderGeometry(.012,.012,.25,6),new T.MeshStandardMaterial({color:'#888'}));
+    post.position.set(p.x,y+.12,p.z);S.add(post);
+  });}
 
-// Umbilical arms extending toward rocket
-[2,4,6,8].forEach(l=>{const y=l*dH,w=getW(y);
-  const arm=new T.Mesh(new T.BoxGeometry(2.5,.05,.08),new T.MeshStandardMaterial({color:'#7a7a8e',metalness:.5,roughness:.4}));
-  arm.position.set(w/2+1.25,y,0);arm.castShadow=true;S.add(arm);
-  // Arm truss supports
-  const sup=new T.Mesh(new T.CylinderGeometry(.02,.02,w/2+.5,6),new T.MeshStandardMaterial({color:'#666'}));
-  sup.position.set(w/4+.25,y-.3,0);S.add(sup);
+// Umbilical arms — from tower right face to rocket at x=2.3
+[2,4,6,8].forEach(l=>{const y=l*dH,w=getW(y),hw=w/2;
+  const startX=hw,endX=2.3,armLen=endX-startX;
+  const arm=new T.Mesh(new T.BoxGeometry(armLen,.04,.06),new T.MeshStandardMaterial({color:'#7a7a8e',metalness:.5,roughness:.4}));
+  arm.position.set(startX+armLen/2,y,0);arm.castShadow=true;S.add(arm);
+  const diag=new T.Mesh(new T.CylinderGeometry(.02,.02,Math.sqrt(armLen*armLen+.3*.3),6),new T.MeshStandardMaterial({color:'#666'}));
+  diag.position.set(startX+armLen/2,y-.3,0);diag.rotation.z=Math.atan2(.3,armLen);S.add(diag);
 });
 
 // Rocket beside tower (长征五号 style)

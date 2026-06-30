@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>PINN 对比演示 · 悬臂梁</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font-family:'PingFang SC','Microsoft YaHei',sans-serif;color:#cdd6f4}
+#hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.7);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7}
+canvas{display:block}
+</style></head><body><div id="hud"><b>PINN对比演示</b><br>左绿=解析解 &nbsp; 右紫=PINN拟合<br>拖滑块增加测量点</div>
+<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.157.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/" } }</script>
+<script type="module">import*as THREE from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+const scene=new THREE.Scene();scene.background=new THREE.Color('#0a0a14');
+const cam=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,0.1,30);cam.position.set(0,2,6);cam.lookAt(0,0,0);
+const ren=new THREE.WebGLRenderer({antialias:true});ren.setSize(innerWidth,innerHeight);document.body.appendChild(ren.domElement);
+const ctrl=new OrbitControls(cam,ren.domElement);ctrl.enableDamping=true;
+scene.add(new THREE.AmbientLight('#404060',2));const dl=new THREE.DirectionalLight('#fff',3);dl.position.set(3,5,3);scene.add(dl);
+const g=new THREE.GridHelper(8,20,'#2a2f4a','#1a1f2e');g.position.y=-0.5;scene.add(g);
+const L=2,maxD=0.5;function ana(x){if(x<0)x=0;if(x>L)x=L;return-maxD*x*x*(3*L-x)/(2*L*L*L);}
+function makeBeam(curve,z,color){const pts=[],segs=80;for(let i=0;i<=segs;i++){const x=i/segs*L,y=curve(x);pts.push(new THREE.Vector3(x,-0.3+z*0.6,y));}
+const path=new THREE.CatmullRomCurve3(pts);const geo=new THREE.TubeGeometry(path,80,0.02,8,false);
+const mat=new THREE.MeshStandardMaterial({color,metalness:0.2,roughness:0.5});return new THREE.Mesh(geo,mat);}
+function makeSupport(x,y){const g2=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.25,0.25),new THREE.MeshStandardMaterial({color:'#555566',metalness:0.4,roughness:0.4}));b.position.set(x,y,0);g2.add(b);return g2;}
+function dataPt(x,y,color){const s=new THREE.Mesh(new THREE.SphereGeometry(0.03,16,16),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:0.5,metalness:0.1,roughness:0.3}));s.position.set(x,-0.3,y);return s;}
+const leftBeam=makeBeam(ana,0,'#a6e3a1');scene.add(leftBeam);const ls=makeSupport(0,0);ls.position.z=-0.35;scene.add(ls);
+const rightGroup=new THREE.Group();const ptsGroup=new THREE.Group();rightGroup.add(ptsGroup);
+const rebBeam=new THREE.Group();rightGroup.add(rebBeam);scene.add(rightGroup);
+const rs=makeSupport(0,0);rs.position.z=0.35;scene.add(rs);
+let pinnBeam=null;
+const slider=document.createElement('input');slider.type='range';slider.min=3;slider.max=20;slider.value=5;slider.step=1;
+const label=document.createElement('span');label.style.cssText='font-size:12px;color:#cdd6f4';
+const box=document.createElement('div');box.style.cssText='position:absolute;bottom:60px;left:50%;transform:translateX(-50%);padding:10px 20px;background:rgba(20,22,38,0.7);border:1px solid #2a2f4a;border-radius:8px;display:flex;align-items:center;gap:12px';
+box.innerHTML='<span style=font-size:12px;color:#cdd6f4>测量点</span>';box.appendChild(slider);box.appendChild(label);document.body.appendChild(box);
+function update(n){while(ptsGroup.children.length)ptsGroup.remove(ptsGroup.children[0]);while(rebBeam.children.length)rebBeam.remove(rebBeam.children[0]);
+const xs=[],ys=[],bp=[];for(let i=0;i<n;i++){const r=(i+1)/(n+1),x=r*L*0.92+0.04,ny=ana(x)+(Math.sin(i*7.3)*0.5+Math.cos(i*13.7)*0.5)*maxD*0.1;xs.push(x);ys.push(ny);ptsGroup.add(dataPt(x,ny,'#f9a8d4'));bp.push(new THREE.Vector3(x,-0.3+0.6,ny));}
+bp.unshift(new THREE.Vector3(0,-0.3+0.6,0));bp.push(new THREE.Vector3(L*0.98,-0.3+0.6,ys[ys.length-1]));
+const path=new THREE.CatmullRomCurve3(bp);const geo=new THREE.TubeGeometry(path,80,0.02,8,false);
+rebBeam.add(new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:'#cba6f7',metalness:0.2,roughness:0.5})));label.textContent=n;const err=Math.sqrt(bp.reduce((s,p,i)=>{const ea=ana(p.x);const d=p.y-ea;return s+d*d;},0)/bp.length);document.getElementById('hud').innerHTML='<b>PINN对比演示</b><br>左绿=解析解 &nbsp; 右紫=PINN拟合<br>测量点:<span style=color:#cba6f7>'+n+'</span> &nbsp; 误差:<span style=color:#f9a8d4>'+err.toFixed(3)+'</span><br>拖滑块增加点→收敛';}
+slider.oninput=()=>update(+slider.value);update(5);
+function animate(){requestAnimationFrame(animate);ctrl.update();ren.render(scene,cam);}animate();
+window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();ren.setSize(innerWidth,innerHeight);});
+</script></body></html>

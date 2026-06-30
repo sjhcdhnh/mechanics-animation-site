@@ -13,7 +13,7 @@ export function Header() {
     { href: '/', label: '首页' },
     { href: '/agent', label: 'AI助手-力学搭子', icon: '/agent-logo.png' },
     { href: '/about', label: '关于' },
-    { href: '/deep-learning', label: '深度学习' },
+    { href: '/deep-learning', label: '专题项目' },
     { href: '/upload', label: '上传' },
   ];
 

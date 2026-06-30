@@ -1,0 +1,32 @@
+[
+  {
+    "slug": "deep-learning-4bar-rl",
+    "title": "四连杆检测机器人 · 深度强化学习控制",
+    "subtitle": "4-Bar Inspection Robot — Deep RL Control Exploration",
+    "category": "rl",
+    "tags": ["深度强化学习", "4R机械臂", "CCD", "策略梯度", "RL训练"],
+    "mechanismType": "深度强化学习控制",
+    "fileName": "deep-learning-4bar-rl.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "四连杆平面检测机器人的深度强化学习控制演示。4个转动副串联的平面机械臂，通过模拟RL训练过程（早期探索→中期收敛→后期优化→最终策略），展示数据驱动方法如何使机械臂学会精准抓取目标物。",
+    "author": "赵大志 / 深度探索组",
+    "course": "理论力学",
+    "modelDescription": "4自由度平面串联机械臂。RL状态空间：4个关节角+末端位置；动作空间：4个关节力矩增量；奖励函数：末端距目标点的负距离。展示50k/100k/200k/500k交互步的训练阶段。力矩通过欧拉积分转化为关节角加速度。"
+  },
+  {
+    "slug": "pinn-demo",
+    "title": "PINN对比演示 · 悬臂梁",
+    "subtitle": "Physics-Informed Neural Networks — Analytical vs Data-Driven Beam Deflection",
+    "category": "pinn",
+    "tags": ["PINN", "悬臂梁", "数据驱动", "AI+力学", "Euler-Bernoulli"],
+    "mechanismType": "物理信息神经网络对比演示",
+    "fileName": "pinn-demo.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "直观展示物理信息神经网络（PINN）核心思想。左侧为传统Euler-Bernoulli梁解析解（精确），右侧为仅用少量测量点+物理约束拟合的PINN模拟解。拖动滑块增加测量点数，观察PINN曲线如何逐步收敛到解析解。",
+    "author": "匿名",
+    "course": "工程力学前沿导论",
+    "modelDescription": "双悬臂梁对比演示。左梁（绿色）为Euler-Bernoulli解析解。右梁（紫色）为PINN风格拟合：仅用3-20个稀疏测量点+固定端边界约束通过约束样条插值获得挠度曲线。L=2.0m, E=200GPa, P=1000N。"
+  }
+]

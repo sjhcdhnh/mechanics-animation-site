@@ -1,5 +1,20 @@
 [
   {
+    "slug": "pinn-demo",
+    "title": "PINN对比演示 · 悬臂梁",
+    "subtitle": "PINNs — Analytical vs Data-Driven Beam Deflection",
+    "category": "dynamics",
+    "tags": ["PINN", "悬臂梁", "数据驱动", "AI+力学"],
+    "mechanismType": "物理信息神经网络对比演示",
+    "fileName": "pinn-demo.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "直观展示PINN核心思想。左侧Euler-Bernoulli解析解（精确），右侧PINN风格拟合（少量测量点+物理约束）。拖动滑块增加测量点，观察PINN曲线收敛到解析解。",
+    "author": "匿名",
+    "course": "工程力学前沿导论",
+    "modelDescription": "双悬臂梁对比。左梁为Euler-Bernoulli解析解，右梁为3-20个测量点+边界约束拟合。L=2.0m, E=200GPa, P=1000N。"
+  },
+  {
     "slug": "slider-crank",
     "title": "曲柄滑块机构 · 运动学演示",
     "subtitle": "Slider-Crank Mechanism — 内燃机活塞简化模型",

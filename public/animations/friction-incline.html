@@ -71,15 +71,6 @@ const blk=new T.Mesh(blkGeo,blkMat);blk.castShadow=true;blk.receiveShadow=true;
 blk.position.set(-BW/2, BH/2, 0); // pivot在右下角, 中心在pivot左上方
 gPivot.add(blk);
 
-// ─── 力箭头(rampGroup局部) ───
-function arrow(from,to,color,r=.016){
-  const d=new T.Vector3().subVectors(to,from), L=d.length();if(L<.005)return new T.Group();
-  const g=new T.Group(), shL=L*.76;
-  g.add(new T.Mesh(new T.CylinderGeometry(r,r*.85,shL,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.25})).translateY(shL/2));
-  g.add(new T.Mesh(new T.ConeGeometry(r*2.8,r*4.5,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.35})).translateY(shL));
-  g.position.copy(from);g.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return g;}
-const gArr=new T.Group();gRamp.add(gArr);
-
 // ─── 状态机 ───
 let aid=0,ts=0,mu=.8;
 
@@ -89,16 +80,6 @@ function rst(){
 
   // 复位
   gPivot.position.set(blockX+BW/2,0,0);gPivot.rotation.set(0,0,0);
-  while(gArr.children.length)gArr.remove(gArr.children[0]);
-
-  // 力箭头(接触点=blockX, 质心=(blockX, BH/2))
-  const ctr=new T.Vector3(blockX,BH/2,0), bot=new T.Vector3(blockX,0,0);
-  // 法向力(局部+Y)
-  gArr.add(arrow(bot,new T.Vector3(blockX,1.0,0),'#89b4fa',.016));
-  // 摩擦力(局部-X)
-  gArr.add(arrow(bot,new T.Vector3(blockX-.7,0,0),'#f38ba8',.016));
-  // 重力(世界-down → 局部 = -SA*X + -CA*Y, 即(-SA,-CA,0)方向)
-  gArr.add(arrow(ctr,ctr.clone().add(new T.Vector3(-SA*1.5,-CA*1.5,0)),'#f5e0dc',.02));
 
   // 判断
   const slide=mu<TA-.003; // μ<0.574

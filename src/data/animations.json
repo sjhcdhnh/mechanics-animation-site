@@ -1,22 +1,5 @@
 [
   {
-    "slug": "pinn-demo",
-    "title": "PINN对比演示 · 悬臂梁",
-    "subtitle": "Physics-Informed Neural Networks — Analytical vs Data-Driven Beam Deflection",
-    "category": "dynamics",
-    "tags": ["PINN", "悬臂梁", "数据驱动", "AI+力学", "物理信息", "Euler-Bernoulli"],
-    "mechanismType": "物理信息神经网络对比演示",
-    "fileName": "pinn-demo.html",
-    "source": "builtin",
-    "downloadable": true,
-    "fileSize": 28000,
-    "description": "直观展示物理信息神经网络（PINN）核心思想的三维对比动画。左侧为传统Euler-Bernoulli梁解析解（精确），右侧为仅用少量测量点+物理约束（固定端边界条件）拟合的PINN模拟解。拖动滑块增加测量点数，观察PINN曲线如何逐步收敛到解析解。附带AI白话讲解面板。",
-    "author": "匿名",
-    "institution": "",
-    "course": "工程力学前沿导论",
-    "modelDescription": "双悬臂梁对比演示。左梁（绿色）为Euler-Bernoulli解析解 y=ymax·x²(3L−x)/(2L³)。右梁（紫色）为PINN风格拟合：仅用3-20个稀疏测量点+固定端边界约束(y=0, y′=0)通过约束样条插值获得挠度曲线。测量点越多，PINN解越接近解析解。L=2.0m, E=200GPa, P=1000N, 最大挠度≈5mm。"
-  },
-  {
     "slug": "slider-crank",
     "title": "曲柄滑块机构 · 运动学演示",
     "subtitle": "Slider-Crank Mechanism — 内燃机活塞简化模型",

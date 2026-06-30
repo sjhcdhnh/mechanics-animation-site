@@ -2,264 +2,190 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'PINN对比演示 — 力拔·理力创见',
-  description: '物理信息神经网络核心思想的直观对比演示。左侧Euler-Bernoulli梁解析解，右侧PINN风格拟合。',
+  description: '物理信息神经网络（PINN）核心思想的直观对比：左侧Euler-Bernoulli解析解，右侧PINN风格数据+物理约束拟合。',
 };
 
 export default function PINNPage() {
   return (
     <div className="min-h-screen pt-28 pb-20 px-4">
-      <div className="max-w-3xl mx-auto space-y-16">
+      <div className="max-w-3xl mx-auto space-y-14">
         {/* Header */}
         <div className="space-y-3">
-          <p className="text-xs tracking-widest text-muted/60 uppercase">Projects / PINN</p>
+          <p className="text-xs tracking-widest text-muted/60 uppercase">专题项目 / PINN</p>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
-            PINN对比演示 · 悬臂梁
+            物理信息神经网络 · 悬臂梁对比演示
           </h1>
           <p className="text-base text-muted leading-relaxed max-w-xl">
-            物理驱动，数据为辅——让物理方程替代海量数据
+            不给网络看公式，只告诉它物理规则——它能自己"悟"出答案吗？
           </p>
         </div>
 
-        {/* 交互演示 — 2D Canvas */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">交互演示</h2>
-          <div className="glass-sm overflow-hidden p-4">
-            <div className="relative bg-[#0a0a14] rounded-lg" style={{ height: 400 }}>
-              <canvas
-                id="pinn-canvas"
-                className="w-full h-full"
-                style={{ display: 'block' }}
-              />
-              <div
-                id="pinn-controls"
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2 rounded-full bg-black/60 border border-white/10 text-xs text-white/80"
-              >
-                <span>测量点</span>
-                <input id="pinn-slider" type="range" min="3" max="20" defaultValue="5" className="w-32 accent-[#cba6f7]" />
-                <span id="pinn-count" className="text-[#cba6f7] font-semibold w-4 text-center">5</span>
-                <span className="text-white/40">|</span>
-                <span className="text-[#a6e3a1]">━ 解析解</span>
-                <span className="text-[#cba6f7]">━ PINN拟合</span>
-                <span className="text-[#f9a8d4]">● 测量点</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-muted/60">拖动滑块增加右梁测量点数，观察拟合曲线如何逼近左梁解析解。</p>
-        </section>
-
-        {/* Canvas script — inline for simplicity */}
-        <script dangerouslySetInnerHTML={{ __html: `
-(function(){
-  const canvas=document.getElementById('pinn-canvas');
-  const slider=document.getElementById('pinn-slider');
-  const countEl=document.getElementById('pinn-count');
-  if(!canvas)return;
-
-  function resize(){
-    const r=canvas.getBoundingClientRect();
-    const dpr=Math.min(window.devicePixelRatio||1,2);
-    canvas.width=r.width*dpr;canvas.height=r.height*dpr;
-    draw(+slider.value);
-  }
-
-  const L=2,maxD=0.5;
-  function ana(x){if(x<0)x=0;if(x>L)x=L;return -maxD*x*x*(3*L-x)/(2*L*L*L);}
-
-  function pinnFit(xs,ys){
-    const allX=[0,0.005,...xs],allY=[0,0,...ys];
-    const idx=allX.map((_,i)=>i).sort((a,b)=>allX[a]-allX[b]);
-    const sx=idx.map(i=>allX[i]),sy=idx.map(i=>allY[i]);
-    const n=sx.length-1,h=[];for(let i=0;i<n;i++)h[i]=sx[i+1]-sx[i];
-    const a=Array(n).fill(0);for(let i=1;i<n;i++)a[i]=3*(sy[i+1]-sy[i])/h[i]-3*(sy[i]-sy[i-1])/h[i-1];
-    const c=Array(n+1).fill(0),l=Array(n+1).fill(0),mu=Array(n+1).fill(0),z=Array(n+1).fill(0);l[0]=1;
-    for(let i=1;i<n;i++){l[i]=2*(sx[i+1]-sx[i-1])-h[i-1]*mu[i-1];mu[i]=h[i]/l[i];z[i]=(a[i]-h[i-1]*z[i-1])/l[i];}l[n]=1;
-    const b=Array(n).fill(0),d=Array(n).fill(0);for(let j=n-1;j>=0;j--){c[j]=z[j]-mu[j]*c[j+1];b[j]=(sy[j+1]-sy[j])/h[j]-h[j]*(c[j+1]+2*c[j])/3;d[j]=(c[j+1]-c[j])/(3*h[j]);}
-    return function(x){if(x<=sx[0])return sy[0];if(x>=sx[n])return sy[n];let i=0;for(let j=0;j<n;j++)if(x>=sx[j]&&x<=sx[j+1]){i=j;break;}const dx=x-sx[i];return sy[i]+b[i]*dx+c[i]*dx*dx+d[i]*dx*dx*dx;};
-  }
-
-  function draw(n){
-    const ctx=canvas.getContext('2d');
-    const w=canvas.width,h=canvas.height,dpr=Math.min(window.devicePixelRatio||1,2);
-    ctx.clearRect(0,0,w,h);
-    const pad=50*dpr,plotW=(w-2*pad)/2,plotH=h-2*pad;
-    const x0=pad,y0=pad;
-    function plot(ox,oy,f,pn,title,color,dots){
-      // Grid
-      ctx.strokeStyle='#1a1a2e';ctx.lineWidth=1;
-      for(let i=0;i<=5;i++){const y=oy+i*plotH/5;ctx.beginPath();ctx.moveTo(ox,y);ctx.lineTo(ox+plotW,y);ctx.stroke();}
-      for(let i=0;i<=5;i++){const x=ox+i*plotW/5;ctx.beginPath();ctx.moveTo(x,oy);ctx.lineTo(x,oy+plotH);ctx.stroke();}
-      // Axes
-      ctx.strokeStyle='#3f3f46';ctx.lineWidth=1.5*dpr;
-      const baseY=oy+plotH*0.85;
-      ctx.beginPath();ctx.moveTo(ox,baseY);ctx.lineTo(ox+plotW,baseY);ctx.stroke();
-      // Fixed end mark
-      ctx.fillStyle='#52525b';ctx.fillRect(ox-6*dpr,baseY-14*dpr,10*dpr,28*dpr);
-      // Undeformed line
-      ctx.strokeStyle='#3f3f46';ctx.setLineDash([4*dpr,6*dpr]);ctx.lineWidth=1*dpr;
-      ctx.beginPath();ctx.moveTo(ox,baseY);ctx.lineTo(ox+plotW,baseY);ctx.stroke();ctx.setLineDash([]);
-      // Curve
-      ctx.strokeStyle=color;ctx.lineWidth=2.5*dpr;ctx.beginPath();
-      const segs=200;
-      for(let i=0;i<=segs;i++){const x=i/segs*L;const defl=f(x);const sx=ox+x/L*plotW;const sy=baseY+defl*plotH*1.6;if(i===0)ctx.moveTo(sx,sy);else ctx.lineTo(sx,sy);}
-      ctx.stroke();
-      // Data points
-      if(dots)dots.forEach(d=>{ctx.fillStyle='#f9a8d4';ctx.beginPath();const sx=ox+d.x/L*plotW,sy=baseY+d.y*plotH*1.6;ctx.arc(sx,sy,3.5*dpr,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f9a8d4';ctx.lineWidth=0.8*dpr;ctx.stroke();});
-      // Label
-      ctx.fillStyle='white';ctx.font=Math.round(12*dpr)+'px "Microsoft YaHei","PingFang SC",sans-serif';ctx.textAlign='center';
-      ctx.fillText(title,ox+plotW/2,oy-12*dpr);
-      ctx.fillStyle='#71717a';ctx.font=Math.round(9*dpr)+'px "Microsoft YaHei","PingFang SC",sans-serif';
-      ctx.fillText('固定端',ox-8*dpr,baseY+20*dpr);
-      ctx.fillText('自由端→',ox+plotW-20*dpr,baseY+18*dpr);
-    }
-    // Generate measurement points
-    const xs=[],ys=[];for(let i=0;i<n;i++){const r=(i+1)/(n+1),x=r*L*0.94+0.03;xs.push(x);ys.push(ana(x)+(Math.sin(i*7.31)+Math.cos(i*13.7))*maxD*0.08);}
-    const pinn=pinnFit(xs,ys);
-    const dots=xs.map((x,i)=>({x,y:ys[i]}));
-    // Left: analytical
-    plot(x0,y0,ana,5,'解析解 (Euler-Bernoulli)','#a6e3a1',null);
-    // Right: PINN
-    plot(x0+plotW+10*dpr,y0,pinn,n,'PINN 拟合','#cba6f7',dots);
-    countEl.textContent=n;
-  }
-
-  let resizeTimer;
-  window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(resize,200);});
-  slider.addEventListener('input',()=>draw(+slider.value));
-  setTimeout(resize,100);
-})();
-`}} />
-
-        {/* 一、什么是PINN */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">一、什么是PINN？</h2>
-          <div className="space-y-4 text-sm text-muted leading-relaxed">
-            <p>
-              物理信息神经网络（Physics-Informed Neural Networks, PINN）是2019年由Raissi、Perdikaris和Karniadakis提出的新型求解框架。核心思想：<strong className="text-foreground">让神经网络在学习数据的同时，也遵守物理定律。</strong>
-            </p>
-            <p>
-              传统方法中，要么纯靠公式推导（解析法——精确但复杂问题推不动），要么纯靠数据训练（神经网络——灵活但需要海量数据且可能违反物理规律）。PINN走第三条路——在神经网络的损失函数里加上一个物理约束项。
-            </p>
-
-            {/* 三种方法对比图 */}
-            <div className="glass-sm p-5">
-              <p className="text-xs font-semibold text-foreground mb-3">三种求解范式对比</p>
-              <div className="grid grid-cols-3 gap-3 text-xs">
-                <div className="bg-foreground/[0.03] rounded-lg p-3 text-center">
-                  <p className="font-medium text-[#a6e3a1] mb-1">解析法</p>
-                  <p className="text-muted leading-relaxed">公式推导→精确解<br/>需要公式存在<br/>复杂问题推不动</p>
-                </div>
-                <div className="bg-foreground/[0.03] rounded-lg p-3 text-center">
-                  <p className="font-medium text-[#4ECDC4] mb-1">纯神经网络</p>
-                  <p className="text-muted leading-relaxed">海量数据→黑箱预测<br/>不依赖公式<br/>可能违反物理定律</p>
-                </div>
-                <div className="bg-accent/[0.06] rounded-lg p-3 text-center border border-accent/20">
-                  <p className="font-medium text-accent mb-1">⭐ PINN</p>
-                  <p className="text-muted leading-relaxed">少量数据+物理方程<br/>物理约束嵌入损失函数<br/>数据不够物理来补</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 二、核心架构 */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">二、核心架构</h2>
+        {/* 交互演示 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">动手试试</h2>
           <div className="glass-sm overflow-hidden">
-            <img
-              src="/diagrams/pinn-architecture.svg"
-              alt="PINN架构图"
-              className="w-full"
-            />
-          </div>
-          <p className="text-xs text-muted/60 text-center">输入(x,y,z,t) → 全连接NN → 输出(u,σ,p) → 双分支损失：数据损失 + 物理损失 → L = L<sub>data</sub> + λ·L<sub>PDE</sub></p>
-          <div className="space-y-4 text-sm text-muted leading-relaxed">
-            <p>
-              PINN独特之处在于<strong className="text-foreground">物理损失 L<sub>PDE</sub></strong>：在求解域随机撒"配置点"，用自动微分计算偏导数（如∂u/∂x、∂²u/∂x²），代入控制方程计算残差。残差越接近零，网络的输出就越满足物理定律。
-            </p>
-            <p>
-              即使<strong className="text-accent">一个实验数据都没有</strong>（纯物理模式），只要给定了控制方程和边界条件，PINN也能学会正确的解。本演示中的右梁就是纯物理模式——没有实验数据，仅靠悬臂梁方程和固定端约束。
-            </p>
-          </div>
-        </section>
-
-        {/* 三、两种方法对比 */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">三、演示中的两种方法</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="glass-sm p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-[#a6e3a1]">左：解析解</h3>
-              <div className="space-y-2 text-xs text-muted leading-relaxed">
-                <p>采用Euler-Bernoulli梁方程精确公式：</p>
-                <p className="font-mono text-[11px] p-2 rounded bg-foreground/[0.03]">u(x) = F/(6EI) · x²(3L−x)</p>
-                <p>需要精确知道E、I、F。输入x直接算出挠度u。精确、可解释，但只适用于简单几何和线性材料。</p>
-              </div>
-            </div>
-            <div className="glass-sm p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-[#cba6f7]">右：PINN拟合</h3>
-              <div className="space-y-2 text-xs text-muted leading-relaxed">
-                <p>不推导解析公式。只用了两样东西：</p>
-                <div className="space-y-1">
-                  <p className="font-mono text-[11px] p-2 rounded bg-foreground/[0.03]">约束① u(0)=0 (固定端)</p>
-                  <p className="font-mono text-[11px] p-2 rounded bg-foreground/[0.03]">约束② u′(0)=0 (斜率)</p>
-                </div>
-                <p>+ <strong className="text-[#f9a8d4]">粉色测量点</strong>（模拟传感器采集的稀疏数据）。公式不存在，但物理规律仍在约束着结果。</p>
-              </div>
+            <div className="aspect-video min-h-[380px]">
+              <iframe
+                src="/animations/pinn-demo.html"
+                className="w-full h-full border-0"
+                title="PINN 对比演示"
+                allow="accelerometer; clipboard-write;"
+              />
             </div>
           </div>
-          <p className="text-xs text-muted/60 text-center italic mt-2">
-            拖动滑块从3→20个点，观察右梁如何从不准确收敛到几乎与左梁重合
+          <p className="text-xs text-muted/60 text-center">
+            拖动底部滑块增加测量点数量，右梁会逐渐逼近左梁 · 鼠标拖拽旋转视角 · 滚轮缩放
           </p>
         </section>
 
-        {/* 四、为什么关注PINN */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">四、为什么要关注PINN？</h2>
-          <div className="space-y-4 text-sm text-muted leading-relaxed">
-            <p>
-              悬臂梁是PINN的"Hello World"——解析解存在，方便验证PINN是否准确。但PINN真正价值在<strong className="text-foreground">解析解不存在</strong>的场景：
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {[
-                { t:'变截面梁', d:'截面沿长度变化，Euler-Bernoulli推不出封闭公式' },
-                { t:'非线性材料', d:'应力-应变关系不是直线，无解析解' },
-                { t:'裂纹扩展', d:'FEM需不断重画网格，PINN无需网格' },
-                { t:'逆问题', d:'从少量位移测量数据反推材料弹性模量' },
-              ].map(item=>(
-                <div key={item.t} className="flex items-start gap-2.5 p-3 rounded-lg bg-foreground/[0.02] border border-border/50">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-medium text-foreground">{item.t}</p>
-                    <p className="text-xs text-muted leading-relaxed mt-0.5">{item.d}</p>
-                  </div>
-                </div>
-              ))}
+        {/* 一、背景 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">一、工程力学怎么求解？三种路子</h2>
+          <div className="space-y-3 text-sm text-muted leading-relaxed">
+            <p>你大一做的所有题——"已知F、E、A，求杆的伸长量"——用的都是<strong className="text-foreground">解析法</strong>。代公式，一步出答案。但前提是<strong className="text-accent">公式得存在</strong>。变截面杆？非线性材料？裂纹尖端的应力？对不起，人类没推出来过。</p>
+            <p>那就走第二条路——<strong className="text-foreground">纯数据驱动</strong>。做1000组实验或FEM仿真，训练一个神经网络来"猜"。这方法不挑问题，但要的数据量太大，而且没了物理约束的神经网络，可能猜出一个能量不守恒的荒谬结果。</p>
+            <p><strong className="text-accent">PINN 走第三条路</strong>：只给少量数据（甚至完全不给），但告诉网络"你的输出必须满足这个力学方程"。网络在学数据的同时，被物理方程约束着，最终学到一个既符合数据、又遵守物理的结果。</p>
+          </div>
+
+          <div className="glass-sm p-5">
+            <p className="text-xs font-semibold text-foreground mb-3">一张表看清区别</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 pr-3 text-muted font-normal">方法</th>
+                    <th className="text-left py-2 pr-3 text-muted font-normal">需要什么</th>
+                    <th className="text-left py-2 pr-3 text-muted font-normal">优点</th>
+                    <th className="text-left py-2 text-muted font-normal">局限</th>
+                  </tr>
+                </thead>
+                <tbody className="text-muted">
+                  <tr className="border-b border-border/30">
+                    <td className="py-2 pr-3 font-medium text-[#a6e3a1]">解析法</td>
+                    <td className="py-2 pr-3">精确公式</td>
+                    <td className="py-2 pr-3">一步出答案</td>
+                    <td className="py-2">复杂问题没有公式</td>
+                  </tr>
+                  <tr className="border-b border-border/30">
+                    <td className="py-2 pr-3 font-medium text-[#4ECDC4]">纯神经网络</td>
+                    <td className="py-2 pr-3">海量数据</td>
+                    <td className="py-2 pr-3">不挑问题</td>
+                    <td className="py-2">数据贵，可能违反物理</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-3 font-medium text-accent">PINN</td>
+                    <td className="py-2 pr-3">方程+边界条件（数据可选）</td>
+                    <td className="py-2 pr-3">不挑问题，不需海量数据</td>
+                    <td className="py-2">训练慢，精度不如FEM</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
-            <p>PINN不需要解析公式，不需要画网格——方程知道就行，解不出来没关系，神经网络帮你在无限可能的函数空间里找一个最好的近似。</p>
           </div>
         </section>
 
-        {/* 五、PINN vs DRL */}
-        <section className="space-y-5">
-          <h2 className="text-lg font-semibold text-foreground">五、两种AI+力学路径</h2>
+        {/* 二、架构 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">二、PINN 长什么样？</h2>
+          <div className="glass-sm overflow-hidden">
+            <img src="/diagrams/pinn-architecture.svg" alt="PINN架构图" className="w-full" />
+          </div>
+          <p className="text-xs text-muted/60 text-center">输入坐标和时间 → 全连接神经网络 → 输出位移/应力 → 两条监督线同时工作：<span className="text-[#4ECDC4]">数据线</span>（和已知数据对比）+ <span className="text-[#F9A8D4]">物理线</span>（代入力学方程检查）</p>
+          <div className="space-y-3 text-sm text-muted leading-relaxed">
+            <p>和普通神经网络唯一不同的就是<strong className="text-[#F9A8D4]">那条粉色的物理线</strong>。自动微分（PyTorch/TensorFlow自带的功能）算出∂u/∂x、∂²u/∂x²这些导数，代入控制方程算残差。残差越接近零，就说明网络的输出越满足物理定律。这个残差和"数据误差"一起作为损失函数，反向传播调整网络权重。</p>
+            <p>关键的地方来了：<strong className="text-accent">即使一个实验数据都不给</strong>，只告诉网络控制方程和边界条件，它也能学出正确解。数据不够的时候，物理来补。</p>
+          </div>
+        </section>
+
+        {/* 三、拆解演示 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">三、上面那个演示在干什么？</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="glass-sm p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#a6e3a1]" />
+                <h3 className="text-sm font-semibold text-foreground">左梁：解析法</h3>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                用的是 Euler-Bernoulli 梁方程的正统公式
+              </p>
+              <p className="font-mono text-[11px] p-2 rounded bg-foreground/[0.03] text-foreground/80">
+                u(x) = F/(6EI) · x²(3L−x)
+              </p>
+              <p className="text-xs text-muted leading-relaxed">
+                给定弹性模量E、截面惯性矩I、载荷F，代入x就算出每一点的挠度。精确、一步到位。但换个变截面梁这道公式就不成立了。
+              </p>
+            </div>
+            <div className="glass-sm p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-sm bg-[#cba6f7]" />
+                <h3 className="text-sm font-semibold text-foreground">右梁：PINN模拟</h3>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                不推导任何公式。网络仅被两样东西约束：
+              </p>
+              <div className="space-y-1">
+                <p className="font-mono text-[11px] p-1.5 rounded bg-foreground/[0.03] text-foreground/80">约束① 固定端位移为零：u(0) = 0</p>
+                <p className="font-mono text-[11px] p-1.5 rounded bg-foreground/[0.03] text-foreground/80">约束② 固定端转角为零：u'(0) = 0</p>
+              </div>
+              <p className="text-xs text-muted leading-relaxed">
+                外加<strong className="text-[#f9a8d4]">粉色数据点</strong>——在梁上装几个传感器，测出几个位置的挠度。就这么多信息。网络通过最小化"数据误差 + 物理残差"，自动找到一条既穿过数据点附近、又满足边界条件的曲线。
+              </p>
+            </div>
+          </div>
+          <div className="glass-sm p-4 text-center">
+            <p className="text-xs text-muted leading-relaxed">
+              <strong className="text-accent">核心体验</strong>：把滑块从3拖到20——3个点时右梁歪歪扭扭，20个点时几乎和左梁重合。<br/>
+              即便只有3个点，物理约束也防止了大方向跑偏。这就是"先验知识"的价值。
+            </p>
+          </div>
+        </section>
+
+        {/* 四、应用场景 */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold text-foreground">四、这有什么用？</h2>
           <p className="text-sm text-muted leading-relaxed">
-            本栏目恰好展示了AI与力学交叉的两种范式：
+            悬臂梁只是用来验证的"Hello World"。PINN真正的舞台在下面这些解析公式不存在的场景：
           </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              { t:'变截面与异形结构', d:'截面不均匀、几何不规则，FEM画网耗时，PINN撒点就行' },
+              { t:'非线性材料', d:'应力-应变关系不是直线，没有封闭公式，但控制方程还在' },
+              { t:'裂纹扩展', d:'裂纹每走一步FEM重画一次网，PINN无需网格直接跟上' },
+              { t:'反推材料参数', d:'做了个实验测了几个点的位移 → PINN反向算出弹性模量' },
+            ].map(item=>(
+              <div key={item.t} className="flex items-start gap-2.5 p-3 rounded-lg bg-foreground/[0.02] border border-border/50">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-foreground">{item.t}</p>
+                  <p className="text-xs text-muted leading-relaxed mt-0.5">{item.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 五、DRL vs PINN */}
+        <section className="space-y-4 border-t border-border pt-14">
+          <h2 className="text-lg font-semibold text-foreground">五、和隔壁的深度强化学习有什么关系？</h2>
+          <p className="text-sm text-muted leading-relaxed">这两个项目放在一起，恰好展示了<strong className="text-foreground">AI和力学交叉的两种完全不同的范式</strong>：</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="glass-sm p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-[#4ECDC4]">深度强化学习（RL）</h3>
+              <h3 className="text-sm font-semibold text-[#4ECDC4]">RL：物理在仿真器里</h3>
               <div className="space-y-2 text-xs text-muted leading-relaxed">
-                <p>物理用来<b className="text-foreground">造训练场</b>——拉格朗日方程建仿真环境，RL智能体在环境中试错。</p>
-                <p className="p-2 rounded bg-foreground/[0.03] font-mono text-[11px]">网络学的：该做哪个动作？<br/>物理在哪：仿真器里</p>
+                <p>拉格朗日方程建好虚拟环境，RL智能体在里面反复试错。物理定律只管"环境怎么响应动作"，不参与"智能体怎么学习"。</p>
+                <p className="p-2 rounded bg-foreground/[0.03] font-mono text-[11px] text-foreground/80">网络学什么：控制策略<br/>物理在哪里：仿真器的动力学方程<br/>物理管不管梯度：不管</p>
               </div>
             </div>
             <div className="glass-sm p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-[#cba6f7]">物理信息网络（PINN）</h3>
+              <h3 className="text-sm font-semibold text-[#cba6f7]">PINN：物理在损失函数里</h3>
               <div className="space-y-2 text-xs text-muted leading-relaxed">
-                <p>物理<b className="text-foreground">直接参与学习</b>——控制方程嵌入损失函数，参与梯度反传。</p>
-                <p className="p-2 rounded bg-foreground/[0.03] font-mono text-[11px]">网络学的：位移/应力是多少？<br/>物理在哪：损失函数里</p>
+                <p>控制方程直接写成损失项。反向传播时，物理残差的梯度一路穿过网络调整权重——物理亲自下场"教"网络。</p>
+                <p className="p-2 rounded bg-foreground/[0.03] font-mono text-[11px] text-foreground/80">网络学什么：物理场本身<br/>物理在哪里：损失函数的PDE项<br/>物理管不管梯度：管，自动微分穿过方程</p>
               </div>
             </div>
           </div>
+          <p className="text-xs text-muted/60 text-center italic">一个把物理当"规则手册"（你按规则玩，但规则不教你玩），一个把物理当"老师"（你做错了老师就拿戒尺敲你）。</p>
         </section>
       </div>
     </div>

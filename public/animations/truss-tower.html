@@ -13,9 +13,9 @@
 </style></head>
 <body>
 <div id="title">火箭发射塔 · 内力可视化</div>
-<div id="hud"><b>🚀 火箭发射塔</b><br>塔高: <span style="color:#a6e3a1">92 m</span> · 层数: <span style="color:#a6e3a1">12</span><br>参考: <span style="color:#a6e3a1">文昌发射场</span><br>杆件: <span id="mc">--</span> · 最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>最大压力: <span style="color:#f38ba8" id="mcp">--</span></div>
-<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#4ecdc4;box-shadow:0 0 6px #4ecdc4"></span>内力显示: <span id="tl">开</span></div>
-<div id="legend"><span class="sw" style="background:#4ecdc4"></span>拉力 <span class="sw" style="background:#f38ba8"></span>压力 <span style="margin-left:8px;color:#71717a">杆粗细正比于力值</span></div>
+<div id="hud"><b>🚀 火箭发射塔</b><br>塔高: <span style="color:#a6e3a1">92 m</span> · 层数: <span style="color:#a6e3a1">12</span><br>参考: <span style="color:#a6e3a1">文昌发射场</span><br>杆件: <span id="mc">--</span> · 最大拉力: <span style="color:#3b82f6" id="mt">--</span><br>最大压力: <span style="color:#ef4444" id="mcp">--</span></div>
+<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6"></span>内力显示: <span id="tl">开</span></div>
+<div id="legend"><span class="sw" style="background:#3b82f6"></span>拉力 <span class="sw" style="background:#ef4444"></span>压力 <span style="margin-left:8px;color:#71717a">杆粗细正比于力值</span></div>
 <div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type="module">
@@ -87,8 +87,8 @@ document.getElementById('mcp').textContent=mc2.toFixed(1)+' kN';
 
 // ── Render ──
 const gF=new T.Group(),gN=new T.Group();let show=true;S.add(gF);S.add(gN);
-const mT=new T.MeshStandardMaterial({color:'#4ecdc4',metalness:.12,roughness:.5,emissive:'#4ecdc4',emissiveIntensity:.2});
-const mC=new T.MeshStandardMaterial({color:'#f38ba8',metalness:.12,roughness:.5,emissive:'#f38ba8',emissiveIntensity:.2});
+const mT=new T.MeshStandardMaterial({color:'#3b82f6',metalness:.12,roughness:.5,emissive:'#3b82f6',emissiveIntensity:.2});
+const mC=new T.MeshStandardMaterial({color:'#ef4444',metalness:.12,roughness:.5,emissive:'#ef4444',emissiveIntensity:.2});
 const mZ=new T.MeshStandardMaterial({color:'#5a5a68',metalness:.15,roughness:.6});
 const mG=new T.MeshStandardMaterial({color:'#71717a',metalness:.25,roughness:.6});
 const mJ=new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.5,roughness:.3});
@@ -141,7 +141,7 @@ for(let a=0;a<4;a++){const ang=a*Math.PI/2+Math.PI/4;
   booster.position.set(bx,2.2,bz);booster.castShadow=true;rocketG.add(booster);
 }
 // Fairing (nose cone)
-const fairing=new T.Mesh(new T.ConeGeometry(.22,.6,24),new T.MeshStandardMaterial({color:'#f38ba8',metalness:.1,roughness:.4}));
+const fairing=new T.Mesh(new T.ConeGeometry(.22,.6,24),new T.MeshStandardMaterial({color:'#ef4444',metalness:.1,roughness:.4}));
 fairing.position.y=5;fairing.castShadow=true;rocketG.add(fairing);
 rocketG.position.set(2.3,0,0);S.add(rocketG);
 
@@ -161,7 +161,7 @@ crane.position.set(.5,TOWER_H+.15,0);crane.castShadow=true;S.add(crane);
 const craneHook=new T.Mesh(new T.CylinderGeometry(.015,.015,.3,8),new T.MeshStandardMaterial({color:'#f5e0dc'}));
 craneHook.position.set(.8,TOWER_H,0);S.add(craneHook);
 
-window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;document.getElementById('td').style.background=show?'#4ecdc4':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #4ecdc4':'none';document.getElementById('tl').textContent=show?'开':'关';};
+window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;document.getElementById('td').style.background=show?'#3b82f6':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #3b82f6':'none';document.getElementById('tl').textContent=show?'开':'关';};
 
 (function a(){requestAnimationFrame(a);O.update();R.render(S,C);})();
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});

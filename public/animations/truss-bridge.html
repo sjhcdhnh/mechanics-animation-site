@@ -13,9 +13,9 @@
 </style></head>
 <body>
 <div id="title">Warren 桁架铁路桥 · 内力可视化</div>
-<div id="hud"><b>Warren 桁架桥</b><br>跨度: <span style="color:#a6e3a1">60 m</span> · 桥宽: <span style="color:#a6e3a1">5 m</span><br>节间: <span style="color:#a6e3a1">8</span> · 杆件: <span id="mc">--</span><br>最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>最大压力: <span style="color:#f38ba8" id="mcp">--</span></div>
-<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#4ecdc4;box-shadow:0 0 6px #4ecdc4"></span>内力显示: <span id="tl">开</span></div>
-<div id="legend"><span class="sw" style="background:#4ecdc4"></span>拉力 <span class="sw" style="background:#f38ba8"></span>压力 <span style="margin-left:8px;color:#71717a">杆粗细正比于力值</span></div>
+<div id="hud"><b>Warren 桁架桥</b><br>跨度: <span style="color:#a6e3a1">60 m</span> · 桥宽: <span style="color:#a6e3a1">5 m</span><br>节间: <span style="color:#a6e3a1">8</span> · 杆件: <span id="mc">--</span><br>最大拉力: <span style="color:#3b82f6" id="mt">--</span><br>最大压力: <span style="color:#ef4444" id="mcp">--</span></div>
+<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6"></span>内力显示: <span id="tl">开</span></div>
+<div id="legend"><span class="sw" style="background:#3b82f6"></span>拉力 <span class="sw" style="background:#ef4444"></span>压力 <span style="margin-left:8px;color:#71717a">杆粗细正比于力值</span></div>
 <div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type="module">
@@ -54,8 +54,8 @@ document.getElementById('mc').textContent=side.members.length*2; // both sides
 
 // ── Render ──
 const gF=new T.Group(),gN=new T.Group();let show=true;S.add(gF);S.add(gN);
-const mT=new T.MeshStandardMaterial({color:'#4ecdc4',metalness:.15,roughness:.5,emissive:'#4ecdc4',emissiveIntensity:.25});
-const mC=new T.MeshStandardMaterial({color:'#f38ba8',metalness:.15,roughness:.5,emissive:'#f38ba8',emissiveIntensity:.25});
+const mT=new T.MeshStandardMaterial({color:'#3b82f6',metalness:.15,roughness:.5,emissive:'#3b82f6',emissiveIntensity:.25});
+const mC=new T.MeshStandardMaterial({color:'#ef4444',metalness:.15,roughness:.5,emissive:'#ef4444',emissiveIntensity:.25});
 const mZ=new T.MeshStandardMaterial({color:'#555566',metalness:.2,roughness:.6});
 const mG=new T.MeshStandardMaterial({color:'#71717a',metalness:.3,roughness:.6});
 const mJ=new T.MeshStandardMaterial({color:'#e8e8f0',metalness:.6,roughness:.3});
@@ -94,7 +94,7 @@ for(let i=1;i<panels;i++){
   [-width/2,width/2].forEach(z=>{const a=new T.Mesh(new T.ConeGeometry(.1,.4,8),new T.MeshStandardMaterial({color:'#f9a8d4',emissive:'#f9a8d4',emissiveIntensity:.3}));a.position.set(-span/2+i*pW,-.75,z);a.rotation.z=Math.PI;S.add(a);});
 }
 
-window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;document.getElementById('td').style.background=show?'#4ecdc4':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #4ecdc4':'none';document.getElementById('tl').textContent=show?'开':'关';};
+window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;document.getElementById('td').style.background=show?'#3b82f6':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #3b82f6':'none';document.getElementById('tl').textContent=show?'开':'关';};
 
 (function a(){requestAnimationFrame(a);O.update();R.render(S,C);})();
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});

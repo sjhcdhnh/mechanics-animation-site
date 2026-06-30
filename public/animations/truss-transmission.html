@@ -20,13 +20,13 @@ html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font
   <b>⚡ 输电塔</b><br>
   塔高: <span style="color:#a6e3a1">45 m</span> · 底宽: <span style="color:#a6e3a1">6 m</span><br>
   横担: <span style="color:#a6e3a1">3层</span> · 杆件: <span id="mc">--</span><br>
-  最大拉力: <span style="color:#4ecdc4" id="mt">--</span><br>
-  最大压力: <span style="color:#f38ba8" id="mc2">--</span>
+  最大拉力: <span style="color:#3b82f6" id="mt">--</span><br>
+  最大压力: <span style="color:#ef4444" id="mc2">--</span>
 </div>
-<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#4ecdc4;box-shadow:0 0 6px #4ecdc4;"></span>内力显示: <span id="tl">开</span></div>
+<div id="toggle" onclick="toggleForces()"><span id="td" style="width:10px;height:10px;border-radius:50%;background:#3b82f6;box-shadow:0 0 6px #3b82f6;"></span>内力显示: <span id="tl">开</span></div>
 <div id="legend">
-  <span class="sw" style="background:#4ecdc4;"></span>拉力 (Tension)
-  <span class="sw" style="background:#f38ba8;"></span>压力 (Compression)
+  <span class="sw" style="background:#3b82f6;"></span>拉力 (Tension)
+  <span class="sw" style="background:#ef4444;"></span>压力 (Compression)
   <span style="margin-left:8px;color:#71717a;">杆粗细正比于内力大小</span>
 </div>
 <div id="hint">🖱 拖拽旋转 · 滚轮缩放 · 右键平移</div>
@@ -102,8 +102,8 @@ document.getElementById('mc').textContent=members.length;
 
 // ── Render ──
 const gF=new THREE.Group(),gN=new THREE.Group();let show=true;scene.add(gF);scene.add(gN);
-const matT=new THREE.MeshStandardMaterial({color:'#4ecdc4',metalness:0.15,roughness:0.5,emissive:'#4ecdc4',emissiveIntensity:0.25});
-const matC=new THREE.MeshStandardMaterial({color:'#f38ba8',metalness:0.15,roughness:0.5,emissive:'#f38ba8',emissiveIntensity:0.25});
+const matT=new THREE.MeshStandardMaterial({color:'#3b82f6',metalness:0.15,roughness:0.5,emissive:'#3b82f6',emissiveIntensity:0.25});
+const matC=new THREE.MeshStandardMaterial({color:'#ef4444',metalness:0.15,roughness:0.5,emissive:'#ef4444',emissiveIntensity:0.25});
 const matZ=new THREE.MeshStandardMaterial({color:'#555566',metalness:0.2,roughness:0.6});
 const matGray=new THREE.MeshStandardMaterial({color:'#71717a',metalness:0.3,roughness:0.6});
 const matJ=new THREE.MeshStandardMaterial({color:'#e8e8f0',metalness:0.6,roughness:0.3,emissive:'#fff',emissiveIntensity:0.15});
@@ -140,7 +140,7 @@ bp.position.y=-0.1;bp.receiveShadow=true;scene.add(bp);
 
 // ── Toggle ──
 window.toggleForces=function(){show=!show;gF.visible=show;gN.visible=!show;
-  document.getElementById('td').style.background=show?'#4ecdc4':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #4ecdc4':'none';
+  document.getElementById('td').style.background=show?'#3b82f6':'#555';document.getElementById('td').style.boxShadow=show?'0 0 6px #3b82f6':'none';
   document.getElementById('tl').textContent=show?'开':'关';};
 
 function animate(){requestAnimationFrame(animate);ctrl.update();ren.render(scene,cam);}animate();

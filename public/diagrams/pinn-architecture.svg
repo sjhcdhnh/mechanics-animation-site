@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0A0A14"/>
+      <stop offset="100%" stop-color="#101020"/>
+    </linearGradient>
+    <linearGradient id="nnGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#A78BFA"/>
+    </linearGradient>
+    <filter id="glowP">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrowPurple" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#A78BFA"/>
+    </marker>
+    <marker id="arrowTeal" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#4ECDC4"/>
+    </marker>
+    <marker id="arrowPink" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <polygon points="0 0, 10 4, 0 8" fill="#F9A8D4"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <text x="640" y="44" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="24" fill="#E4E4E7" text-anchor="middle" font-weight="700">PINN 核心架构：输入 → 神经网络 → 输出 → 双分支损失函数</text>
+  <text x="640" y="68" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="12" fill="#71717A" text-anchor="middle">Raissi, Perdikaris &amp; Karniadakis, Journal of Computational Physics, 2019</text>
+
+  <!-- ═══ TOP ROW: Input → NN → Output ═══ -->
+  <!-- Input -->
+  <rect x="40" y="100" width="180" height="160" rx="12" fill="#1A1A2E" stroke="#52525B" stroke-width="1.5"/>
+  <text x="130" y="140" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="16" fill="#A78BFA" text-anchor="middle" font-weight="700">输入层</text>
+  <text x="130" y="172" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">x (空间)</text>
+  <text x="130" y="198" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">y (空间)</text>
+  <text x="130" y="224" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">z (空间)</text>
+  <text x="130" y="250" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">t (时间)</text>
+
+  <!-- Arrow -->
+  <line x1="220" y1="180" x2="275" y2="180" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+
+  <!-- Neural Network -->
+  <rect x="290" y="90" width="420" height="180" rx="12" fill="#1A1A2E" stroke="url(#nnGrad)" stroke-width="2"/>
+  <text x="500" y="126" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="16" fill="#E4E4E7" text-anchor="middle" font-weight="700">全连接神经网络 (Fully Connected NN)</text>
+
+  <!-- Layer boxes -->
+  <rect x="315" y="148" width="65" height="100" rx="6" fill="#2D1F4E"/>
+  <text x="347" y="202" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="12" fill="#C4B5FD" text-anchor="middle">隐藏层₁</text>
+
+  <rect x="400" y="148" width="65" height="100" rx="6" fill="#2D1F4E"/>
+  <text x="432" y="202" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="12" fill="#C4B5FD" text-anchor="middle">隐藏层₂</text>
+
+  <text x="498" y="205" font-family="Consolas,monospace" font-size="20" fill="#52525B" text-anchor="middle">...</text>
+
+  <rect x="540" y="148" width="65" height="100" rx="6" fill="#2D1F4E"/>
+  <text x="572" y="202" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="12" fill="#C4B5FD" text-anchor="middle">隐藏层ₙ</text>
+
+  <!-- Arrow -->
+  <line x1="710" y1="180" x2="770" y2="180" stroke="#A78BFA" stroke-width="2.5" marker-end="url(#arrowPurple)"/>
+
+  <!-- Output -->
+  <rect x="790" y="100" width="180" height="160" rx="12" fill="#1A1A2E" stroke="#52525B" stroke-width="1.5"/>
+  <text x="880" y="140" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="16" fill="#A78BFA" text-anchor="middle" font-weight="700">输出层</text>
+  <text x="880" y="172" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">u(x,t) 位移</text>
+  <text x="880" y="198" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">σ(x,t) 应力</text>
+  <text x="880" y="224" font-family="Consolas,monospace" font-size="16" fill="#D4D4D8" text-anchor="middle">p(x,t) 压力</text>
+  <text x="880" y="252" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="11" fill="#71717A" text-anchor="middle">待求物理量</text>
+
+  <!-- Divider -->
+  <line x1="40" y1="310" x2="1240" y2="310" stroke="#27272A" stroke-width="1.5"/>
+
+  <!-- Down arrows -->
+  <line x1="280" y1="270" x2="220" y2="340" stroke="#4ECDC4" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrowTeal)"/>
+  <line x1="850" y1="270" x2="920" y2="340" stroke="#F9A8D4" stroke-width="2" stroke-dasharray="6,3" marker-end="url(#arrowPink)"/>
+
+  <!-- ═══ BOTTOM: Two loss branches ═══ -->
+  <!-- Data loss -->
+  <rect x="40" y="340" width="580" height="230" rx="14" fill="#0A1F1F" stroke="#4ECDC4" stroke-width="1.5"/>
+  <rect x="40" y="340" width="580" height="42" rx="14" fill="#0F3333"/>
+  <rect x="40" y="368" width="580" height="14" fill="#0F3333"/>
+  <text x="330" y="368" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="18" fill="#4ECDC4" text-anchor="middle" font-weight="700">分支① · 数据损失 Ldata —— 与传统监督学习相同</text>
+
+  <text x="70" y="416" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="15" fill="#D4D4D8">· 神经网络预测值 vs 已知数据（边界条件、传感器测量值）</text>
+  <text x="70" y="444" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="15" fill="#D4D4D8">· 让输出接近"标准答案" —— 和普通神经网络训练完全一样</text>
+
+  <rect x="70" y="464" width="520" height="52" rx="8" fill="#0D2B2A" stroke="#4ECDC4" stroke-width="1"/>
+  <text x="330" y="488" font-family="Consolas,monospace" font-size="15" fill="#4ECDC4" text-anchor="middle">
+    L<tspan font-size="10" dy="4">data</tspan><tspan dy="-4"> = (1/N</tspan><tspan font-size="10" dy="4">d</tspan><tspan dy="-4">) · Σ || u(x</tspan><tspan font-size="10" dy="4">i</tspan><tspan dy="-4">) − u</tspan><tspan font-size="10" dy="4">i</tspan><tspan dy="-4" font-size="12">obs</tspan><tspan dy="-4"> ||²</tspan>
+  </text>
+  <text x="330" y="546" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="13" fill="#71717A" text-anchor="middle">↑ 在所有已知数据点上的均方误差</text>
+
+  <!-- Physics loss -->
+  <rect x="660" y="340" width="580" height="230" rx="14" fill="#1F0F1A" stroke="#F9A8D4" stroke-width="1.5"/>
+  <rect x="660" y="340" width="580" height="42" rx="14" fill="#331825"/>
+  <rect x="660" y="368" width="580" height="14" fill="#331825"/>
+  <text x="950" y="368" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="18" fill="#F9A8D4" text-anchor="middle" font-weight="700">分支② · 物理损失 LPDE —— PINN独有的创新</text>
+
+  <text x="690" y="416" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="15" fill="#D4D4D8">· 在求解域内随机采样"配置点" → 自动微分(AutoDiff)计算偏导数</text>
+  <text x="690" y="444" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="15" fill="#D4D4D8">· 代入力学控制方程（PDE），计算残差 → 残差越小 = 越满足物理定律</text>
+
+  <rect x="690" y="464" width="520" height="52" rx="8" fill="#1F0F1A" stroke="#F9A8D4" stroke-width="1"/>
+  <text x="950" y="488" font-family="Consolas,monospace" font-size="15" fill="#F9A8D4" text-anchor="middle">
+    L<tspan font-size="10" dy="4">PDE</tspan><tspan dy="-4"> = (1/N</tspan><tspan font-size="10" dy="4">c</tspan><tspan dy="-4">) · Σ || f(û, ∂</tspan><tspan font-size="10" dy="3">x</tspan><tspan dy="-3">û, ∂</tspan><tspan font-size="10" dy="3">t</tspan><tspan dy="-3">û, ...) ||²</tspan>
+  </text>
+  <text x="950" y="546" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="13" fill="#71717A" text-anchor="middle">↑ 在配置点上控制方程（如平衡方程 σ<tspan font-size="9" dy="3">ij,j</tspan><tspan dy="-3">+f</tspan><tspan font-size="9" dy="3">i</tspan><tspan dy="-3">=0）的残差</tspan></text>
+
+  <!-- λ label between branches -->
+  <rect x="610" y="420" width="60" height="28" rx="14" fill="#A78BFA" opacity="0.15"/>
+  <text x="640" y="439" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="13" fill="#A78BFA" text-anchor="middle" font-weight="700">λ</text>
+  <text x="640" y="458" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="9" fill="#71717A" text-anchor="middle">权重</text>
+
+  <!-- ═══ BOTTOM: Total Loss ═══ -->
+  <rect x="360" y="600" width="560" height="52" rx="12" fill="#1A1128" stroke="#A78BFA" stroke-width="2.5" filter="url(#glowP)"/>
+  <text x="640" y="633" font-family="Consolas,monospace" font-size="20" fill="#E4E4E7" text-anchor="middle" font-weight="700">
+    L<tspan font-size="12" dy="5">total</tspan><tspan dy="-5"> = L</tspan><tspan font-size="12" dy="5">data</tspan><tspan dy="-5">  +  λ · L</tspan><tspan font-size="12" dy="5">PDE</tspan>
+  </text>
+  <text x="640" y="672" font-family="Microsoft YaHei,PingFang SC,sans-serif" font-size="13" fill="#A78BFA" text-anchor="middle">训练目标：最小化总损失 → 网络同时拟合数据 + 满足物理方程</text>
+
+  <!-- Connectors -->
+  <line x1="330" y1="570" x2="460" y2="600" stroke="#52525B" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <line x1="950" y1="570" x2="820" y2="600" stroke="#52525B" stroke-width="1.5" stroke-dasharray="5,3"/>
+</svg>

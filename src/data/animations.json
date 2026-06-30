@@ -1,5 +1,22 @@
 [
   {
+    "slug": "truss-structures",
+    "title": "桁架结构内力可视化 · 三合一",
+    "subtitle": "Truss Force Visualization — Warren Bridge · Launch Tower · Transmission Tower",
+    "category": "planar-linkage",
+    "tags": ["桁架", "内力", "节点法", "静力学", "铁路桥", "发射塔", "输电塔", "拉压杆"],
+    "mechanismType": "桁架结构内力分析",
+    "fileName": "truss-structures.html",
+    "source": "builtin",
+    "downloadable": true,
+    "fileSize": 22000,
+    "description": "三种经典工程桁架结构的三维内力可视化模型。包含Warren桁架铁路桥（列车载荷）、火箭发射塔（风载+臂载）和输电塔（导线张力+风载）。采用节点法实时计算各杆件内力，红蓝色区分拉压，杆粗细反映力大小。一键切换模型，支持内力显示开关。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "三个工程桁架模型：①Warren桁架铁路桥（跨度12m，8节间，简支，节点法计算列车载荷下各杆拉力/压力）；②火箭发射塔（高8m，5层正方形截面空间桁架，X形斜撑，风载+脐带臂载）；③输电塔（高7m，锥形截面，3层横担，导线张力+风载）。杆内力由二维节点法（ΣFx=0, ΣFy=0）求解。"
+  },
+  {
     "slug": "pinn-demo",
     "title": "PINN对比演示 · 悬臂梁",
     "subtitle": "PINNs — Analytical vs Data-Driven Beam Deflection",

@@ -65,10 +65,10 @@ const blkGeo=new T.BoxGeometry(BW,BH,BD);
 
 // 物块用pivot组: pivot在物块左下角(接触边), block相对pivot
 const gPivot=new T.Group();gRamp.add(gPivot);
-gPivot.position.set(blockX-BW/2, 0, 0); // pivot在接触棱
+gPivot.position.set(blockX+BW/2, 0, 0); // pivot在下侧接触棱(翻转转轴)
 
 const blk=new T.Mesh(blkGeo,blkMat);blk.castShadow=true;blk.receiveShadow=true;
-blk.position.set(BW/2, BH/2, 0); // 中心相对pivot
+blk.position.set(-BW/2, BH/2, 0); // pivot在右下角, 中心在pivot左上方
 gPivot.add(blk);
 
 // ─── 力箭头(rampGroup局部) ───
@@ -88,7 +88,7 @@ function rst(){
   document.getElementById('lmu').textContent=mu.toFixed(2);document.getElementById('vmu').textContent=mu.toFixed(2);
 
   // 复位
-  gPivot.position.set(blockX-BW/2,0,0);gPivot.rotation.set(0,0,0);
+  gPivot.position.set(blockX+BW/2,0,0);gPivot.rotation.set(0,0,0);
   while(gArr.children.length)gArr.remove(gArr.children[0]);
 
   // 力箭头(接触点=blockX, 质心=(blockX, BH/2))
@@ -108,11 +108,11 @@ function rst(){
   // 动画
   if(slide){
     (function L(now){if(aid!==id)return;const t=(now-ts)/1000,f=Math.min(t/1.3,1);
-      gPivot.position.x=blockX-BW/2 + f*f*1.3;gPivot.rotation.set(0,0,0);
+      gPivot.position.x=blockX+BW/2 + f*f*1.3;gPivot.rotation.set(0,0,0);
       if(f<1)requestAnimationFrame(L);})(ts);
   }else{
     (function L(now){if(aid!==id)return;const t=(now-ts)/1000,f=Math.min(t/1.5,1);
-      gPivot.rotation.set(0,0,-f*f*.5); // 绕Z轴负向转
+      gPivot.rotation.set(0,0,-f*f*(Math.PI/2)); // 绕Z轴负向翻转到底
       if(f<1)requestAnimationFrame(L);})(ts);
   }
 }

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8"><title>斜面物块 · 滑动 vs 翻转 · 摩擦演示</title>
+<meta charset="UTF-8"><title>斜面物块 · 滑动 vs 翻转</title>
 <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#cdd6f4}
 #title{position:absolute;top:14px;left:50%;transform:translateX(-50%);font-size:16px;color:#e0e6f8;pointer-events:none}
-#hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.85);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7;backdrop-filter:blur(4px);min-width:220px}
-#hud b{color:#f5e0dc}#hud .g{color:#a6e3a1}#hud .y{color:#f9a8d4}#hud .r{color:#f38ba8}
-#params{position:absolute;top:12px;right:16px;padding:12px 16px;background:rgba(20,22,38,0.85);border:1px solid #2a2f4a;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(4px);min-width:200px}
-#params input{width:90px;accent-color:#a78bfa;vertical-align:middle}#params span.v{color:#a78bfa;font-weight:600;min-width:28px;display:inline-block;text-align:right}
+#hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.85);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7;backdrop-filter:blur(4px);min-width:200px}
+#hud b{color:#f5e0dc}
+#params{position:absolute;top:12px;right:16px;padding:12px 16px;background:rgba(20,22,38,0.85);border:1px solid #2a2f4a;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(4px)}
+#params input{width:120px;accent-color:#a78bfa;vertical-align:middle}#params span.v{color:#a78bfa;font-weight:600}
 #params button{width:100%;margin-top:4px;padding:6px 0;border-radius:6px;border:1px solid #a78bfa;background:rgba(167,139,250,.1);color:#a78bfa;font-size:12px;cursor:pointer;transition:all .2s}
 #params button:hover{background:rgba(167,139,250,.2)}
 #legend{position:absolute;bottom:14px;left:12px;padding:10px 14px;background:rgba(20,22,38,0.75);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.7}
@@ -16,126 +16,126 @@
 </style></head>
 <body>
 <div id="title">斜面物块 · 滑动 vs 翻转</div>
-<div id="hud"><b>斜面物块 · 摩擦</b><br>倾角 θ=<span style="color:#a78bfa" id="v-ang">30°</span> μ=<span style="color:#a78bfa" id="v-mu">0.40</span><br>b/h=<span style="color:#a78bfa" id="v-bh">0.50</span><br>临界: tanθ=<span id="v-tan">0.577</span> μ=<span id="v-mus">0.40</span> b/h=<span id="v-bhs">0.50</span><br>状态: <b id="v-state" class="g">静止</b></div>
+<div id="hud"><b>斜面 θ=30° &nbsp; 物块 b/h=0.50</b><br>tanθ=<span style="color:#a78bfa">0.577</span> &nbsp; μ=<span style="color:#f9a8d4" id="v-mu">--</span> &nbsp; b/h=<span style="color:#a6e3a1">0.50</span><br>下滑临界 μ&lt;<span style="color:#f9a8d4">0.577</span> &nbsp; 翻转临界 b/h&lt;<span style="color:#a6e3a1">0.577</span><br>状态: <b id="v-state" style="color:#a6e3a1">静止</b></div>
 <div id="params">
-  <div>倾角 θ <input type="range" id="s-ang" min="5" max="55" value="25" step="1"> <span class="v" id="l-ang">25°</span></div>
-  <div>摩擦系数 μ <input type="range" id="s-mu" min="5" max="100" value="40" step="1"> <span class="v" id="l-mu">0.40</span></div>
-  <div>宽 b <input type="range" id="s-b" min="4" max="15" value="6" step="1"> <span class="v" id="l-b">0.6</span></div>
-  <div>高 h <input type="range" id="s-h" min="4" max="15" value="12" step="1"> <span class="v" id="l-h">1.2</span></div>
+  <div>摩擦系数 μ <input type="range" id="s-mu" min="5" max="100" value="80" step="1"> <span class="v" id="l-mu">0.80</span></div>
   <button onclick="resetAnim()">⟳ 复位重播</button>
 </div>
-<div id="legend"><span class="sw" style="background:#f5e0dc"></span>重力mg <span class="sw" style="background:#89b4fa"></span>法向力N <span class="sw" style="background:#f38ba8"></span>摩擦力f <span class="sw" style="background:#4ecdc4"></span>翻转力矩</div>
-<div id="hint">调参数→点击复位→观察物块运动 · 拖拽旋转视角</div>
+<div id="legend"><span class="sw" style="background:#f5e0dc"></span>重力 mg <span class="sw" style="background:#89b4fa"></span>法向力 N <span class="sw" style="background:#f38ba8"></span>摩擦力 f</div>
+<div id="hint">μ低→滑动 &nbsp; μ高→翻转 &nbsp; 拖拽旋转|滚轮缩放|复位重播</div>
 <script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type=module>
 import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-const S=new T.Scene();S.background=new T.Color('#0a0a14');S.fog=new T.Fog('#0a0a14',8,22);
-const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.3,18);C.position.set(3,2.5,6.5);C.lookAt(1,0.4,0);
+const S=new T.Scene();S.background=new T.Color('#0a0a14');
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,15);C.position.set(4,3,7);C.lookAt(0,.3,0);
 const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
-const O=new OrbitControls(C,R.domElement);O.target.set(1,.4,0);O.enableDamping=true;O.minPolarAngle=.3;O.maxPolarAngle=1.4;O.update();
-S.add(new T.AmbientLight('#404060',2.5));const L=new T.DirectionalLight('#fff',5);L.position.set(4,7,4);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.camera.far=20;S.add(L);
-S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-2,3,-2));
+const O=new OrbitControls(C,R.domElement);O.target.set(0,.3,0);O.enableDamping=true;O.update();
+S.add(new T.AmbientLight('#404060',2.5));const L=new T.DirectionalLight('#fff',5);L.position.set(5,7,4);L.castShadow=true;L.shadow.mapSize.set(2048,2048);L.shadow.camera.far=18;S.add(L);S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-3,3,-2));
+// Ground
+S.add(new T.Mesh(new T.BoxGeometry(5,.05,2.5),new T.MeshStandardMaterial({color:'#3a3a48',roughness:.8})).translateY(-1.7));
+S.add(new T.GridHelper(8,16,'#2a2f4a','#1a1f2e').translateY(-1.65));
 
-// ── Scene elements ──
-const inclineG=new T.Group(),blockG=new T.Group(),arrowG=new T.Group();S.add(inclineG);S.add(blockG);S.add(arrowG);
-const ground=new T.Mesh(new T.BoxGeometry(6,.06,3),new T.MeshStandardMaterial({color:'#3a3a48',metalness:.2,roughness:.8}));ground.position.y=-1.6;ground.receiveShadow=true;S.add(ground);
-const grid=new T.GridHelper(8,16,'#2a2f4a','#1a1f2e');grid.position.y=-1.55;S.add(grid);
+// ── Fixed geometry ──
+const THETA=30*Math.PI/180,tanT=Math.tan(THETA),cosT=Math.cos(THETA),sinT=Math.sin(THETA);
+const BW=.6,BH=1.2,bhR=BW/BH; // b/h=0.5, tanθ=0.577→always can tip
+const rampLen=3.5;
 
-// ── Arrow helper ──
-function arrow(from,to,color,r=.025){
-  const d=new T.Vector3().subVectors(to,from);const len=d.length();if(len<.01)return new T.Group();const g=new T.Group();
-  const shaftH=len*.78;
-  const shaft=new T.Mesh(new T.CylinderGeometry(r,r*.9,shaftH,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.3}));
-  shaft.position.y=shaftH/2;g.add(shaft);
-  const head=new T.Mesh(new T.ConeGeometry(r*2.6,r*4.5,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.4}));
-  head.position.y=shaftH;g.add(head);
+// Incline surface (world coords: rotated by THETA around hinge at x=0,y=-1.5,z=0)
+const rampGroup=new T.Group();S.add(rampGroup);
+const ramp=new T.Mesh(new T.BoxGeometry(rampLen,.06,2),new T.MeshStandardMaterial({color:'#5a5a6e',metalness:.2,roughness:.7}));
+ramp.position.set(0,0,0);ramp.castShadow=true;ramp.receiveShadow=true;rampGroup.add(ramp);
+// Wall at left end
+const wall=new T.Mesh(new T.BoxGeometry(.08,.4,2),new T.MeshStandardMaterial({color:'#6a6a76',metalness:.3,roughness:.5}));
+wall.position.set(-rampLen/2+.04,.17,0);rampGroup.add(wall);
+// Hinge pivot visual
+const hinge=new T.Mesh(new T.CylinderGeometry(.06,.06,2.2,12),new T.MeshStandardMaterial({color:'#888',metalness:.7,roughness:.3}));
+hinge.rotation.x=Math.PI/2;hinge.position.set(-rampLen/2,0,0);rampGroup.add(hinge);
+// Support
+const supH=rampLen*sinT;const supW=rampLen*cosT;
+const supShape=new T.Shape();supShape.moveTo(0,0);supShape.lineTo(supW,0);supShape.lineTo(0,supH);supShape.closePath();
+const supGeo=new T.ExtrudeGeometry(supShape,{depth:2,bevelEnabled:false});
+const sup=new T.Mesh(supGeo,new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.6}));
+sup.rotation.y=-Math.PI/2;sup.position.set(-rampLen/2,0,-1);sup.receiveShadow=true;S.add(sup);
+
+// Ramp pivot
+rampGroup.position.set(rampLen/2*cosT-.5,1.5-rampLen/2*sinT,0);rampGroup.rotation.z=-THETA;
+
+// Block group (local to incline surface)
+const blockG=new T.Group();rampGroup.add(blockG);
+// Block sits on surface: y=BH/2
+const blkGeo=new T.BoxGeometry(BW,BH,.6);
+const blkMat=new T.MeshStandardMaterial({color:'#cba6f7',metalness:.1,roughness:.5});
+let blkMesh=new T.Mesh(blkGeo,blkMat);blkMesh.castShadow=true;blkMesh.receiveShadow=true;
+blockG.add(blkMesh);
+// Initial pos: centered on incline
+const startX=rampLen*.55;blkMesh.position.set(startX,BH/2,0);
+
+// Arrow helper
+function arrow(from,to,color,r=.022){
+  const d=new T.Vector3().subVectors(to,from);const len=d.length();if(len<.008)return new T.Group();const g=new T.Group();
+  const sh=len*.78;g.add(new T.Mesh(new T.CylinderGeometry(r,r*.85,sh,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.3})).translateY(sh/2));
+  g.add(new T.Mesh(new T.ConeGeometry(r*2.6,r*4,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.4})).translateY(sh));
   g.position.copy(from);g.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return g;}
+const arrowG=new T.Group();rampGroup.add(arrowG);
 
-let blkMesh=null,blkPos=new T.Vector3(),blkRot=0,blkScale=1;
-let animId=0,animStart=0,animDur=0,animFn=null;
+// ── State ──
+let animId=0,animStart=0,mu=.8;
+const stateEl=document.getElementById('v-state'),muEl=document.getElementById('v-mu');
 
-function buildScene(aDeg,mu,bw,bh){
-  while(inclineG.children.length)inclineG.remove(inclineG.children[0]);
-  while(blockG.children.length)blockG.remove(blockG.children[0]);
+function resetAnim(){
+  animId++;const aid=animId;animStart=performance.now()/1000;
+  mu=+document.getElementById('s-mu').value/100;
+  document.getElementById('l-mu').textContent=mu.toFixed(2);muEl.textContent=mu.toFixed(2);
+  // Reset
+  blkMesh.position.set(startX,BH/2,0);blkMesh.rotation.z=0;
   while(arrowG.children.length)arrowG.remove(arrowG.children[0]);
+  // Static arrows
+  const cx=startX,cy=BH/2,bot=new T.Vector3(cx,0,0),ctr=new T.Vector3(cx,cy,0);
+  arrowG.add(arrow(bot,bot.clone().add(new T.Vector3(0,1.2,0)),'#89b4fa',.02));
+  arrowG.add(arrow(bot,bot.clone().add(new T.Vector3(-.8,0,0)),'#f38ba8',.02));
+  const gDir=new T.Vector3(-sinT,-cosT,0).multiplyScalar(1.6);
+  arrowG.add(arrow(ctr,ctr.clone().add(gDir),'#f5e0dc',.024));
 
-  const aRad=aDeg*Math.PI/180,tanA=Math.tan(aRad),bhR=bw/bh;
-  const slideFirst=(mu<bhR);
+  // Determine behavior
+  const tip=tanT>bhR+.001; // always true at 30°, b/h=0.5
+  const slide=mu<tanT-.001;
+  let state;if(!slide&&!tip)state='静止';else if(slide)state='沿斜面下滑 ↓';else state='绕底边翻转 ↺';
+  stateEl.textContent=state;stateEl.style.color=state==='静止'?'#a6e3a1':slide?'#f9a8d4':'#f38ba8';
 
-  // Incline surface
-  const rampLen=3.5,rampW=2;
-  const ramp=new T.Mesh(new T.BoxGeometry(rampLen,.05,rampW),new T.MeshStandardMaterial({color:'#5a5a6e',metalness:.2,roughness:.7}));
-  ramp.receiveShadow=true;ramp.castShadow=true;inclineG.add(ramp);
-  // Support triangle
-  const supH=rampLen*Math.sin(aRad);
-  const supShape=new T.Shape();supShape.moveTo(0,0);supShape.lineTo(supH,0);supShape.lineTo(0,rampLen*Math.cos(aRad));supShape.closePath();
-  const supGeo=new T.ExtrudeGeometry(supShape,{depth:rampW,bevelEnabled:false});
-  const sup=new T.Mesh(supGeo,new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.6}));
-  sup.rotation.y=-Math.PI/2;sup.position.set(0,0,-rampW/2);sup.receiveShadow=true;inclineG.add(sup);
-  // Incline group rotation
-  inclineG.position.set(0,-1.5,0);inclineG.rotation.z=-aRad;inclineG.rotation.order='YXZ';
-
-  // Block — placed on the incline
-  const geo=new T.BoxGeometry(bw,bh,.6);
-  const mat=new T.MeshStandardMaterial({color:'#cba6f7',metalness:.1,roughness:.5});
-  const block=new T.Mesh(geo,mat);block.castShadow=true;block.receiveShadow=true;
-  // Block sits on incline: position so bottom center is at the contact point
-  const startX=rampLen*.55; // position along incline
-  block.position.set(startX,bh/2,0);
-  blockG.add(block);blkMesh=block;
-  blkPos.set(startX,bh/2,0);blkRot=0;
-
-  // Force visualization (static arrows in incline-local coords)
-  const cx=startX,cy=bh/2;
-  const bot=new T.Vector3(cx,0,0); // contact point on incline surface
-  // Normal force (perp to incline = up in incline-local)
-  arrowG.add(arrow(bot.clone(),new T.Vector3(cx,1.2,0),'#89b4fa',.022));
-  // Friction (along incline, up = negative x)
-  arrowG.add(arrow(bot.clone(),new T.Vector3(cx-.8,0,0),'#f38ba8',.022));
-  // Gravity from center
-  const gDir=new T.Vector3(-Math.sin(aRad),-Math.cos(aRad),0).multiplyScalar(1.8);
-  const center=new T.Vector3(cx,cy,0);
-  arrowG.add(arrow(center.clone(),center.clone().add(gDir),'#f5e0dc',.025));
-
-  // Determine outcome
-  const slide=tanA>mu+.001,tip=tanA>bhR+.001;
-  let state,cls;if(!slide&&!tip){state='静止';cls='g';}else if(slide&&!tip){state='滑动↓';cls='y';}else if(!slide&&tip){state='翻转↺';cls='r';}else{state=slideFirst?'滑动(先于翻转)↓':'翻转(先于滑动)↺';cls='r';}
-  document.getElementById('v-state').textContent=state;document.getElementById('v-state').className=cls;
-
-  // ── Animation setup ──
-  animId++;const aid=animId;
-  animStart=performance.now()/1000;
-  if(slide&&!tip){animDur=1.5;animFn=(t)=>{if(animId!==aid)return;const frac=Math.min(t/animDur,1);const ease=frac*frac;block.position.x=cx-ease*1.2;block.position.y=bh/2;};}
-  else if(tip&&!slide){animDur=1.8;animFn=(t)=>{if(animId!==aid)return;const frac=Math.min(t/animDur,1);const ease=frac<.3?frac/.3*(Math.PI/12):(Math.PI/12)+(frac-.3)*1.2;
-    block.position.set(cx-(bw/2)*(1-Math.cos(ease)),bh/2-bw/2*Math.sin(ease),0);block.rotation.z=ease;};}
-  else if(slide&&tip){animDur=2.0;animFn=(t)=>{if(animId!==aid)return;const frac=Math.min(t/animDur,1);
-    if(slideFirst){const slideF=Math.min(frac/.35,1),ease=slideF*slideF;block.position.x=cx-ease*1.0;block.position.y=bh/2;if(frac>.35){const tipF=(frac-.35)/.65;block.rotation.z=tipF*(Math.PI/10);}}
-    else{const tipF=Math.min(frac/.4,1),ease=tipF*tipF;block.rotation.z=ease*(Math.PI/10);if(frac>.4){const slideF=(frac-.4)/.6;block.position.x=cx-slideF*slideF*.8;}}
-  };}
-  else{animDur=.3;animFn=null;}
+  // Animate
+  if(slide&&!tip){const v0=0,acc=(tanT-mu)*cosT*9.8/2; // scaled accel
+    (function loop(now){
+      if(animId!==aid)return;const t=(now-animStart)/1000,frac=Math.min(t/1.5,1);
+      const disp=frac*frac*1.3;blkMesh.position.x=startX-disp;blkMesh.position.y=BH/2;blkMesh.rotation.z=0;
+      if(frac<1)requestAnimationFrame(loop);
+    })(animStart);
+  }else if(tip&&!slide){
+    (function loop(now){
+      if(animId!==aid)return;const t=(now-animStart)/1000,frac=Math.min(t/1.6,1);
+      const ang=frac*frac*(Math.PI/6); // max tip angle
+      const px=startX+BW/2*(Math.cos(ang)-1);const py=BH/2+BW/2*Math.sin(ang);
+      blkMesh.position.set(px,py,0);blkMesh.rotation.z=ang;
+      if(frac<1)requestAnimationFrame(loop);
+    })(animStart);
+  }else if(slide&&tip){ // both possible: slide first if μ < b/h (=0.5)
+    const slideFirst=mu<bhR;
+    (function loop(now){
+      if(animId!==aid)return;const t=(now-animStart)/1000,frac=Math.min(t/2.0,1);
+      if(slideFirst){
+        const sF=Math.min(frac/.4,1);blkMesh.position.x=startX-sF*sF*1.0;blkMesh.position.y=BH/2;blkMesh.rotation.z=0;
+        if(frac>.4){const tF=(frac-.4)/.6;const ang=tF*tF*(Math.PI/8);const px=blkMesh.position.x+BW/2*(Math.cos(ang)-1);const py=BH/2+BW/2*Math.sin(ang);blkMesh.position.set(px,py,0);blkMesh.rotation.z=ang;}
+      }else{
+        const tF=Math.min(frac/.45,1),ang=tF*tF*(Math.PI/8);const px=startX+BW/2*(Math.cos(ang)-1);const py=BH/2+BW/2*Math.sin(ang);blkMesh.position.set(px,py,0);blkMesh.rotation.z=ang;
+        if(frac>.45){const sF=(frac-.45)/.55;blkMesh.position.x=px-sF*sF*.6;}
+      }
+      if(frac<1)requestAnimationFrame(loop);
+    })(animStart);
+  }
 }
+window.resetAnim=resetAnim;
+document.getElementById('s-mu').addEventListener('input',resetAnim);
+resetAnim();
 
-window.resetAnim=function(){animId++;animStart=performance.now()/1000;buildScene(+document.getElementById('s-ang').value,+document.getElementById('s-mu').value/100,+document.getElementById('s-b').value/10,+document.getElementById('s-h').value/10);};
-function updateParams(){
-  const a=+document.getElementById('s-ang').value,mu=+document.getElementById('s-mu').value/100,b=+document.getElementById('s-b').value/10,h=+document.getElementById('s-h').value/10;
-  document.getElementById('l-ang').textContent=a+'°';document.getElementById('v-ang').textContent=a+'°';
-  document.getElementById('l-mu').textContent=mu.toFixed(2);document.getElementById('v-mu').textContent=mu.toFixed(2);
-  document.getElementById('l-b').textContent=b.toFixed(1);document.getElementById('l-h').textContent=h.toFixed(1);
-  document.getElementById('v-bh').textContent=(b/h).toFixed(2);document.getElementById('v-bhs').textContent=(b/h).toFixed(2);
-  document.getElementById('v-tan').textContent=Math.tan(a*Math.PI/180).toFixed(3);
-  document.getElementById('v-mus').textContent=mu.toFixed(2);
-  resetAnim();
-}
-document.querySelectorAll('#params input').forEach(el=>el.addEventListener('input',updateParams));
-
-// ── Loop ──
-function animate(now){
-  requestAnimationFrame(animate);
-  const t=(now/1000)-animStart;
-  if(animFn)animFn(t);
-  O.update();R.render(S,C);
-}
-updateParams();
-requestAnimationFrame(animate);
+(function a(){requestAnimationFrame(a);O.update();R.render(S,C);})();
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

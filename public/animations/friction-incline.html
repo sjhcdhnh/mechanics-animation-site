@@ -4,149 +4,131 @@
 <meta charset="UTF-8"><title>斜面物块 · 滑动 vs 翻转</title>
 <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0a14;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#cdd6f4}
 #hud{position:absolute;top:12px;left:12px;padding:10px 14px;background:rgba(20,22,38,.85);border:1px solid #2a2f4a;border-radius:6px;font-size:12px;line-height:1.65;backdrop-filter:blur(4px)}
-#hud b{color:#f5e0dc}#hud span.g{color:#a6e3a1}#hud span.r{color:#f38ba8}#hud span.y{color:#f9a8d4}
+#hud b{color:#f5e0dc}#hud .g{color:#a6e3a1}#hud .y{color:#f9a8d4}#hud .r{color:#f38ba8}
 #p{position:absolute;top:12px;right:16px;padding:10px 14px;background:rgba(20,22,38,.85);border:1px solid #2a2f4a;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(4px)}
 #p input{width:130px;accent-color:#a78bfa}#p span.v{color:#a78bfa;font-weight:600}
-#p button{width:100%;margin-top:3px;padding:5px;border-radius:6px;border:1px solid #a78bfa;background:rgba(167,139,250,.1);color:#a78bfa;font-size:12px;cursor:pointer}
-#p button:hover{background:rgba(167,139,250,.2)}
+#p button{width:100%;margin-top:3px;padding:5px;border-radius:6px;border:1px solid #a78bfa;background:rgba(167,139,250,.08);color:#a78bfa;font-size:12px;cursor:pointer}
 #leg{position:absolute;bottom:14px;left:12px;padding:8px 12px;background:rgba(20,22,38,.75);border:1px solid #2a2f4a;border-radius:6px;font-size:11px;line-height:1.6}
-#leg i{display:inline-block;width:12px;height:6px;margin-right:4px;border-radius:1px;vertical-align:middle;border:1px solid rgba(255,255,255,.15)}
+#leg i{display:inline-block;width:12px;height:6px;margin-right:4px;border-radius:1px;vertical-align:middle}
 #hint{position:absolute;bottom:14px;right:12px;padding:6px 10px;background:rgba(20,22,38,.5);border:1px solid #2a2f4a;border-radius:6px;font-size:11px;color:#8b95b8}
 </style></head>
 <body>
-<div id="hud">
-  <b>斜面物块 · 滑动 vs 翻转</b><br>
-  斜面 θ=30° &nbsp; b/h=0.50 &nbsp; tanθ=0.577<br>
-  摩擦系数 μ=<span class="y" id="vmu">0.80</span><br>
-  状态: <b id="vst" class="g">翻转 ↺</b>
-</div>
-<div id="p">
-  μ <input type="range" id="smu" min="5" max="100" value="80" step="1"> <span class="v" id="lmu">0.80</span>
-  <br><button onclick="reset()">⟳ 复位重播</button>
-</div>
-<div id="leg"><i style="background:#f5e0dc"></i>重力 <i style="background:#89b4fa"></i>法向力N <i style="background:#f38ba8"></i>摩擦力f</div>
-<div id="hint">μ&lt;0.577→滑动 &nbsp; μ&gt;0.577→翻转 &nbsp; 拖拽旋转 · 复位重播</div>
+<div id="hud"><b>斜面物块 · 滑动 vs 翻转</b><br>θ=30° tanθ=0.577 b/h=0.50<br>μ=<span class="y" id="vmu">0.80</span> &nbsp; 状态: <b id="vst" class="r">翻转 ↺</b></div>
+<div id="p">μ <input type="range" id="smu" min="5" max="100" value="80" step="1"> <span class="v" id="lmu">0.80</span><br><button onclick="reset()">⟳ 复位重播</button></div>
+<div id="leg"><i style="background:#f5e0dc;border:1px solid rgba(255,255,255,.15)"></i>重力 <i style="background:#89b4fa;border:1px solid rgba(255,255,255,.15)"></i>法向力N <i style="background:#f38ba8;border:1px solid rgba(255,255,255,.15)"></i>摩擦力f</div>
+<div id="hint">μ&lt;0.577→下滑 &nbsp; μ&gt;0.577→翻转 &nbsp; 拖拽旋转|复位</div>
 <script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type=module>
 import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
 
-// ── Setup ──
+// ── Scene ──
 const S=new T.Scene();S.background=new T.Color('#0a0a14');
-const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,15);C.position.set(4,2.5,7);C.lookAt(0,.3,0);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,15);C.position.set(3,2,7);C.lookAt(1.2,.3,0);
 const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
-const O=new OrbitControls(C,R.domElement);O.target.set(0,.3,0);O.enableDamping=true;O.update();
+const O=new OrbitControls(C,R.domElement);O.target.set(1.2,.3,0);O.enableDamping=true;O.update();
 S.add(new T.AmbientLight('#505070',2.5));
-const sun=new T.DirectionalLight('#fff',5);sun.position.set(5,8,4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.far=20;sun.shadow.camera.left=-6;sun.shadow.camera.right=6;sun.shadow.camera.top=5;sun.shadow.camera.bottom=-3;S.add(sun);
+const sun=new T.DirectionalLight('#fff',5);sun.position.set(6,8,5);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);sun.shadow.camera.far=20;sun.shadow.camera.left=-6;sun.shadow.camera.right=6;sun.shadow.camera.top=5;sun.shadow.camera.bottom=-3;S.add(sun);
 S.add(new T.DirectionalLight('#8899cc',1.5).position.set(-3,3,-2));
-// Floor
-const fl=new T.Mesh(new T.BoxGeometry(6,.06,3),new T.MeshStandardMaterial({color:'#3a3a48',roughness:.8}));fl.position.y=-1.8;fl.receiveShadow=true;S.add(fl);
-S.add(new T.GridHelper(8,16,'#2a2f4a','#1a1f2e').translateY(-1.75));
+
+// Ground
+const f=new T.Mesh(new T.BoxGeometry(8,.08,3),new T.MeshStandardMaterial({color:'#3a3a48',roughness:.8}));f.position.y=-2.5;f.receiveShadow=true;S.add(f);
+S.add(new T.GridHelper(10,20,'#2a2f4a','#1a1f2e').translateY(-2.44));
 
 // ── Constants ──
-const A=30*Math.PI/180,SA=Math.sin(A),CA=Math.cos(A),TA=Math.tan(A); // TA≈0.577
-const BW=.6,BH=1.2,BD=.5,bhr=BW/BH; // bhr=0.5 < TA → tip always possible
-const RL=3.5,RW=1.8; // ramp length, width
+const A=30*Math.PI/180,SA=Math.sin(A),CA=Math.cos(A),TA=Math.tan(A);
+const BW=.6,BH=1.2,BD=.5,bhr=BW/BH; // b/h=0.50
+const RL=3.5; // ramp length
+// tip: TA(0.577) > bhr(0.5) → always possible with enough μ
 
-// ── Ramp in world space ──
-// Hinge at world origin (0,0,0). Ramp rotates around Z axis, extending in +X direction.
-// Ramp surface: from (0,0,0) along +X*CA, +Y*SA for length RL.
+// ═══ rampGroup: origin = hinge point at bottom-left of ramp ═══
+// Local frame: X = along ramp (uphill), Y = normal to ramp, Z = depth
+// Ramp surface = XZ plane at Y=0
 const rampG=new T.Group();S.add(rampG);
-const rampMesh=new T.Mesh(new T.BoxGeometry(RL,.06,RW),new T.MeshStandardMaterial({color:'#5a5a6e',metalness:.2,roughness:.7}));
-rampMesh.position.set(RL/2*CA,RL/2*SA,0);rampMesh.rotation.z=A;rampMesh.castShadow=true;rampMesh.receiveShadow=true;rampG.add(rampMesh);
-// Left wall
-const w=new T.Mesh(new T.BoxGeometry(.06,.35,RW),new T.MeshStandardMaterial({color:'#6a6a76',metalness:.3,roughness:.5}));
-w.position.set(0,.17,0);rampG.add(w);
-// Hinge pin
-const hp=new T.Mesh(new T.CylinderGeometry(.05,.05,RW+.1,12),new T.MeshStandardMaterial({color:'#888',metalness:.7,roughness:.3}));
-hp.rotation.x=Math.PI/2;hp.position.set(0,0,0);rampG.add(hp);
-// Support triangle (from origin down to floor at y=-1.8)
-const supLen=RL*CA;const supH=RL*SA;const supDepth=RW;
-const supShape=new T.Shape();supShape.moveTo(0,0);supShape.lineTo(supLen,-supH-1.8);supShape.lineTo(0,-supH-1.8);supShape.closePath();
-const supGeo=new T.ExtrudeGeometry(supShape,{depth:supDepth,bevelEnabled:false});
-const supM=new T.Mesh(supGeo,new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.6}));
-supM.rotation.y=-Math.PI/2;supM.position.set(0,0,-supDepth/2);supM.receiveShadow=true;S.add(supM);
+// Place hinge at world (0, 0, 0), then rotate rampG so ramp surface goes up at angle A
+rampG.position.set(0,0,0);rampG.rotation.z=-A;rampG.rotation.order='YXZ';
 
-// ── Block ──
+// Ramp surface: centered at (RL/2, 0, 0), thickness below surface
+const ramp=new T.Mesh(new T.BoxGeometry(RL,.06,1.8),new T.MeshStandardMaterial({color:'#5a5a6e',metalness:.2,roughness:.7}));
+ramp.position.set(RL/2,0,0);ramp.castShadow=true;ramp.receiveShadow=true;rampG.add(ramp);
+// Left stopper wall at x=0
+const wall=new T.Mesh(new T.BoxGeometry(.05,.3,1.8),new T.MeshStandardMaterial({color:'#6a6a76',metalness:.3,roughness:.5}));
+wall.position.set(0,.15,0);rampG.add(wall);
+// Hinge cylinder
+const hinge=new T.Mesh(new T.CylinderGeometry(.04,.04,1.9,12),new T.MeshStandardMaterial({color:'#999',metalness:.7,roughness:.3}));
+hinge.rotation.x=Math.PI/2;hinge.position.set(0,0,0);rampG.add(hinge);
+
+// Support: extends from hinge (0,0,0) down in world-Y to floor at y=-2.5
+// In rampG local coords, world-down is (-SA, -CA, 0)
+// Floor at world y=-2.5 → in rampG local: need to find intersection
+// World point (0, -2.5, 0) in rampG = rotate back by +A: (0-0)*CA + (-2.5-0)*SA? No...
+// Simpler: just add the support directly to world space, not rampG
+// Support triangle in WORLD space from (0,0,0) to (RL*CA, RL*SA, 0) to (0,-2.5,0)
+const supH=RL*SA;const supBase=RL*CA;
+const supShape=new T.Shape();supShape.moveTo(0,0);supShape.lineTo(supBase,supH);supShape.lineTo(0,-2.5);supShape.closePath();
+const supGeo=new T.ExtrudeGeometry(supShape,{depth:1.8,bevelEnabled:false});
+const supM=new T.Mesh(supGeo,new T.MeshStandardMaterial({color:'#4a4a58',metalness:.3,roughness:.6}));
+supM.rotation.y=-Math.PI/2;supM.position.set(0,0,-.9);supM.receiveShadow=true;S.add(supM);
+
+// ── Block in rampG local frame ──
+// Block sits ON ramp surface: bottom face at Y=0, center at Y=BH/2
 const blockG=new T.Group();rampG.add(blockG);
 const blkGeo=new T.BoxGeometry(BW,BH,BD);
-const blkMat=new T.MeshStandardMaterial({color:'#cba6f7',metalness:.1,roughness:.5});
-const blk=new T.Mesh(blkGeo,blkMat);blk.castShadow=true;blk.receiveShadow=true;
-// Block's local frame: X=up-ramp (right), Y=normal to ramp (up), Z=into screen
-// Place block so its base sits on the ramp surface (y=BH/2 in block-local)
-blk.position.set(BH/2*SA,BH/2*CA,0); // so bottom face touches ramp at z-rotated position
-// Actually let's make blockG at ramp origin, block positioned above origin
-// Ramp surface is plane y=0 in rampG local coords (since ramp is rotated)
-// Block moves along local X on this surface
+const blkM=new T.MeshStandardMaterial({color:'#cba6f7',metalness:.1,roughness:.5});
+const blk=new T.Mesh(blkGeo,blkM);blk.castShadow=true;blk.receiveShadow=true;
+blk.position.set(RL*.55,BH/2,0); // block sitting on ramp, centered on surface
+const initX=RL*.55,initY=BH/2;
 
-// World position of block center along ramp
-const blockStartX=RL*.55;
-blk.position.set(blockStartX,BH/2,0);
-// Rotate block so bottom is parallel to ramp — blockG doesn't rotate, block itself is axis-aligned
-// Since block is in rampG which is already rotated, block's local Y is world-up. That means block bottom won't be parallel to ramp.
-// Fix: rotate block so bottom face aligns with ramp surface
-blk.rotation.z=A; // align bottom face with ramp
-
-const blkRestX=blockStartX,blkRestY=BH/2;
-
-// ── Arrow helper (clean single-color arrows) ──
-function mkArrow(from,to,color,r=.02){
+// ── Arrows ──
+function arrow(from,to,color,r=.018){
   const d=new T.Vector3().subVectors(to,from);const L=d.length();if(L<.005)return new T.Group();
-  const g=new T.Group();const shL=L*.78;
-  const shaft=new T.Mesh(new T.CylinderGeometry(r,r*.85,shL,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.25}));
-  shaft.position.y=shL/2;g.add(shaft);
-  const head=new T.Mesh(new T.ConeGeometry(r*2.8,r*4.5,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.35}));
-  head.position.y=shL;g.add(head);
+  const g=new T.Group(),sh=L*.76;
+  g.add(new T.Mesh(new T.CylinderGeometry(r,r*.85,sh,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.25})).translateY(sh/2));
+  g.add(new T.Mesh(new T.ConeGeometry(r*2.8,r*4.5,10),new T.MeshStandardMaterial({color,metalness:.1,roughness:.4,emissive:color,emissiveIntensity:.35})).translateY(sh));
   g.position.copy(from);g.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),d.normalize());return g;}
 const arrowG=new T.Group();rampG.add(arrowG);
 
-// ── Animation state ──
-let aid=0,startT=0,muVal=.8;
-
+// ── State ──
+let aid=0,startT=0,mu=.8;
 function reset(){
-  aid++;const id=aid;startT=performance.now();
-  muVal=+document.getElementById('smu').value/100;
-  document.getElementById('lmu').textContent=muVal.toFixed(2);document.getElementById('vmu').textContent=muVal.toFixed(2);
-
-  // Reset block
-  blk.position.set(blkRestX,blkRestY,0);blk.rotation.set(0,0,A);
-
-  // Clear arrows
+  aid++;const id=aid;startT=performance.now();mu=+document.getElementById('smu').value/100;
+  document.getElementById('lmu').textContent=mu.toFixed(2);document.getElementById('vmu').textContent=mu.toFixed(2);
+  // Reset
+  blk.position.set(initX,initY,0);blk.rotation.set(0,0,0);
   while(arrowG.children.length)arrowG.remove(arrowG.children[0]);
 
-  // Static force arrows (in rampG local frame)
-  const cx=blkRestX,cy=blkRestY;
-  const bot=new T.Vector3(cx-BH/2*SA,0,0); // contact point on ramp surface
+  // Force arrows (rampG local frame: X=uphill, Y=normal)
+  const cx=initX,cy=initY;
+  const bot=new T.Vector3(cx,0,0); // contact point on ramp surface
   const ctr=new T.Vector3(cx,cy,0); // block center
-  // Normal force (perpendicular to ramp = straight up in rampG frame = local +Y)
-  arrowG.add(mkArrow(bot,new T.Vector3(bot.x,bot.y+1.1,bot.z),'#89b4fa',.018));
-  // Friction (along ramp surface = local +X, opposing slide = -X)
-  arrowG.add(mkArrow(bot,new T.Vector3(bot.x-.7,bot.y,bot.z),'#f38ba8',.018));
-  // Gravity in rampG frame: world-down = rampG (-SA, -CA, 0)
+  // Normal (local +Y)
+  arrowG.add(arrow(bot,new T.Vector3(bot.x,bot.y+1,0),'#89b4fa',.016));
+  // Friction (local -X, opposes sliding downhill)
+  arrowG.add(arrow(bot,new T.Vector3(bot.x-.7,0,0),'#f38ba8',.016));
+  // Gravity: world-down = in rampG: rotate +A from world → (-SA, -CA, 0)
   const gv=new T.Vector3(-SA*1.5,-CA*1.5,0);
-  arrowG.add(mkArrow(ctr,ctr.clone().add(gv),'#f5e0dc',.022));
+  arrowG.add(arrow(ctr,ctr.clone().add(gv),'#f5e0dc',.02));
 
-  // Determine outcome
-  const slide=muVal<TA-.002; // μ < 0.575 → slide
-  const tip=TA>bhr+.001; // always true
-  let label,color;
-  if(!slide){label='翻转 ↺';color='#f38ba8';}else{label='沿斜面下滑 ↓';color='#f9a8d4';}
-  document.getElementById('vst').textContent=label;document.getElementById('vst').style.color=color;
+  // Decide
+  const slide=mu<TA-.002;
+  document.getElementById('vst').textContent=slide?'沿斜面下滑 ↓':'翻转 ↺';
+  document.getElementById('vst').style.color=slide?'#f9a8d4':'#f38ba8';
 
-  // ── Animate ──
-  if(!slide){ // tip: rotate block clockwise around bottom-left edge
-    (function loop(now){
-      if(aid!==id)return;const t=(now-startT)/1000,f=Math.min(t/1.5,1),ang=A+f*f*.5;
-      // pivot: bottom-left corner of block at (cx-BW/2,0) in rampG
-      const px=blkRestX-BW/2*(Math.cos(ang-A)-1);
-      const py=blkRestY+BW/2*Math.sin(ang-A);
-      blk.position.set(px,py,0);blk.rotation.set(0,0,ang);
-      if(f<1)requestAnimationFrame(loop);
+  // Animate
+  if(!slide){ // TIP: rotate clockwise around bottom-left corner
+    (function L(now){if(aid!==id)return;
+      const t=(now-startT)/1000,f=Math.min(t/1.5,1),ang=f*f*.45;
+      // pivot at (cx-BW/2, 0). Block center: cx-BW/2 + BW/2*cos(ang), BH/2*cos(ang)+BW/2*sin(ang)
+      // Simpler: just rotate around Z and translate to keep bottom-left corner at (cx-BW/2,0)
+      const cos=Math.cos(ang),sin=Math.sin(ang);
+      blk.position.set(cx-BW/2+BW/2*cos,BH/2*cos+BW/2*sin,0);
+      blk.rotation.set(0,0,ang);
+      if(f<1)requestAnimationFrame(L);
     })(startT);
-  }else{ // slide: block translates -X along ramp surface
-    (function loop(now){
-      if(aid!==id)return;const t=(now-startT)/1000,f=Math.min(t/1.3,1),dx=f*f*1.2;
-      blk.position.set(blkRestX-dx,blkRestY,0);blk.rotation.set(0,0,A);
-      if(f<1)requestAnimationFrame(loop);
+  }else{ // SLIDE: translate -X
+    (function L(now){if(aid!==id)return;
+      const t=(now-startT)/1000,f=Math.min(t/1.3,1),dx=f*f*1.3;
+      blk.position.set(initX-dx,initY,0);blk.rotation.set(0,0,0);
+      if(f<1)requestAnimationFrame(L);
     })(startT);
   }
 }

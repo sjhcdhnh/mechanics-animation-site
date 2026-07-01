@@ -1,76 +1,75 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8"><title>苏格兰轭 · 简谐运动</title>
-<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
-#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.88);padding:10px 16px;border-radius:8px;font-size:12px;line-height:1.7;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
-#hud b{color:#dc2626}#hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
-</style></head>
-<body>
-<div id="hud"><b>苏格兰轭 (Scotch Yoke)</b><br>曲柄 ● &nbsp; 轭架 ● 水平往复<br>位移 x = R·cos(ωt) 简谐运动<br>曲柄转角: <span id="va">0°</span> &nbsp; 滑块位移: <span id="vx">0.00</span></div>
-<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
-<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>苏格兰轭 · 简谐运动</title>
+<style>:root{--bg:#15171c}*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);overflow:hidden;font-family:'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;height:100vh;width:100vw}#container{position:fixed;top:0;left:0;width:100%;height:100%}canvas{display:block}
+.info-panel{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(30,30,38,.88);backdrop-filter:blur(18px);border-radius:20px;padding:14px 24px;box-shadow:0 8px 28px rgba(0,0,0,.45);display:flex;align-items:center;gap:16px;z-index:10;border:1px solid rgba(255,255,255,.08)}.info-item{display:flex;align-items:center;gap:8px;font-size:13px;color:#e0e0e0;white-space:nowrap}.color-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.4)}.divider{width:1px;height:16px;background:#4a4a55}
+</style></head><body>
+<div id="container"></div>
+<div class="info-panel"><div class="info-item"><span class="color-dot" style="background:#e63946"></span>曲柄</div><div class="divider"></div><div class="info-item"><span class="color-dot" style="background:#3a7bd5"></span>轭架</div><div class="divider"></div><div class="info-item"><span class="color-dot" style="background:#f4d03f"></span>驱动销</div><div class="divider"></div><div class="info-item" style="color:#ffd966">x = R·cos(ωt)</div></div>
+<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 <script type=module>
 import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',6,25);
-const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.3,20);C.position.set(0,0,8);C.lookAt(0,0,0);
-const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
-const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.update();
-S.add(new T.AmbientLight('#ffffff',2.5));const L=new T.DirectionalLight('#ffffff',3);L.position.set(3,5,4);L.castShadow=true;L.shadow.mapSize.set(1024,1024);S.add(L);
-S.add(new T.DirectionalLight('#8899cc',1).position.set(-2,2,-2));
-S.add(new T.GridHelper(7,14,'#ccc','#e8e8e8'));
+const ct=document.getElementById('container');
+const S=new T.Scene();S.background=new T.Color('#1a1d24');
+const R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.3;ct.appendChild(R.domElement);
+const C=new T.PerspectiveCamera(42,innerWidth/innerHeight,.1,40);C.position.set(0,0,9);C.lookAt(0,0,0);
+const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.dampingFactor=.12;O.minDistance=4;O.maxDistance=18;O.update();
+S.add(new T.AmbientLight('#3a4050',2.2));S.add(new T.HemisphereLight('#b0c0d8','#282e3a',1.6));
+const key=new T.DirectionalLight('#ffffff',5.5);key.position.set(8,10,6);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.camera.near=.5;key.shadow.camera.far=30;key.shadow.camera.left=-8;key.shadow.camera.right=8;key.shadow.camera.top=6;key.shadow.camera.bottom=-6;key.shadow.bias=-.0005;S.add(key);
+S.add(new T.DirectionalLight('#8a9bb5',2.0).position.set(-4,2,-4));
+S.add(new T.DirectionalLight('#5a6b82',1.8).position.set(0,-2,2));
 
-const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.85,roughness:.28,emissive:'#220000',emissiveIntensity:.1});
-const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.85,roughness:.28,emissive:'#000022',emissiveIntensity:.1});
-const mPin=new T.MeshStandardMaterial({color:'#fbbf24',metalness:.7,roughness:.2,emissive:'#fbbf24',emissiveIntensity:.5});
-const mBrass=new T.MeshStandardMaterial({color:'#d4a853',metalness:.7,roughness:.35});
-const mGray=new T.MeshStandardMaterial({color:'#6b7280',metalness:.6,roughness:.4});
-const Cr=.9; // crank radius
+const grid=new T.GridHelper(10,16,'#3a3f4a','#252830');grid.position.y=-2;S.add(grid);
+const ground=new T.Mesh(new T.PlaneGeometry(14,10),new T.MeshStandardMaterial({color:'#1e2128',roughness:.9,metalness:.15}));ground.rotation.x=-Math.PI/2;ground.position.y=-2.1;ground.receiveShadow=true;S.add(ground);
 
-// ── Crank wheel (red) ──
+const mRed=new T.MeshStandardMaterial({color:'#e63946',roughness:.25,metalness:.55});
+const mBlue=new T.MeshStandardMaterial({color:'#3a7bd5',roughness:.25,metalness:.55});
+const mPin=new T.MeshStandardMaterial({color:'#f4d03f',roughness:.2,metalness:.85});
+const mDark=new T.MeshStandardMaterial({color:'#4a4f5a',roughness:.55,metalness:.5});
+const mRail=new T.MeshStandardMaterial({color:'#8d99a4',roughness:.4,metalness:.7});
+const Cr=.85;
+
+// Crank wheel (red)
 const crankG=new T.Group();S.add(crankG);
-crankG.add(new T.Mesh(new T.CylinderGeometry(Cr,Cr,.1,48),mRed).translateY(-.05).castShadow=true);
-crankG.add(new T.Mesh(new T.TorusGeometry(Cr,.02,16,80),mBrass).rotateX(Math.PI/2).translateY(-.1));
-const crankPin=new T.Mesh(new T.CylinderGeometry(.08,.08,.25,16),mPin);crankPin.rotation.x=Math.PI/2;crankG.add(crankPin);
-crankG.add(new T.Mesh(new T.CylinderGeometry(.06,.06,.5,16),mBrass).translateY(.27));
+crankG.add(new T.Mesh(new T.CylinderGeometry(Cr,Cr,.12,48),mRed).translateZ(-.06).castShadow=true);
+crankG.add(new T.Mesh(new T.TorusGeometry(Cr,.03,12,64),new T.MeshStandardMaterial({color:'#f4d03f',roughness:.2,metalness:.85})).rotateX(Math.PI/2).translateZ(-.1));
+const crankPin=new T.Mesh(new T.CylinderGeometry(.07,.07,.22,16),mPin);crankPin.rotation.x=Math.PI/2;crankG.add(crankPin);
+crankG.add(new T.Mesh(new T.CylinderGeometry(.08,.08,.3,16),mPin).translateZ(.17));
+crankG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.4,12),mDark).translateZ(.3));
 
-// ── Yoke frame (blue, horizontal slider) ──
+// Yoke frame (blue)
 const yokeG=new T.Group();S.add(yokeG);
-// Main horizontal beam
-const yW=3.2,yH=.16;
-yokeG.add(new T.Mesh(new T.BoxGeometry(yW,yH,.15),mBlue).translateY(0).castShadow=true);
+const yW=3.0,yH=.14,slotH=Cr*2+.4;
+// Horizontal bar
+yokeG.add(new T.Mesh(new T.BoxGeometry(yW,yH,.12),mBlue).translateZ(0).castShadow=true);
 // Vertical slot frame
-const slotH=Cr*2+.3;
-yokeG.add(new T.Mesh(new T.BoxGeometry(yH,slotH,.15),mBlue).translateY(0).castShadow=true);
-// Slot opening (dark gap)
-yokeG.add(new T.Mesh(new T.BoxGeometry(.26,slotH-.15,.18),mGray).translateY(0));
-// Top/bot rails
+yokeG.add(new T.Mesh(new T.BoxGeometry(yH,slotH,.12),mBlue).translateZ(0).castShadow=true);
+// Slot gap
+yokeG.add(new T.Mesh(new T.BoxGeometry(.24,slotH-.12,.15),mDark).translateZ(0));
+// Corner reinforcements
 [[yW/2,slotH/4],[yW/2,-slotH/4],[-yW/2,slotH/4],[-yW/2,-slotH/4]].forEach(([x,y])=>{
-  yokeG.add(new T.Mesh(new T.BoxGeometry(.08,slotH*.45,.15),mGray).translateX(x).translateY(y));
+  yokeG.add(new T.Mesh(new T.BoxGeometry(.06,slotH*.42,.12),mDark).translateX(x).translateY(y));
 });
-yokeG.add(new T.Mesh(new T.TorusGeometry(.02,.015,8,16),mBrass).rotateX(Math.PI/2).translateY(slotH/2+.05).translateX(yW/2+.04));
-yokeG.add(new T.Mesh(new T.TorusGeometry(.02,.015,8,16),mBrass).rotateX(Math.PI/2).translateY(-slotH/2-.05).translateX(yW/2+.04));
+// End caps
+yokeG.add(new T.Mesh(new T.TorusGeometry(.02,.01,6,12),mPin).rotateX(Math.PI/2).translateX(yW/2+.03).translateY(slotH/2+.02));
+yokeG.add(new T.Mesh(new T.TorusGeometry(.02,.01,6,12),mPin).rotateX(Math.PI/2).translateX(yW/2+.03).translateY(-slotH/2-.02));
 
-// ── Guide rails ──
+// Guide rails
 [-Cr-.2,Cr+.2].forEach(y=>{
-  const rail=new T.Mesh(new T.BoxGeometry(5,.04,.12),mGray);rail.position.y=y;rail.position.z=-.6;S.add(rail);
-  S.add(new T.Mesh(new T.CylinderGeometry(.03,.03,.4,8),mGray).translateX(-2.5).translateY(y).translateZ(-.3));
-  S.add(new T.Mesh(new T.CylinderGeometry(.03,.03,.4,8),mGray).translateX(2.5).translateY(y).translateZ(-.3));
+  const rail=new T.Mesh(new T.BoxGeometry(5,.04,.1),mRail);rail.position.set(0,y,-.5);S.add(rail);
+  const post=new T.Mesh(new T.CylinderGeometry(.03,.03,.4,6),mDark);post.position.set(-2.5,y,-.28);S.add(post);
+  const post2=post.clone();post2.position.x=2.5;S.add(post2);
 });
 
-// ── Base ──
-S.add(new T.Mesh(new T.BoxGeometry(6,.04,1.8),new T.MeshStandardMaterial({color:'#e5e7eb',metalness:.4,roughness:.6})).translateY(-1).translateZ(-.7).receiveShadow=true);
+// Pillars
+function pillar(x,y,z,h){const p=new T.Mesh(new T.CylinderGeometry(.1,.14,h,8),mDark);p.position.set(x,y,z);p.castShadow=true;S.add(p);}
+pillar(0,-1.75,Cr+.2,.8);pillar(0,-1.75,-Cr-.2,.8);
 
-// ── Animation ──
+// Particles
+const pts=new T.BufferGeometry();const pa=new Float32Array(50*3);
+for(let i=0;i<50;i++){pa[i*3]=(Math.random()-.5)*10;pa[i*3+1]=(Math.random()-.5)*6;pa[i*3+2]=(Math.random()-.5)*6;}
+pts.setAttribute('position',new T.BufferAttribute(pa,3));
+const particles=new T.Points(pts,new T.PointsMaterial({color:'#bcc6d0',size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(particles);
+
 let ang=0;
-function animate(t){requestAnimationFrame(animate);ang+=.02;
-  crankG.rotation.z=ang;
-  crankPin.position.set(Math.cos(ang)*Cr,Math.sin(ang)*Cr,0);
-  yokeG.position.x=Math.cos(ang)*Cr;
-  yokeG.position.y=Math.sin(ang)*Cr;
-  document.getElementById('va').textContent=Math.round(ang*180/Math.PI%360)+'°';
-  document.getElementById('vx').textContent=(Math.cos(ang)*Cr).toFixed(2);
-  O.update();R.render(S,C);
-}requestAnimationFrame(animate);
+(function a(t){requestAnimationFrame(a);ang+=.025;crankG.rotation.z=ang;crankPin.position.set(Math.cos(ang)*Cr,Math.sin(ang)*Cr,0);yokeG.position.x=Math.cos(ang)*Cr;yokeG.position.y=Math.sin(ang)*Cr;particles.rotation.y+=.0005;O.update();R.render(S,C);})();
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

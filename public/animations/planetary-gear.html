@@ -1,277 +1,220 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>行星齿轮系 · 公转与自转</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif; }
-        #info {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.6);
-            color: #eee;
-            padding: 8px 15px;
-            border-radius: 8px;
-            backdrop-filter: blur(8px);
-            pointer-events: none;
-            z-index: 10;
-            font-size: 14px;
-            border-left: 4px solid #ffaa33;
-        }
-        #controls-note {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.5);
-            color: #ccc;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            pointer-events: none;
-        }
-    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>行星齿轮系</title>
+<style>
+body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}
+#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+#hud{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#ff0;padding:6px 14px;border-radius:6px;font-size:13px;z-index:20;font-family:monospace}
+</style>
 </head>
 <body>
-    <div id="info">
-    <span class="dot" style="background:#e63946;"></span>太阳轮z1=20固定 &nbsp;
-    <span class="dot" style="background:#3a7bd5;"></span>行星轮z2=16x3 &nbsp;
-    <span class="dot" style="background:#2a9d8f;"></span>齿圈z3=52 &nbsp;
-    <span class="dot" style="background:#f4d03f;"></span>行星架 &nbsp;
-    <span style="color:#ffaa33;">i=3.60</span>
+<div id="info">
+  <span class="dot" style="background:#e63946"></span>太阳轮(固定) &nbsp;
+  <span class="dot" style="background:#3a7bd5"></span>行星轮x3 &nbsp;
+  <span class="dot" style="background:#2a9d8f"></span>齿圈 &nbsp; i=3.60
 </div>
-    <div id="info2" style="position:absolute;top:70px;left:20px;background:rgba(0,0,0,0.5);color:#ccc;padding:4px 12px;border-radius:6px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:12px;">行星架公转(2rad/s)·行星轮自转1.25x·橙黄标记显示自转</div>
-    
+<div id="hud">自转角度监控</div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
-            }
-        }
-    </script>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as T from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+const scene = new T.Scene();
+scene.background = new T.Color("#1a1d24");
 
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color('#1a1d24');
+const camera = new T.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 60);
+camera.position.set(0, 0, 14);
+camera.lookAt(0, 0, 0);
 
-        const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 60);
-        camera.position.set(0, 0, 15);
-        camera.lookAt(0, 0, 0);
+const renderer = new T.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = T.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.3;
-        document.body.appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 0, 0);
+controls.update();
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.12;
-        controls.target.set(0, 0, 0);
-        controls.minDistance = 5;
-        controls.maxDistance = 30;
-        controls.update();
+scene.add(new T.AmbientLight("#3a4050", 2.2));
+scene.add(new T.HemisphereLight("#b0c0d8", "#282e3a", 1.6));
+const keyLight = new T.DirectionalLight("#ffffff", 5.5);
+keyLight.position.set(10, 12, 8);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.width = 2048;
+keyLight.shadow.mapSize.height = 2048;
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 50;
+keyLight.shadow.camera.left = -10;
+keyLight.shadow.camera.right = 10;
+keyLight.shadow.camera.top = 8;
+keyLight.shadow.camera.bottom = -8;
+scene.add(keyLight);
+scene.add(new T.DirectionalLight("#8a9bb5", 2.0).position.set(-5, 3, -5));
+scene.add(new T.DirectionalLight("#5a6b82", 1.8).position.set(0, -2, 3));
 
-        scene.add(new THREE.AmbientLight('#3a4050', 2.2));
-        scene.add(new THREE.HemisphereLight('#b0c0d8', '#282e3a', 1.6));
-        const keyLight = new THREE.DirectionalLight('#ffffff', 5.5);
-        keyLight.position.set(10, 12, 8);
-        keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 2048;
-        keyLight.shadow.mapSize.height = 2048;
-        keyLight.shadow.camera.near = 0.5;
-        keyLight.shadow.camera.far = 50;
-        keyLight.shadow.camera.left = -14;
-        keyLight.shadow.camera.right = 14;
-        keyLight.shadow.camera.top = 10;
-        keyLight.shadow.camera.bottom = -10;
-        keyLight.shadow.bias = -0.0005;
-        scene.add(keyLight);
-        scene.add(new THREE.DirectionalLight('#8a9bb5', 2.0).position.set(-5, 3, -5));
-        scene.add(new THREE.DirectionalLight('#5a6b82', 1.8).position.set(0, -2, 3));
+var grid = new T.GridHelper(14, 20, "#3a3f4a", "#252830");
+grid.position.y = -5;
+scene.add(grid);
 
-        const grid = new THREE.GridHelper(18, 24, '#3a3f4a', '#252830');
-        grid.position.y = -7;
-        scene.add(grid);
-        const ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(24, 24),
-            new THREE.MeshStandardMaterial({ color: '#1e2128', roughness: 0.9, metalness: 0.15 })
-        );
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -7.1;
-        ground.receiveShadow = true;
-        scene.add(ground);
+var ground = new T.Mesh(
+  new T.PlaneGeometry(20, 20),
+  new T.MeshStandardMaterial({ color: "#1e2128", roughness: 0.9, metalness: 0.15 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -5.1;
+ground.receiveShadow = true;
+scene.add(ground);
 
-        // ── createPlanarGear (same as gear-system) ──
-        function createPlanarGear(radius, teethCount, material, markerColor) {
-            const group = new THREE.Group();
-            const shape = new THREE.Shape();
-            const rootR = radius - 0.45;
-            const tipR = radius + 0.65;
-            const angleStep = (Math.PI * 2) / teethCount;
-            const toothAngle = angleStep * 0.45;
-            const gapAngle = angleStep - toothAngle;
-            let angle = -toothAngle / 2;
-            shape.moveTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
-            for (let i = 0; i < teethCount; i++) {
-                const tipStart = angle + toothAngle / 2;
-                shape.lineTo(tipR * Math.cos(tipStart), tipR * Math.sin(tipStart));
-                angle += toothAngle;
-                shape.lineTo(tipR * Math.cos(angle), tipR * Math.sin(angle));
-                shape.lineTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
-                angle += gapAngle;
-                shape.lineTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
-            }
-            const holePath = new THREE.Path();
-            holePath.absellipse(0, 0, 0.55, 0.55, 0, Math.PI * 2, true);
-            shape.holes.push(holePath);
-            const geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: 0.45, bevelEnabled: false });
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            group.add(mesh);
+function createPlanarGear(radius, teeth, matColor, markerColor) {
+  var group = new T.Group();
+  var shape = new T.Shape();
+  var rr = radius - 0.45;
+  var tr = radius + 0.65;
+  var step = Math.PI * 2 / teeth;
+  var tw = step * 0.45;
+  var gap = step - tw;
+  var a = -tw / 2;
+  shape.moveTo(rr * Math.cos(a), rr * Math.sin(a));
+  for (var i = 0; i < teeth; i++) {
+    var ts = a + tw / 2;
+    shape.lineTo(tr * Math.cos(ts), tr * Math.sin(ts));
+    a += tw;
+    shape.lineTo(tr * Math.cos(a), tr * Math.sin(a));
+    shape.lineTo(rr * Math.cos(a), rr * Math.sin(a));
+    a += gap;
+    shape.lineTo(rr * Math.cos(a), rr * Math.sin(a));
+  }
+  var hole = new T.Path();
+  hole.absellipse(0, 0, 0.55, 0.55, 0, Math.PI * 2, true);
+  shape.holes.push(hole);
+  var geo = new T.ExtrudeGeometry(shape, { steps: 1, depth: 0.45, bevelEnabled: false });
+  var mesh = new T.Mesh(geo, new T.MeshStandardMaterial({ color: matColor, roughness: 0.25, metalness: 0.55 }));
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  var armGeo = new T.BoxGeometry(0.08, radius * 0.85, 0.06);
+  var armMat = new T.MeshStandardMaterial({ color: markerColor, roughness: 0.02, emissive: markerColor, emissiveIntensity: 1.5 });
+  var arm = new T.Mesh(armGeo, armMat);
+  arm.position.set(0, radius * 0.425, 0.25);
+  group.add(arm);
+  var tipGeo = new T.SphereGeometry(0.1, 16, 16);
+  var tip = new T.Mesh(tipGeo, armMat);
+  tip.position.set(0, radius * 0.85, 0.27);
+  group.add(tip);
+  var hubGeo = new T.CylinderGeometry(0.55, 0.55, 0.53, 24);
+  var hub = new T.Mesh(hubGeo, new T.MeshStandardMaterial({ color: "#f4d03f", roughness: 0.2, metalness: 0.85 }));
+  hub.position.z = 0;
+  hub.castShadow = true;
+  group.add(hub);
+  return group;
+}
 
-            // HIGHLY VISIBLE radial arm — like a clock hand, BRIGHT YELLOW
-            const armShape = new THREE.Shape();
-            const arw = 0.06;
-            armShape.moveTo(-arw, 0);
-            armShape.lineTo(arw, 0);
-            armShape.lineTo(arw * 0.6, radius * 0.9);
-            armShape.lineTo(-arw * 0.6, radius * 0.9);
-            armShape.closePath();
-            const armGeo = new THREE.ExtrudeGeometry(armShape, { steps: 1, depth: 0.06, bevelEnabled: false });
-            const armMat = new THREE.MeshStandardMaterial({ color: '#ffff00', roughness: 0.02, emissive: '#ffff00', emissiveIntensity: 1.5 });
-            const armMesh = new THREE.Mesh(armGeo, armMat);
-            armMesh.position.z = 0.26;
-            group.add(armMesh);
+var M = 0.16;
+var z1 = 20, z2 = 16, z3 = 52;
+var R1 = M * z1, R2 = M * z2, R3 = M * z3;
+var Ra = R1 + R2;
 
-            // Big bright ball at the tip
-            const tipGeo = new THREE.SphereGeometry(0.12, 16, 16);
-            const tipMat = new THREE.MeshStandardMaterial({ color: '#ffff00', roughness: 0.02, emissive: '#ffff00', emissiveIntensity: 1.5 });
-            const tipMesh = new THREE.Mesh(tipGeo, tipMat);
-            tipMesh.position.set(0, radius * 0.9, 0.28);
-            group.add(tipMesh);
+var sun = createPlanarGear(R1, z1, "#e63946", "#ff6b6b");
+scene.add(sun);
 
-            const hub = new THREE.Mesh(
-                new THREE.CylinderGeometry(0.55, 0.55, 0.53, 24),
-                new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 })
-            );
-            hub.position.z = 0;
-            hub.castShadow = true;
-            group.add(hub);
-            return group;
-        }
+var ro = R3 + 0.9;
+var ringBody = new T.Mesh(
+  new T.CylinderGeometry(ro, ro, 0.5, 64, 32, true),
+  new T.MeshStandardMaterial({ color: "#2a9d8f", roughness: 0.25, metalness: 0.55 })
+);
+ringBody.castShadow = true;
+scene.add(ringBody);
+var rimMat = new T.MeshStandardMaterial({ color: "#f4d03f", roughness: 0.2, metalness: 0.85 });
+var r1r = new T.Mesh(new T.TorusGeometry(ro, 0.05, 16, 80), rimMat);
+r1r.rotation.x = Math.PI / 2; r1r.position.z = 0.27; scene.add(r1r);
+var r2r = new T.Mesh(new T.TorusGeometry(ro, 0.05, 16, 80), rimMat);
+r2r.rotation.x = Math.PI / 2; r2r.position.z = -0.27; scene.add(r2r);
+for (var i = 0; i < z3; i++) {
+  var ai = i * Math.PI * 2 / z3;
+  var tw = (2 * Math.PI * R3) / z3 * 0.4;
+  var t = new T.Mesh(new T.BoxGeometry(0.35, tw, 0.4), new T.MeshStandardMaterial({ color: "#2a9d8f", roughness: 0.25, metalness: 0.55 }));
+  t.position.set(Math.cos(ai) * (R3 - 0.1), Math.sin(ai) * (R3 - 0.1), 0);
+  t.rotation.z = ai;
+  t.castShadow = true;
+  scene.add(t);
+}
 
-        const matSun = new THREE.MeshStandardMaterial({ color: '#e63946', roughness: 0.25, metalness: 0.55 });
-        const matPlanet = new THREE.MeshStandardMaterial({ color: '#3a7bd5', roughness: 0.25, metalness: 0.55 });
-        const matRing = new THREE.MeshStandardMaterial({ color: '#2a9d8f', roughness: 0.25, metalness: 0.55 });
-        const rimMat = new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 });
-        const pillarMat2 = new THREE.MeshStandardMaterial({ color: '#4a4f5a', roughness: 0.55, metalness: 0.5 });
+var armG = new T.Group();
+scene.add(armG);
+for (var i2 = 0; i2 < 3; i2++) {
+  var a2 = i2 * Math.PI * 2 / 3;
+  var bar = new T.Mesh(
+    new T.BoxGeometry(Ra, 0.03, 0.04),
+    new T.MeshStandardMaterial({ color: "#8d99a4", roughness: 0.4, metalness: 0.7 })
+  );
+  bar.position.set(Math.cos(a2) * Ra / 2, Math.sin(a2) * Ra / 2, 0);
+  bar.rotation.z = a2;
+  armG.add(bar);
+}
+var armHub3 = new T.Mesh(new T.CylinderGeometry(0.22, 0.22, 0.25, 24), rimMat);
+armHub3.position.z = 0.14;
+armG.add(armHub3);
 
-        const z1 = 20, z2 = 16, z3 = 52;
-        const MOD = 0.16;
-        const R1 = MOD * z1, R2 = MOD * z2, R3 = MOD * z3;
-        const Ra = R1 + R2;
+var planetGroups = [];
+for (var i3 = 0; i3 < 3; i3++) {
+  var a3 = i3 * Math.PI * 2 / 3;
+  var pg = new T.Group();
+  pg.position.set(Math.cos(a3) * Ra, Math.sin(a3) * Ra, 0);
+  armG.add(pg);
+  planetGroups.push(pg);
+  pg.add(createPlanarGear(R2, z2, "#3a7bd5", "#ffff00"));
+}
 
-        // Sun gear (fixed at center)
-        scene.add(createPlanarGear(R1, z1, matSun, '#ff6b6b'));
+var pMat = new T.MeshStandardMaterial({ color: "#4a4f5a", roughness: 0.55, metalness: 0.5 });
+var pa = new T.Mesh(new T.CylinderGeometry(0.18, 0.22, 2, 8), pMat);
+pa.position.set(0, -4.8, ro - 0.3); pa.castShadow = true; scene.add(pa);
+var pb = new T.Mesh(new T.CylinderGeometry(0.18, 0.22, 2, 8), pMat);
+pb.position.set(0, -4.8, -ro + 0.3); pb.castShadow = true; scene.add(pb);
 
-        // Ring gear (fixed outer)
-        const ro = R3 + 0.9;
-        const ringBody = new THREE.Mesh(new THREE.CylinderGeometry(ro, ro, 0.5, 64, 32, true), matRing);
-        ringBody.castShadow = true;
-        scene.add(ringBody);
-        const r1 = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimMat);
-        r1.rotation.x = Math.PI / 2; r1.position.z = 0.27; scene.add(r1);
-        const r2r = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimMat);
-        r2r.rotation.x = Math.PI / 2; r2r.position.z = -0.27; scene.add(r2r);
-        for (let i = 0; i < z3; i++) {
-            const a = i * Math.PI * 2 / z3;
-            const tw = (2 * Math.PI * R3) / z3 * 0.4;
-            const t = new THREE.Mesh(new THREE.BoxGeometry(0.35, tw, 0.4), matRing);
-            t.position.set(Math.cos(a) * (R3 - 0.1), Math.sin(a) * (R3 - 0.1), 0);
-            t.rotation.z = a;
-            t.castShadow = true;
-            scene.add(t);
-        }
+var ptGeo = new T.BufferGeometry();
+var ptArr = new Float32Array(120 * 3);
+for (var i4 = 0; i4 < 120; i4++) {
+  ptArr[i4 * 3] = (Math.random() - 0.5) * 18;
+  ptArr[i4 * 3 + 1] = (Math.random() - 0.5) * 12;
+  ptArr[i4 * 3 + 2] = (Math.random() - 0.5) * 10;
+}
+ptGeo.setAttribute("position", new T.BufferAttribute(ptArr, 3));
+var pts = new T.Points(ptGeo, new T.PointsMaterial({
+  color: "#bcc6d0", size: 0.08, transparent: true, opacity: 0.4, depthWrite: false
+}));
+scene.add(pts);
 
-        // Planet carrier arm
-        const armG = new THREE.Group(); scene.add(armG);
-        for (let i = 0; i < 3; i++) {
-            const a = i * Math.PI * 2 / 3;
-            const arm = new THREE.Mesh(new THREE.BoxGeometry(Ra, 0.025, 0.035), new THREE.MeshStandardMaterial({ color: '#8d99a4', roughness: 0.4, metalness: 0.7 }));
-            arm.position.set(Math.cos(a) * Ra / 2, Math.sin(a) * Ra / 2, 0);
-            arm.rotation.z = a;
-            armG.add(arm);
-        }
-        const armHub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.25, 24), rimMat);
-        armHub.position.z = 0.14;
-        armG.add(armHub);
+var angle = 0;
+var hudEl = document.getElementById("hud");
+function animate() {
+  requestAnimationFrame(animate);
+  angle += 0.02;
+  armG.rotation.z = angle;
+  for (var k = 0; k < planetGroups.length; k++) {
+    planetGroups[k].rotation.z = -angle * (z1 / z2);
+  }
+  hudEl.textContent = "公转: " + (angle % (Math.PI * 2)).toFixed(2) + "rad  自转: " + (-angle * (z1 / z2) % (Math.PI * 2)).toFixed(2) + "rad";
+  pts.rotation.z += 0.0005;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
 
-        // Planet gears (3x, mounted on arm)
-        const planetGroups = [];
-        for (let i = 0; i < 3; i++) {
-            const a = i * Math.PI * 2 / 3;
-            const pg = new THREE.Group();
-            pg.position.set(Math.cos(a) * Ra, Math.sin(a) * Ra, 0);
-            armG.add(pg);
-            planetGroups.push(pg);
-            pg.add(createPlanarGear(R2, z2, matPlanet, '#ff8800'));
-        }
-
-        // Pillars
-        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pillarMat2);
-        p1.position.set(0, -6.8, ro - 0.3); p1.castShadow = true; scene.add(p1);
-        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pillarMat2);
-        p2.position.set(0, -6.8, -ro + 0.3); p2.castShadow = true; scene.add(p2);
-
-        // Particles
-        const ptGeo = new THREE.BufferGeometry();
-        const ptArr = new Float32Array(120 * 3);
-        for (let i = 0; i < 120; i++) {
-            ptArr[i * 3] = (Math.random() - 0.5) * 20;
-            ptArr[i * 3 + 1] = (Math.random() - 0.5) * 16;
-            ptArr[i * 3 + 2] = (Math.random() - 0.5) * 14;
-        }
-        ptGeo.setAttribute('position', new THREE.BufferAttribute(ptArr, 3));
-        const pts = new THREE.Points(ptGeo, new THREE.PointsMaterial({ color: '#bcc6d0', size: 0.08, transparent: true, opacity: 0.4, depthWrite: false }));
-        scene.add(pts);
-
-        // Debug HUD — shows live rotation angles
-        const debugEl = document.createElement('div');
-        debugEl.style.cssText = 'position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#ff0;padding:6px 14px;border-radius:6px;font-size:13px;z-index:20;font-family:monospace';
-        document.body.appendChild(debugEl);
-
-        // Animation
-        const clock = new THREE.Clock();
-        let angle = 0;
-        function animate() {
-            const dt = Math.min(clock.getDelta(), 0.1);
-            angle += dt * 2.0;
-            armG.rotation.z = angle;
-            planetGroups.forEach(function(p) { p.rotation.z = -angle * (z1 / z2); });
-            debugEl.textContent = '公转:' + (angle % (Math.PI * 2)).toFixed(2) + 'rad  自转:' + (-angle * (z1 / z2) % (Math.PI * 2)).toFixed(2) + 'rad  (黄线转动=自转,行星架臂转动=公转)';
-            pts.rotation.z += dt * 0.04;
-            controls.update();
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
-        }
-        animate();
-
-        window.addEventListener('resize', function() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+window.addEventListener("resize", function() {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
 </body>
 </html>

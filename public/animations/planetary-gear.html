@@ -140,20 +140,25 @@
             mesh.receiveShadow = true;
             group.add(mesh);
 
-            // Colored sector marker for self-rotation visibility
-            const sectorShape = new THREE.Shape();
-            sectorShape.moveTo(0, 0);
-            const sr = radius * 0.55;
-            for (let j = 0; j <= 12; j++) {
-                const a = (j / 12 - 0.5) * Math.PI / 4;
-                sectorShape.lineTo(sr * Math.cos(a), sr * Math.sin(a));
-            }
-            sectorShape.closePath();
-            const sectorGeo = new THREE.ExtrudeGeometry(sectorShape, { steps: 1, depth: 0.46, bevelEnabled: false });
-            const sectorMat = new THREE.MeshStandardMaterial({ color: markerColor, roughness: 0.1, emissive: markerColor, emissiveIntensity: 0.7 });
-            const sector = new THREE.Mesh(sectorGeo, sectorMat);
-            sector.position.z = 0.02;
-            group.add(sector);
+            // Thick radial line marker — center to near tooth tip, makes self-rotation OBVIOUS
+            const lineShape = new THREE.Shape();
+            lineShape.moveTo(-0.05, 0);
+            lineShape.lineTo(0.05, 0);
+            lineShape.lineTo(0.05, radius * 0.92);
+            lineShape.lineTo(-0.05, radius * 0.92);
+            lineShape.closePath();
+            const lineGeo = new THREE.ExtrudeGeometry(lineShape, { steps: 1, depth: 0.05, bevelEnabled: false });
+            const lineMat = new THREE.MeshStandardMaterial({ color: markerColor, roughness: 0.05, emissive: markerColor, emissiveIntensity: 1.2 });
+            const lineMesh = new THREE.Mesh(lineGeo, lineMat);
+            lineMesh.position.z = 0.26;
+            group.add(lineMesh);
+
+            // Bright dot at tip of the marker line
+            const dotGeo = new THREE.SphereGeometry(0.09, 12, 12);
+            const dotMat = new THREE.MeshStandardMaterial({ color: markerColor, roughness: 0.05, emissive: markerColor, emissiveIntensity: 1.2 });
+            const dotMesh = new THREE.Mesh(dotGeo, dotMat);
+            dotMesh.position.set(0, radius * 0.92, 0.28);
+            group.add(dotMesh);
 
             const hub = new THREE.Mesh(
                 new THREE.CylinderGeometry(0.55, 0.55, 0.53, 24),

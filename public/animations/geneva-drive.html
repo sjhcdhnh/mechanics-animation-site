@@ -1,77 +1,109 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>日内瓦机构 · 间歇运动</title>
-<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1a1a2e}
-#hud{position:absolute;top:14px;left:14px;padding:10px 14px;background:rgba(255,255,255,.85);border-radius:6px;font-size:12px;line-height:1.65;backdrop-filter:blur(4px)}
-#hud b{color:#2563eb}#hud span.r{color:#dc2626}#hud span.b{color:#2563eb}
-#hint{position:absolute;bottom:14px;right:14px;padding:6px 10px;background:rgba(255,255,255,.6);border-radius:6px;font-size:11px;color:#555}
-</style></head><body>
-<div id="hud"><b>日内瓦机构 (Geneva Drive)</b><br>主动轮 <span class="b">●</span> 匀速转动<br>从动轮 <span class="r">●</span> 间歇转动<br>四槽 · 每转90° · 4停4动<br>角度: <span id="vang">0°</span></div>
-<div id="hint">拖拽旋转 · 滚轮缩放</div>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><title>日内瓦机构 · 间歇运动</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.88);padding:10px 16px;border-radius:8px;font-size:12px;line-height:1.7;backdrop-filter:blur(6px);border-left:4px solid #2563eb}
+#hud b{color:#2563eb}#hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
+</style></head>
+<body>
+<div id="hud"><b>日内瓦机构 (Geneva Drive)</b><br>主动轮 ● 匀速转动 &nbsp; 从动槽轮 ● 间歇转动<br>四槽 · 每转90° · 4停4动<br>主动轮转角: <span id="vd">0°</span> &nbsp; 槽轮转角: <span id="vg">0°</span></div>
+<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 <script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type=module>
 import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',8,30);
-const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,25);C.position.set(0,0,8);C.lookAt(0,0,0);
-const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',6,25);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.3,20);C.position.set(0,0,8);C.lookAt(0,0,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
 const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.update();
-S.add(new T.AmbientLight('#ffffff',3));
-S.add(new T.DirectionalLight('#ffffff',2).position.set(3,5,4));
-const grid=new T.GridHelper(8,16,'#ccc','#eee');grid.rotation.x=Math.PI/2;grid.position.z=-2;S.add(grid);
+S.add(new T.AmbientLight('#ffffff',2.5));const L=new T.DirectionalLight('#ffffff',3);L.position.set(3,5,4);L.castShadow=true;L.shadow.mapSize.set(1024,1024);S.add(L);
+S.add(new T.DirectionalLight('#8899cc',1).position.set(-2,2,-2));
+S.add(new T.GridHelper(7,14,'#ccc','#e8e8e8'));
 
-const driverR=.8,slotR=1.6,pinR=.12,slotW=.22,slotL=1.2,d=1.7;
-const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.3,roughness:.4});
-const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.3,roughness:.4});
-const mGray=new T.MeshStandardMaterial({color:'#71717a',metalness:.5,roughness:.3});
-const mPin=new T.MeshStandardMaterial({color:'#fbbf24',metalness:.6,roughness:.2,emissive:'#fbbf24',emissiveIntensity:.5});
+// ── Materials ──
+const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.85,roughness:.28,emissive:'#000022',emissiveIntensity:.1});
+const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.85,roughness:.28,emissive:'#220000',emissiveIntensity:.1});
+const mPin=new T.MeshStandardMaterial({color:'#fbbf24',metalness:.7,roughness:.2,emissive:'#fbbf24',emissiveIntensity:.5});
+const mBrass=new T.MeshStandardMaterial({color:'#d4a853',metalness:.7,roughness:.35});
+const mGray=new T.MeshStandardMaterial({color:'#e5e7eb',metalness:.4,roughness:.6});
+const mDark=new T.MeshStandardMaterial({color:'#6b7280',metalness:.6,roughness:.4});
 
-const driverG=new T.Group(),genevaG=new T.Group();S.add(driverG);S.add(genevaG);
-// Driver: blue disc + yellow pin
-const driverDisc=new T.Mesh(new T.CylinderGeometry(driverR,driverR,.08,48),mBlue);driverDisc.position.z=-.04;driverG.add(driverDisc);
-const driverRim=new T.Mesh(new T.TorusGeometry(driverR,.03,16,64),mBlue);driverRim.position.z=-.04;driverG.add(driverRim);
-const pin=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.2,16),mPin);pin.rotation.x=Math.PI/2;driverG.add(pin);
-// Driver crescent lock
-const lockGeo=new T.CylinderGeometry(driverR+.04,driverR+.04,.1,48,1,false,0,Math.PI*.7);
-const lock=new T.Mesh(lockGeo,mBlue);lock.position.z=.01;driverG.add(lock);
-// Driver shaft
-const shaft=new T.Mesh(new T.CylinderGeometry(.06,.06,.6,16),mGray);shaft.position.z=.34;driverG.add(shaft);
-driverG.position.set(-d,0,0);
+// ── Parameters (4-slot Geneva) ──
+const slots=4, slotAngle=Math.PI*2/slots;
+const Cd=1.6; // center distance
+const drPin=.7; // pin radial distance from driver center
+// Geneva wheel radius = sqrt(drPin^2 + Cd^2) approximately
+const gR=.85; // geneva outer radius (to slot ends)
+const pinR=.1,slotW=.22,slotLen=.65;
+const driverR=.55; // driver disc radius (main body)
 
-// Geneva: red 4-slot wheel
-const genevaDisc=new T.Mesh(new T.CylinderGeometry(slotR,slotR,.08,48),mRed);genevaDisc.position.z=-.04;genevaG.add(genevaDisc);
-const genevaRim=new T.Mesh(new T.TorusGeometry(slotR,.03,16,64),mRed);genevaRim.position.z=-.04;genevaG.add(genevaRim);
-// 4 slots
-for(let i=0;i<4;i++){const a=i*Math.PI/2;
-  const slotGeo=new T.BoxGeometry(slotW,.06,slotL);
-  const slot=new T.Mesh(slotGeo,mGray);slot.position.set(Math.cos(a)*slotR*.5,Math.sin(a)*slotR*.5,0);slot.rotation.z=a;genevaG.add(slot);
-}
-// 4 concave locks
-for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;
-  const notch=new T.Mesh(new T.CylinderGeometry(driverR+.08,driverR+.08,.1,24,1,false,a-.13,a+.13),mRed);notch.position.z=.01;genevaG.add(notch);
-}
+// ── Driver (Blue wheel + yellow pin + crescent lock) ──
+const dG=new T.Group();dG.position.set(-Cd,0,0);S.add(dG);
+// Body disc
+dG.add(new T.Mesh(new T.CylinderGeometry(driverR,driverR,.12,48),mBlue).translateY(-.06).castShadow=true);
+// Locking crescent (thick arc that engages Geneva concave locks)
+const lockShape=new T.Shape();const lR=driverR+.06;
+lockShape.absarc(0,0,lR,Math.PI*.78,Math.PI*2.22,false);
+lockShape.absarc(0,0,lR-.1,Math.PI*2.22,Math.PI*.78,true);
+const lockGeo=new T.ExtrudeGeometry(lockShape,{depth:.1,bevelEnabled:false});
+const lock=new T.Mesh(lockGeo,mBlue);lock.position.z=-.05;dG.add(lock);
+// Drive pin
+const pinBody=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.2,24),mPin);pinBody.rotation.x=Math.PI/2;dG.add(pinBody);
+// Hub
+dG.add(new T.Mesh(new T.CylinderGeometry(.08,.08,.3,16),mBrass).translateY(.17));
 // Shaft
-const gShaft=new T.Mesh(new T.CylinderGeometry(.08,.08,.6,16),mGray);gShaft.position.z=.34;genevaG.add(gShaft);
-genevaG.position.set(d,0,0);
+dG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.6,16),mDark).translateY(.3));
 
-// Base plane
-const base=new T.Mesh(new T.PlaneGeometry(6,4),new T.MeshStandardMaterial({color:'#e8e8ec',roughness:.8}));base.position.z=-.3;S.add(base);
+// ── Geneva wheel (Red 4-slot wheel) ──
+const gG=new T.Group();gG.position.set(Cd,0,0);S.add(gG);
+// Main body disc
+gG.add(new T.Mesh(new T.CylinderGeometry(gR,gR,.12,48),mRed).translateY(-.06).castShadow=true);
+// 4 slots
+for(let i=0;i<slots;i++){const a=i*slotAngle;
+  const slot=new T.Mesh(new T.BoxGeometry(slotW,.12,slotLen),mDark);
+  slot.position.set(Math.cos(a)*gR*.55,0,Math.sin(a)*gR*.55);slot.rotation.z=a;gG.add(slot);
+}
+// 4 concave lock arcs (match driver crescent)
+for(let i=0;i<slots;i++){const a=i*slotAngle;
+  const arcShape=new T.Shape();
+  arcShape.absarc(0,0,driverR+.08,Math.PI*.78+a,Math.PI*2.22+a,true);
+  arcShape.absarc(0,0,driverR+.15,Math.PI*2.22+a,Math.PI*.78+a,false);
+  const arcGeo=new T.ExtrudeGeometry(arcShape,{depth:.1,bevelEnabled:false});
+  const arc=new T.Mesh(arcGeo,mRed);arc.position.z=-.05;gG.add(arc);
+}
+// Hub
+gG.add(new T.Mesh(new T.CylinderGeometry(.09,.09,.3,16),mBrass).translateY(.17));
+gG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.6,16),mDark).translateY(.3));
 
-// Animation
+// ── Base plate ──
+const base=new T.Mesh(new T.BoxGeometry(5.5,.04,2),mGray);base.position.y=-.3;base.castShadow=true;base.receiveShadow=true;S.add(base);
+// Support pillars
+[-Cd,Cd].forEach(x=>{
+  const pillar=new T.Mesh(new T.CylinderGeometry(.06,.06,.25,16),mDark);pillar.position.set(x,-.2,0);S.add(pillar);
+  S.add(new T.Mesh(new T.BoxGeometry(.3,.04,.3),mBrass).translateX(x).translateY(-.08));
+});
+
+// ── Animation ──
 let ang=0;
-function genevaAngle(drv){
-  const n=drv%(Math.PI*2)/Math.PI; // 0..2
-  if(n<1.25||n>=1.875)return 0;
-  if(n>=1.25&&n<1.875){const f=(n-1.25)/.625;return f*Math.PI/2;}
-  return 0;
+function genevaRot(drvAng){
+  const phase=((drvAng%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+  const enter=Math.PI/2-Math.PI/slots, exit=Math.PI/2+Math.PI/slots;
+  if(phase<enter||phase>exit+Math.PI*1.5)return 0;
+  const idx=Math.floor(phase/(Math.PI*2/slots));
+  const baseA=idx*Math.PI*2/slots;
+  const lp=phase-baseA;
+  const mid=Math.PI/2;
+  if(lp<enter||lp>exit)return baseA;
+  const f=(lp-enter)/(exit-enter);
+  return baseA+f*slotAngle;
 }
-function animate(t){
-  requestAnimationFrame(animate);
-  ang+=.015;
-  const da=ang%(Math.PI*2);
-  driverG.rotation.z=da;
-  pin.position.set(Math.cos(da)*driverR,Math.sin(da)*driverR,0);
-  genevaG.rotation.z=genevaAngle(da);
-  document.getElementById('vang').textContent=Math.round(genevaAngle(da)*180/Math.PI)+'°';
+function animate(t){requestAnimationFrame(animate);ang+=.015;
+  const dAng=ang%(Math.PI*2);dG.rotation.z=dAng;
+  pinBody.position.set(Math.cos(dAng)*drPin,Math.sin(dAng)*drPin,0);
+  gG.rotation.z=genevaRot(dAng);
+  document.getElementById('vd').textContent=Math.round(dAng*180/Math.PI%360)+'°';
+  document.getElementById('vg').textContent=Math.round(genevaRot(dAng)*180/Math.PI%360)+'°';
   O.update();R.render(S,C);
-}
-requestAnimationFrame(animate);
+}requestAnimationFrame(animate);
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

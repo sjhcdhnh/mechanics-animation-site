@@ -1,63 +1,97 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>行星齿轮系 · 公转与自转</title>
-<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1a1a2e}
-#hud{position:absolute;top:14px;left:14px;padding:10px 14px;background:rgba(255,255,255,.85);border-radius:6px;font-size:12px;line-height:1.65;backdrop-filter:blur(4px)}
-#hud b{color:#dc2626}#hud span.b{color:#2563eb}
-#hint{position:absolute;bottom:14px;right:14px;padding:6px 10px;background:rgba(255,255,255,.6);border-radius:6px;font-size:11px;color:#555}
-</style></head><body>
-<div id="hud"><b>行星齿轮系</b><br>太阳轮 <span style="color:#dc2626">●</span> (固定) z₁=20<br>行星轮 <span class="b">●</span> z₂=16 ×3个<br>齿圈 (外) z₃=52<br>传动比 i=1+z₃/z₁=<span id="vi">3.60</span><br>行星架转角: <span id="vc">0°</span></div>
-<div id="hint">拖拽旋转 · 滚轮缩放</div>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><title>行星齿轮系 · 公转与自转</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.88);padding:10px 16px;border-radius:8px;font-size:12px;line-height:1.7;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
+#hud b{color:#dc2626}#hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
+</style></head>
+<body>
+<div id="hud"><b>行星齿轮系 (Planetary Gear Train)</b><br>太阳轮 z₁=20 · 行星轮 z₂=16 · 齿圈 z₃=52<br>传动比 i = 1+z₃/z₁ = <span style="color:#dc2626;font-weight:700">3.60</span><br>行星架转角: <span id="va">0°</span> &nbsp; 行星轮自转: <span id="vp">0°</span></div>
+<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
 <script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
 <script type=module>
 import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',8,30);
-const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,20);C.position.set(0,0,8);C.lookAt(0,0,0);
-const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',6,25);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.3,20);C.position.set(0,0,7);C.lookAt(0,0,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
 const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.update();
-S.add(new T.AmbientLight('#ffffff',3));S.add(new T.DirectionalLight('#ffffff',2).position.set(3,5,4));
-const grid=new T.GridHelper(8,16,'#ccc','#eee');grid.position.z=-1.5;S.add(grid);
+S.add(new T.AmbientLight('#ffffff',2.5));const sunL=new T.DirectionalLight('#ffffff',3);sunL.position.set(3,5,4);sunL.castShadow=true;sunL.shadow.mapSize.set(1024,1024);S.add(sunL);
+S.add(new T.DirectionalLight('#8899cc',1).position.set(-2,2,-2));
+const grid=new T.GridHelper(7,14,'#ccc','#e8e8e8');S.add(grid);
 
-const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.3,roughness:.4});
-const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.3,roughness:.4});
-const mGray=new T.MeshStandardMaterial({color:'#71717a',metalness:.5,roughness:.3});
-const mDark=new T.MeshStandardMaterial({color:'#555',metalness:.6,roughness:.3});
+// Materials
+const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.85,roughness:.28,emissive:'#220000',emissiveIntensity:.1});
+const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.85,roughness:.28,emissive:'#000022',emissiveIntensity:.1});
+const mGray=new T.MeshStandardMaterial({color:'#9ca3af',metalness:.9,roughness:.25,emissive:'#111111',emissiveIntensity:.08});
+const mDark=new T.MeshStandardMaterial({color:'#e5e7eb',metalness:.4,roughness:.6});
+const mBrass=new T.MeshStandardMaterial({color:'#d4a853',metalness:.7,roughness:.35});
 
-function gear(r,teeth,color){const g=new T.Group();
-  const body=new T.Mesh(new T.CylinderGeometry(r*.92,r*.92,.1,48),color);body.position.z=-.05;g.add(body);
-  const rim=new T.Mesh(new T.TorusGeometry(r,.02,8,64),color);rim.position.z=-.05;g.add(rim);
+function createGear(radius,teeth,material,thickness=.22,toothH=.055){
+  const g=new T.Group();
+  // Body cylinder
+  g.add(new T.Mesh(new T.CylinderGeometry(radius,radius,thickness,48,32),material).translateY(0).castShadow=true);
+  // Hub
+  const hub=new T.Mesh(new T.CylinderGeometry(radius*.38,radius*.38,thickness*1.05,24),mBrass);hub.castShadow=true;g.add(hub);
+  // Rim ring top
+  const rimGeo=new T.TorusGeometry(radius+.02,.025,16,80);
+  const rimT=new T.Mesh(rimGeo,mBrass);rimT.rotation.x=Math.PI/2;rimT.position.y=thickness/2+.01;g.add(rimT);
+  const rimB=rimT.clone();rimB.position.y=-thickness/2-.01;g.add(rimB);
   // Teeth
+  const tw=(2*Math.PI*radius)/teeth*.55;
+  const tcr=radius+toothH/2;
   for(let i=0;i<teeth;i++){const a=i*Math.PI*2/teeth;
-    const t=new T.Mesh(new T.BoxGeometry(.04,.03,.12),mDark);t.position.set(Math.cos(a)*(r+.02),Math.sin(a)*(r+.02),0);t.rotation.z=a;g.add(t);
+    const tooth=new T.Mesh(new T.BoxGeometry(toothH,tw,thickness*.9),material);
+    tooth.position.set(Math.cos(a)*tcr,0,Math.sin(a)*tcr);tooth.rotation.y=a;tooth.castShadow=true;g.add(tooth);
   }
   return g;
 }
-const Rs=.8,Rp=.6,Rr=Rs+Rp*2,Ra=Rs+Rp; // sun, planet, ring, arm radii
-const z1=20,z2=16,z3=52,ratio=1+z3/z1;
-document.getElementById('vi').textContent=ratio.toFixed(2);
 
-// Sun gear (red, fixed)
-const sun=gear(Rs,20,mRed);S.add(sun);
-// Ring gear (gray, fixed)
-const ringG=new T.Group();ringG.add(new T.Mesh(new T.TorusGeometry(Rr,.03,16,128),mGray));ringG.add(new T.Mesh(new T.TorusGeometry(Rr+.04,.015,8,128),mDark));S.add(ringG);
-// Planet carrier arm
+// Parameters
+const z1=20,z2=16,z3=52;
+const m=0.04; // module
+const R1=m*z1,R2=m*z2,R3=m*z3;
+const Ra=R1+R2; // arm radius
+const ratio=1+z3/z1;
+
+// Sun gear (red, fixed on shaft)
+const sun=createGear(R1,z1,mRed);S.add(sun);
+// Sun center cap
+S.add(new T.Mesh(new T.CylinderGeometry(.08,.08,.3,16),mBrass).translateY(.15));
+
+// Planet carrier
 const armG=new T.Group();S.add(armG);
-for(let i=0;i<3;i++){const a=i*Math.PI*2/3;const arm=new T.Mesh(new T.BoxGeometry(Ra,.03,.05),mGray);arm.position.set(Math.cos(a)*Ra/2,Math.sin(a)*Ra/2,0);arm.rotation.z=a;armG.add(arm);}
-// Planet gears (blue, orbiting on arm)
-const planets=[];
-for(let i=0;i<3;i++){
-  const p=gear(Rp,16,mBlue);p.position.set(Math.cos(i*Math.PI*2/3)*Ra,Math.sin(i*Math.PI*2/3)*Ra,0);armG.add(p);planets.push(p);
+for(let i=0;i<3;i++){const a=i*Math.PI*2/3;
+  const arm=new T.Mesh(new T.BoxGeometry(Ra,.03,.04),mDark);arm.position.set(Math.cos(a)*Ra/2,Math.sin(a)*Ra/2,0);arm.rotation.z=a;armG.add(arm);
 }
-// Center pin
-S.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.3,16),mDark).translateZ(.18));
+const armHub=new T.Mesh(new T.CylinderGeometry(.06,.06,.15,24),mBrass);armHub.position.y=.08;armG.add(armHub);
+
+// Planet gears (blue ×3)
+const planets=[];const planetGs=[];
+for(let i=0;i<3;i++){const a=i*Math.PI*2/3;
+  const pg=new T.Group();pg.position.set(Math.cos(a)*Ra,Math.sin(a)*Ra,0);armG.add(pg);planetGs.push(pg);
+  const p=createGear(R2,z2,mBlue);pg.add(p);planets.push(p);
+}
+
+// Ring gear (gray, fixed outer)
+const ringOuterR=R3+m*.5;
+const ringBody=new T.Mesh(new T.CylinderGeometry(ringOuterR,ringOuterR,.3,64,32,true),new T.MeshStandardMaterial({color:'#9ca3af',metalness:.85,roughness:.3}));ringBody.position.y=0;ringBody.castShadow=true;S.add(ringBody);
+// Inner teeth on ring
+for(let i=0;i<z3;i++){const a=i*Math.PI*2/z3;const tw=(2*Math.PI*R3)/z3*.55;
+  const tooth=new T.Mesh(new T.BoxGeometry(.07,tw,.25),mGray);
+  tooth.position.set(Math.cos(a)*(R3-.03),0,Math.sin(a)*(R3-.03));tooth.rotation.y=a;tooth.castShadow=true;S.add(tooth);
+}
+// Ring top/bot rims
+[S.add(new T.Mesh(new T.TorusGeometry(ringOuterR,.03,16,128),mBrass)).rotateX(Math.PI/2).translateY(.18)];
+[S.add(new T.Mesh(new T.TorusGeometry(ringOuterR,.03,16,128),mBrass)).rotateX(Math.PI/2).translateY(-.18)];
 
 let ang=0;
-function animate(t){
-  requestAnimationFrame(animate);ang+=.012;
-  armG.rotation.z=ang; // carrier rotation
-  // Planet self-rotation: carrier turns by ang, planet turns by -ang*(z1/z2) relative
-  planets.forEach(p=>p.rotation.z=-ang*(z1/z2));
-  document.getElementById('vc').textContent=Math.round(ang*180/Math.PI%360)+'°';
+function animate(t){requestAnimationFrame(animate);ang+=.012;
+  armG.rotation.z=ang;
+  planets.forEach((p,i)=>{p.rotation.z=-ang*(z1/z2);});
+  document.getElementById('va').textContent=Math.round(ang*180/Math.PI%360)+'°';
+  document.getElementById('vp').textContent=Math.round(-ang*(z1/z2)*180/Math.PI%360)+'°';
   O.update();R.render(S,C);
-}
-requestAnimationFrame(animate);
+}requestAnimationFrame(animate);
 window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

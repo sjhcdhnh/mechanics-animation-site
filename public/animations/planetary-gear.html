@@ -6,20 +6,49 @@
     <title>行星齿轮系 · 公转与自转</title>
     <style>
         body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif; }
-        #info { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.6); color: #eee; padding: 8px 15px; border-radius: 8px; backdrop-filter: blur(8px); pointer-events: none; z-index: 10; font-size: 14px; border-left: 4px solid #ffaa33; }
-        #info2 { position: absolute; top: 70px; left: 20px; background: rgba(0,0,0,0.5); color: #ccc; padding: 4px 12px; border-radius: 6px; backdrop-filter: blur(8px); pointer-events: none; z-index: 10; font-size: 12px; }
-        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
-    </style>
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            color: #eee;
+            padding: 8px 15px;
+            border-radius: 8px;
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+            z-index: 10;
+            font-size: 14px;
+            border-left: 4px solid #ffaa33;
+        }
+        #controls-note {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.5);
+            color: #ccc;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+        }
+    .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}</style>
 </head>
 <body>
-    <div id="info"><span class="dot" style="background:#e63946;"></span>太阳轮固定 <span class="dot" style="background:#3a7bd5;"></span>行星轮x3 <span class="dot" style="background:#2a9d8f;"></span>齿圈 <span class="dot" style="background:#f4d03f;"></span>行星架 i=3.60</div>
-    <div id="info2">行星架(黄)驱动公转 · 行星轮(蓝)自转 = 1.25倍公转 · 黄色标记显示自转</div>
+    <div id="info">
+    <span class="dot" style="background:#e63946;"></span>太阳轮z1=20固定 &nbsp;
+    <span class="dot" style="background:#3a7bd5;"></span>行星轮z2=16x3 &nbsp;
+    <span class="dot" style="background:#2a9d8f;"></span>齿圈z3=52 &nbsp;
+    <span class="dot" style="background:#f4d03f;"></span>行星架 &nbsp;
+    <span style="color:#ffaa33;">i=3.60</span>
+</div>
+    <div id="info2" style="position:absolute;top:70px;left:20px;background:rgba(0,0,0,0.5);color:#ccc;padding:4px 12px;border-radius:6px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:12px;">行星架公转(2rad/s)·行星轮自转1.25x·橙黄标记显示自转</div>
+    
 
     <script type="importmap">
         {
             "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
             }
         }
     </script>
@@ -28,11 +57,13 @@
         import * as THREE from 'three';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // --- 场景 ---
         const scene = new THREE.Scene();
         scene.background = new THREE.Color('#1a1d24');
+
         const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 60);
-        camera.position.set(0, 0, 15); camera.lookAt(0, 0, 0);
+        camera.position.set(0, 0, 15);
+        camera.lookAt(0, 0, 0);
+
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -41,36 +72,54 @@
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.3;
         document.body.appendChild(renderer.domElement);
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; controls.dampingFactor = 0.12;
-        controls.target.set(0, 0, 0); controls.minDistance = 5; controls.maxDistance = 30; controls.update();
 
-        // --- 光照 ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.12;
+        controls.target.set(0, 0, 0);
+        controls.minDistance = 5;
+        controls.maxDistance = 30;
+        controls.update();
+
         scene.add(new THREE.AmbientLight('#3a4050', 2.2));
         scene.add(new THREE.HemisphereLight('#b0c0d8', '#282e3a', 1.6));
         const keyLight = new THREE.DirectionalLight('#ffffff', 5.5);
-        keyLight.position.set(10, 12, 8); keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 2048; keyLight.shadow.mapSize.height = 2048;
-        keyLight.shadow.camera.near = 0.5; keyLight.shadow.camera.far = 50;
-        keyLight.shadow.camera.left = -14; keyLight.shadow.camera.right = 14;
-        keyLight.shadow.camera.top = 10; keyLight.shadow.camera.bottom = -10;
-        keyLight.shadow.bias = -0.0005; scene.add(keyLight);
+        keyLight.position.set(10, 12, 8);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        keyLight.shadow.camera.near = 0.5;
+        keyLight.shadow.camera.far = 50;
+        keyLight.shadow.camera.left = -14;
+        keyLight.shadow.camera.right = 14;
+        keyLight.shadow.camera.top = 10;
+        keyLight.shadow.camera.bottom = -10;
+        keyLight.shadow.bias = -0.0005;
+        scene.add(keyLight);
         scene.add(new THREE.DirectionalLight('#8a9bb5', 2.0).position.set(-5, 3, -5));
         scene.add(new THREE.DirectionalLight('#5a6b82', 1.8).position.set(0, -2, 3));
 
-        // --- 地面 ---
-        const grid = new THREE.GridHelper(18, 24, '#3a3f4a', '#252830'); grid.position.y = -7; scene.add(grid);
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), new THREE.MeshStandardMaterial({ color: '#1e2128', roughness: 0.9, metalness: 0.15 }));
-        ground.rotation.x = -Math.PI / 2; ground.position.y = -7.1; ground.receiveShadow = true; scene.add(ground);
+        const grid = new THREE.GridHelper(18, 24, '#3a3f4a', '#252830');
+        grid.position.y = -7;
+        scene.add(grid);
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(24, 24),
+            new THREE.MeshStandardMaterial({ color: '#1e2128', roughness: 0.9, metalness: 0.15 })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -7.1;
+        ground.receiveShadow = true;
+        scene.add(ground);
 
-        // --- createPlanarGear ---
-        const GT = 0.45, TH = 0.65, TD = 0.45, TWR = 0.45;
+        // ── createPlanarGear (same as gear-system) ──
         function createPlanarGear(radius, teethCount, material, markerColor) {
             const group = new THREE.Group();
             const shape = new THREE.Shape();
-            const rootR = radius - TD, tipR = radius + TH;
+            const rootR = radius - 0.45;
+            const tipR = radius + 0.65;
             const angleStep = (Math.PI * 2) / teethCount;
-            const toothAngle = angleStep * TWR, gapAngle = angleStep - toothAngle;
+            const toothAngle = angleStep * 0.45;
+            const gapAngle = angleStep - toothAngle;
             let angle = -toothAngle / 2;
             shape.moveTo(rootR * Math.cos(angle), rootR * Math.sin(angle));
             for (let i = 0; i < teethCount; i++) {
@@ -85,76 +134,132 @@
             const holePath = new THREE.Path();
             holePath.absellipse(0, 0, 0.55, 0.55, 0, Math.PI * 2, true);
             shape.holes.push(holePath);
-            const geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: GT, bevelEnabled: false });
-            const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+            const geometry = new THREE.ExtrudeGeometry(shape, { steps: 1, depth: 0.45, bevelEnabled: false });
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            group.add(mesh);
 
-            // marker
-            const sectorShape = new THREE.Shape(); sectorShape.moveTo(0, 0);
+            // Colored sector marker for self-rotation visibility
+            const sectorShape = new THREE.Shape();
+            sectorShape.moveTo(0, 0);
             const sr = radius * 0.55;
-            for (let i = 0; i <= 12; i++) { const a = (i / 12 - 0.5) * Math.PI / 4; sectorShape.lineTo(sr * Math.cos(a), sr * Math.sin(a)); }
+            for (let j = 0; j <= 12; j++) {
+                const a = (j / 12 - 0.5) * Math.PI / 4;
+                sectorShape.lineTo(sr * Math.cos(a), sr * Math.sin(a));
+            }
             sectorShape.closePath();
-            const sectorGeo = new THREE.ExtrudeGeometry(sectorShape, { steps: 1, depth: GT + 0.01, bevelEnabled: false });
-            const sector = new THREE.Mesh(sectorGeo, new THREE.MeshStandardMaterial({ color: markerColor, roughness: 0.1, emissive: markerColor, emissiveIntensity: 0.7 }));
-            sector.position.z = 0.02; group.add(sector);
+            const sectorGeo = new THREE.ExtrudeGeometry(sectorShape, { steps: 1, depth: 0.46, bevelEnabled: false });
+            const sectorMat = new THREE.MeshStandardMaterial({ color: markerColor, roughness: 0.1, emissive: markerColor, emissiveIntensity: 0.7 });
+            const sector = new THREE.Mesh(sectorGeo, sectorMat);
+            sector.position.z = 0.02;
+            group.add(sector);
 
-            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, GT + 0.08, 24), new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 }));
-            hub.position.z = 0; hub.castShadow = true; group.add(hub);
+            const hub = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.55, 0.55, 0.53, 24),
+                new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 })
+            );
+            hub.position.z = 0;
+            hub.castShadow = true;
+            group.add(hub);
             return group;
         }
 
         const matSun = new THREE.MeshStandardMaterial({ color: '#e63946', roughness: 0.25, metalness: 0.55 });
         const matPlanet = new THREE.MeshStandardMaterial({ color: '#3a7bd5', roughness: 0.25, metalness: 0.55 });
         const matRing = new THREE.MeshStandardMaterial({ color: '#2a9d8f', roughness: 0.25, metalness: 0.55 });
+        const rimMat = new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 });
+        const pillarMat2 = new THREE.MeshStandardMaterial({ color: '#4a4f5a', roughness: 0.55, metalness: 0.5 });
 
-        const z1 = 20, z2 = 16, z3 = 52, M = 0.16, R1 = M * z1, R2 = M * z2, R3 = M * z3, Ra = R1 + R2;
+        const z1 = 20, z2 = 16, z3 = 52;
+        const MOD = 0.16;
+        const R1 = MOD * z1, R2 = MOD * z2, R3 = MOD * z3;
+        const Ra = R1 + R2;
 
-        // Sun
+        // Sun gear (fixed at center)
         scene.add(createPlanarGear(R1, z1, matSun, '#ff6b6b'));
 
-        // Ring
+        // Ring gear (fixed outer)
         const ro = R3 + 0.9;
         const ringBody = new THREE.Mesh(new THREE.CylinderGeometry(ro, ro, 0.5, 64, 32, true), matRing);
-        ringBody.castShadow = true; scene.add(ringBody);
-        const rimM = new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 });
-        const r1 = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimM); r1.rotation.x = Math.PI / 2; r1.position.z = 0.27; scene.add(r1);
-        const r2 = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimM); r2.rotation.x = Math.PI / 2; r2.position.z = -0.27; scene.add(r2);
+        ringBody.castShadow = true;
+        scene.add(ringBody);
+        const r1 = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimMat);
+        r1.rotation.x = Math.PI / 2; r1.position.z = 0.27; scene.add(r1);
+        const r2r = new THREE.Mesh(new THREE.TorusGeometry(ro, 0.05, 16, 80), rimMat);
+        r2r.rotation.x = Math.PI / 2; r2r.position.z = -0.27; scene.add(r2r);
         for (let i = 0; i < z3; i++) {
-            const a = i * Math.PI * 2 / z3, tw = (2 * Math.PI * R3) / z3 * 0.4;
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(0.35, tw, 0.4), matRing).position.set(Math.cos(a) * (R3 - 0.1), Math.sin(a) * (R3 - 0.1), 0).rotateZ(a).castShadow = true);
+            const a = i * Math.PI * 2 / z3;
+            const tw = (2 * Math.PI * R3) / z3 * 0.4;
+            const t = new THREE.Mesh(new THREE.BoxGeometry(0.35, tw, 0.4), matRing);
+            t.position.set(Math.cos(a) * (R3 - 0.1), Math.sin(a) * (R3 - 0.1), 0);
+            t.rotation.z = a;
+            t.castShadow = true;
+            scene.add(t);
         }
 
-        // Arm
+        // Planet carrier arm
         const armG = new THREE.Group(); scene.add(armG);
-        for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; armG.add(new THREE.Mesh(new THREE.BoxGeometry(Ra, 0.025, 0.035), new THREE.MeshStandardMaterial({ color: '#8d99a4', roughness: 0.4, metalness: 0.7 })).position.set(Math.cos(a) * Ra / 2, Math.sin(a) * Ra / 2, 0).rotateZ(a)); }
-        armG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.25, 24), rimM).translateZ(0.14));
+        for (let i = 0; i < 3; i++) {
+            const a = i * Math.PI * 2 / 3;
+            const arm = new THREE.Mesh(new THREE.BoxGeometry(Ra, 0.025, 0.035), new THREE.MeshStandardMaterial({ color: '#8d99a4', roughness: 0.4, metalness: 0.7 }));
+            arm.position.set(Math.cos(a) * Ra / 2, Math.sin(a) * Ra / 2, 0);
+            arm.rotation.z = a;
+            armG.add(arm);
+        }
+        const armHub = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.25, 24), rimMat);
+        armHub.position.z = 0.14;
+        armG.add(armHub);
 
-        // Planets
-        const pGs = [];
-        for (let i = 0; i < 3; i++) { const a = i * Math.PI * 2 / 3; const pg = new THREE.Group(); pg.position.set(Math.cos(a) * Ra, Math.sin(a) * Ra, 0); armG.add(pg); pGs.push(pg); pg.add(createPlanarGear(R2, z2, matPlanet, '#ffff00')); }
+        // Planet gears (3x, mounted on arm)
+        const planetGroups = [];
+        for (let i = 0; i < 3; i++) {
+            const a = i * Math.PI * 2 / 3;
+            const pg = new THREE.Group();
+            pg.position.set(Math.cos(a) * Ra, Math.sin(a) * Ra, 0);
+            armG.add(pg);
+            planetGroups.push(pg);
+            pg.add(createPlanarGear(R2, z2, matPlanet, '#ff8800'));
+        }
 
         // Pillars
-        const pM = new THREE.MeshStandardMaterial({ color: '#4a4f5a', roughness: 0.55, metalness: 0.5 });
-        scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pM).position.set(0, -6.8, ro - 0.3).castShadow = true);
-        scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pM).position.set(0, -6.8, -ro + 0.3).castShadow = true);
+        const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pillarMat2);
+        p1.position.set(0, -6.8, ro - 0.3); p1.castShadow = true; scene.add(p1);
+        const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 2, 8), pillarMat2);
+        p2.position.set(0, -6.8, -ro + 0.3); p2.castShadow = true; scene.add(p2);
 
         // Particles
-        const pGeo = new THREE.BufferGeometry(); const pArr = new Float32Array(120 * 3);
-        for (let i = 0; i < 120; i++) { pArr[i * 3] = (Math.random() - 0.5) * 20; pArr[i * 3 + 1] = (Math.random() - 0.5) * 16; pArr[i * 3 + 2] = (Math.random() - 0.5) * 14; }
-        pGeo.setAttribute('position', new THREE.BufferAttribute(pArr, 3));
-        const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: '#bcc6d0', size: 0.08, transparent: true, opacity: 0.4, depthWrite: false })); scene.add(pts);
+        const ptGeo = new THREE.BufferGeometry();
+        const ptArr = new Float32Array(120 * 3);
+        for (let i = 0; i < 120; i++) {
+            ptArr[i * 3] = (Math.random() - 0.5) * 20;
+            ptArr[i * 3 + 1] = (Math.random() - 0.5) * 16;
+            ptArr[i * 3 + 2] = (Math.random() - 0.5) * 14;
+        }
+        ptGeo.setAttribute('position', new THREE.BufferAttribute(ptArr, 3));
+        const pts = new THREE.Points(ptGeo, new THREE.PointsMaterial({ color: '#bcc6d0', size: 0.08, transparent: true, opacity: 0.4, depthWrite: false }));
+        scene.add(pts);
 
         // Animation
-        const clock = new THREE.Clock(); let an = 0;
+        const clock = new THREE.Clock();
+        let angle = 0;
         function animate() {
-            const dt = Math.min(clock.getDelta(), 0.1); an += dt * 2.0;
-            armG.rotation.z = an;
-            pGs.forEach(p => p.rotation.z = -an * (z1 / z2));
+            const dt = Math.min(clock.getDelta(), 0.1);
+            angle += dt * 2.0;
+            armG.rotation.z = angle;
+            planetGroups.forEach(function(p) { p.rotation.z = -angle * (z1 / z2); });
             pts.rotation.z += dt * 0.04;
-            controls.update(); renderer.render(scene, camera); requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
         }
         animate();
-        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
-        console.log('行星齿轮系就绪');
+
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>

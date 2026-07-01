@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>行星齿轮系 · 公转与自转</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1a1a2e}
+#hud{position:absolute;top:14px;left:14px;padding:10px 14px;background:rgba(255,255,255,.85);border-radius:6px;font-size:12px;line-height:1.65;backdrop-filter:blur(4px)}
+#hud b{color:#dc2626}#hud span.b{color:#2563eb}
+#hint{position:absolute;bottom:14px;right:14px;padding:6px 10px;background:rgba(255,255,255,.6);border-radius:6px;font-size:11px;color:#555}
+</style></head><body>
+<div id="hud"><b>行星齿轮系</b><br>太阳轮 <span style="color:#dc2626">●</span> (固定) z₁=20<br>行星轮 <span class="b">●</span> z₂=16 ×3个<br>齿圈 (外) z₃=52<br>传动比 i=1+z₃/z₁=<span id="vi">3.60</span><br>行星架转角: <span id="vc">0°</span></div>
+<div id="hint">拖拽旋转 · 滚轮缩放</div>
+<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
+<script type=module>
+import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',8,30);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,20);C.position.set(0,0,8);C.lookAt(0,0,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.update();
+S.add(new T.AmbientLight('#ffffff',3));S.add(new T.DirectionalLight('#ffffff',2).position.set(3,5,4));
+const grid=new T.GridHelper(8,16,'#ccc','#eee');grid.position.z=-1.5;S.add(grid);
+
+const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.3,roughness:.4});
+const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.3,roughness:.4});
+const mGray=new T.MeshStandardMaterial({color:'#71717a',metalness:.5,roughness:.3});
+const mDark=new T.MeshStandardMaterial({color:'#555',metalness:.6,roughness:.3});
+
+function gear(r,teeth,color){const g=new T.Group();
+  const body=new T.Mesh(new T.CylinderGeometry(r*.92,r*.92,.1,48),color);body.position.z=-.05;g.add(body);
+  const rim=new T.Mesh(new T.TorusGeometry(r,.02,8,64),color);rim.position.z=-.05;g.add(rim);
+  // Teeth
+  for(let i=0;i<teeth;i++){const a=i*Math.PI*2/teeth;
+    const t=new T.Mesh(new T.BoxGeometry(.04,.03,.12),mDark);t.position.set(Math.cos(a)*(r+.02),Math.sin(a)*(r+.02),0);t.rotation.z=a;g.add(t);
+  }
+  return g;
+}
+const Rs=.8,Rp=.6,Rr=Rs+Rp*2,Ra=Rs+Rp; // sun, planet, ring, arm radii
+const z1=20,z2=16,z3=52,ratio=1+z3/z1;
+document.getElementById('vi').textContent=ratio.toFixed(2);
+
+// Sun gear (red, fixed)
+const sun=gear(Rs,20,mRed);S.add(sun);
+// Ring gear (gray, fixed)
+const ringG=new T.Group();ringG.add(new T.Mesh(new T.TorusGeometry(Rr,.03,16,128),mGray));ringG.add(new T.Mesh(new T.TorusGeometry(Rr+.04,.015,8,128),mDark));S.add(ringG);
+// Planet carrier arm
+const armG=new T.Group();S.add(armG);
+for(let i=0;i<3;i++){const a=i*Math.PI*2/3;const arm=new T.Mesh(new T.BoxGeometry(Ra,.03,.05),mGray);arm.position.set(Math.cos(a)*Ra/2,Math.sin(a)*Ra/2,0);arm.rotation.z=a;armG.add(arm);}
+// Planet gears (blue, orbiting on arm)
+const planets=[];
+for(let i=0;i<3;i++){
+  const p=gear(Rp,16,mBlue);p.position.set(Math.cos(i*Math.PI*2/3)*Ra,Math.sin(i*Math.PI*2/3)*Ra,0);armG.add(p);planets.push(p);
+}
+// Center pin
+S.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.3,16),mDark).translateZ(.18));
+
+let ang=0;
+function animate(t){
+  requestAnimationFrame(animate);ang+=.012;
+  armG.rotation.z=ang; // carrier rotation
+  // Planet self-rotation: carrier turns by ang, planet turns by -ang*(z1/z2) relative
+  planets.forEach(p=>p.rotation.z=-ang*(z1/z2));
+  document.getElementById('vc').textContent=Math.round(ang*180/Math.PI%360)+'°';
+  O.update();R.render(S,C);
+}
+requestAnimationFrame(animate);
+window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+</script></body></html>

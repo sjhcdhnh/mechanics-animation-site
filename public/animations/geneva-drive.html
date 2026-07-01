@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>日内瓦机构 · 间歇运动</title>
+<style>html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#1a1a2e}
+#hud{position:absolute;top:14px;left:14px;padding:10px 14px;background:rgba(255,255,255,.85);border-radius:6px;font-size:12px;line-height:1.65;backdrop-filter:blur(4px)}
+#hud b{color:#2563eb}#hud span.r{color:#dc2626}#hud span.b{color:#2563eb}
+#hint{position:absolute;bottom:14px;right:14px;padding:6px 10px;background:rgba(255,255,255,.6);border-radius:6px;font-size:11px;color:#555}
+</style></head><body>
+<div id="hud"><b>日内瓦机构 (Geneva Drive)</b><br>主动轮 <span class="b">●</span> 匀速转动<br>从动轮 <span class="r">●</span> 间歇转动<br>四槽 · 每转90° · 4停4动<br>角度: <span id="vang">0°</span></div>
+<div id="hint">拖拽旋转 · 滚轮缩放</div>
+<script type=importmap>{"imports":{"three":"https://unpkg.com/three@0.157.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.157.0/examples/jsm/"}}</script>
+<script type=module>
+import*as T from'three';import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+const S=new T.Scene();S.background=new T.Color('#87CEEB');S.fog=new T.Fog('#a4d3ee',8,30);
+const C=new T.PerspectiveCamera(40,innerWidth/innerHeight,.5,25);C.position.set(0,0,8);C.lookAt(0,0,0);
+const R=new T.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const O=new OrbitControls(C,R.domElement);O.target.set(0,0,0);O.enableDamping=true;O.update();
+S.add(new T.AmbientLight('#ffffff',3));
+S.add(new T.DirectionalLight('#ffffff',2).position.set(3,5,4));
+const grid=new T.GridHelper(8,16,'#ccc','#eee');grid.rotation.x=Math.PI/2;grid.position.z=-2;S.add(grid);
+
+const driverR=.8,slotR=1.6,pinR=.12,slotW=.22,slotL=1.2,d=1.7;
+const mBlue=new T.MeshStandardMaterial({color:'#2563eb',metalness:.3,roughness:.4});
+const mRed=new T.MeshStandardMaterial({color:'#dc2626',metalness:.3,roughness:.4});
+const mGray=new T.MeshStandardMaterial({color:'#71717a',metalness:.5,roughness:.3});
+const mPin=new T.MeshStandardMaterial({color:'#fbbf24',metalness:.6,roughness:.2,emissive:'#fbbf24',emissiveIntensity:.5});
+
+const driverG=new T.Group(),genevaG=new T.Group();S.add(driverG);S.add(genevaG);
+// Driver: blue disc + yellow pin
+const driverDisc=new T.Mesh(new T.CylinderGeometry(driverR,driverR,.08,48),mBlue);driverDisc.position.z=-.04;driverG.add(driverDisc);
+const driverRim=new T.Mesh(new T.TorusGeometry(driverR,.03,16,64),mBlue);driverRim.position.z=-.04;driverG.add(driverRim);
+const pin=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.2,16),mPin);pin.rotation.x=Math.PI/2;driverG.add(pin);
+// Driver crescent lock
+const lockGeo=new T.CylinderGeometry(driverR+.04,driverR+.04,.1,48,1,false,0,Math.PI*.7);
+const lock=new T.Mesh(lockGeo,mBlue);lock.position.z=.01;driverG.add(lock);
+// Driver shaft
+const shaft=new T.Mesh(new T.CylinderGeometry(.06,.06,.6,16),mGray);shaft.position.z=.34;driverG.add(shaft);
+driverG.position.set(-d,0,0);
+
+// Geneva: red 4-slot wheel
+const genevaDisc=new T.Mesh(new T.CylinderGeometry(slotR,slotR,.08,48),mRed);genevaDisc.position.z=-.04;genevaG.add(genevaDisc);
+const genevaRim=new T.Mesh(new T.TorusGeometry(slotR,.03,16,64),mRed);genevaRim.position.z=-.04;genevaG.add(genevaRim);
+// 4 slots
+for(let i=0;i<4;i++){const a=i*Math.PI/2;
+  const slotGeo=new T.BoxGeometry(slotW,.06,slotL);
+  const slot=new T.Mesh(slotGeo,mGray);slot.position.set(Math.cos(a)*slotR*.5,Math.sin(a)*slotR*.5,0);slot.rotation.z=a;genevaG.add(slot);
+}
+// 4 concave locks
+for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;
+  const notch=new T.Mesh(new T.CylinderGeometry(driverR+.08,driverR+.08,.1,24,1,false,a-.13,a+.13),mRed);notch.position.z=.01;genevaG.add(notch);
+}
+// Shaft
+const gShaft=new T.Mesh(new T.CylinderGeometry(.08,.08,.6,16),mGray);gShaft.position.z=.34;genevaG.add(gShaft);
+genevaG.position.set(d,0,0);
+
+// Base plane
+const base=new T.Mesh(new T.PlaneGeometry(6,4),new T.MeshStandardMaterial({color:'#e8e8ec',roughness:.8}));base.position.z=-.3;S.add(base);
+
+// Animation
+let ang=0;
+function genevaAngle(drv){
+  const n=drv%(Math.PI*2)/Math.PI; // 0..2
+  if(n<1.25||n>=1.875)return 0;
+  if(n>=1.25&&n<1.875){const f=(n-1.25)/.625;return f*Math.PI/2;}
+  return 0;
+}
+function animate(t){
+  requestAnimationFrame(animate);
+  ang+=.015;
+  const da=ang%(Math.PI*2);
+  driverG.rotation.z=da;
+  pin.position.set(Math.cos(da)*driverR,Math.sin(da)*driverR,0);
+  genevaG.rotation.z=genevaAngle(da);
+  document.getElementById('vang').textContent=Math.round(genevaAngle(da)*180/Math.PI)+'°';
+  O.update();R.render(S,C);
+}
+requestAnimationFrame(animate);
+window.addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+</script></body></html>

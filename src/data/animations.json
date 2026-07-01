@@ -1,5 +1,21 @@
 [
   {
+    "slug": "aircraft-attitude",
+    "title": "飞机姿态控制 · 三轴解耦刚体转动",
+    "subtitle": "Aircraft Attitude Control — 3-Axis Decoupled Rigid Body Rotation",
+    "category": "aerospace",
+    "tags": ["飞机姿态", "三轴转动", "滚转", "俯仰", "偏航", "欧拉角", "飞控"],
+    "mechanismType": "飞机三轴姿态控制系统",
+    "fileName": "aircraft-attitude.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "飞机三轴姿态（滚转Roll·俯仰Pitch·偏航Yaw）的3D交互演示。三轴独立控制，实时展示飞机绕机体轴的刚体转动。通过滑块或键盘调节三轴角度，直观理解欧拉角与飞行姿态的关系，适用于飞行力学与刚体运动学教学。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "飞机绕机体三轴转动：绕纵轴X滚转(Roll)、绕横轴Y俯仰(Pitch)、绕竖轴Z偏航(Yaw)。三轴解耦，各轴独立控制。刚体定点转动的欧拉角表示：机体坐标系相对地面坐标系的方位由三个欧拉角确定。通过调节各轴角度，观察飞机姿态变化。"
+  },
+  {
     "slug": "friction-incline",
     "title": "斜面物块 · 滑动 vs 翻转",
     "subtitle": "Block on Incline — Slide or Tip? Friction Demonstration",

@@ -69,7 +69,7 @@ pil(0,-5.8,ro-.3,1.5);pil(0,-5.8,-ro+.3,1.5);
 // Particles
 const pt=new T.BufferGeometry();const pa=new Float32Array(100*3);for(let i=0;i<100;i++){pa[i*3]=(Math.random()-.5)*18;pa[i*3+1]=(Math.random()-.5)*14;pa[i*3+2]=(Math.random()-.5)*12;}pt.setAttribute('position',new T.BufferAttribute(pa,3));const pts=new T.Points(pt,new T.PointsMaterial({color:'#bcc6d0',size:.07,transparent:true,opacity:.4,depthWrite:false}));S.add(pts);
 
-const clock=new T.Clock();
+const clock=new T.Clock();let an=0;
 (function L(){requestAnimationFrame(L);
   const dt=Math.min(clock.getDelta(),.1);
   an+=dt*2.5; // 2.5 rad/s 公转

@@ -69,6 +69,7 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* ============================================================
  *  EDL 阶段数据
@@ -155,52 +156,14 @@ const starSph=new THREE.Mesh(new THREE.SphereGeometry(120000,64,32),
   new THREE.MeshBasicMaterial({map:createStarfield(2048,1024),side:THREE.BackSide}));
 scene.add(starSph);
 
-/* ---- 火星纹理 ---- */
-function createMarsTex(size){
-  const c=document.createElement('canvas');c.width=size;c.height=size/2;
-  const ctx=c.getContext('2d');
-  const id=ctx.createImageData(size,size/2);const d=id.data;
-  function h(x,y){return((Math.sin(x*127.1+y*311.7)*43758.5453)%1+1)%1;}
-  function sn(x,y,s){
-    const ix=Math.floor(x*s),iy=Math.floor(y*s),fx=x*s-ix,fy=y*s-iy;
-    const sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
-    return(h(ix,iy)*(1-sx)+h(ix+1,iy)*sx)*(1-sy)+(h(ix,iy+1)*(1-sx)+h(ix+1,iy+1)*sx)*sy;
-  }
-  function fbm(x,y){let v=0,a=1,f=1;for(let i=0;i<7;i++){v+=sn(x,y,f)*a;f*=2.0;a*=0.5;}return v;}
-  for(let py=0;py<size/2;py++){
-    for(let px=0;px<size;px++){
-      const idx=(py*size+px)*4,u=px/size,v=py/(size/2);
-      const n=fbm(u*3.5,v*2);
-      const polar=Math.abs(v-0.5)>0.42,pm=polar?Math.min(1,(Math.abs(v-0.5)-0.42)/0.08):0;
-      const isP=pm>0.3,pm2=isP?Math.min(1,(pm-0.3)*2):0;
-      let r,g,b2;
-      if(pm2>0.3){r=210+pm2*45;g=195+pm2*60;b2=175+pm2*80;}
-      else{const val=n*0.35+0.35;r=175+val*65;g=95+val*55;b2=50+val*35;}
-      const mi=sn(u,v,45)*10;
-      d[idx]=Math.min(255,r+mi);d[idx+1]=Math.min(255,g+mi*0.7);
-      d[idx+2]=Math.min(255,b2+mi*0.4);d[idx+3]=255;
-    }
-  }
-  ctx.putImageData(id,0,0);
-  for(let i=0;i<60;i++){
-    const cx=Math.random()*size,cy=size*0.1+Math.random()*size*0.4;
-    const cr=2+Math.random()*20;
-    ctx.fillStyle='rgba(170,120,80,0.2)';ctx.beginPath();ctx.arc(cx,cy,cr,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(190,140,100,0.25)';ctx.lineWidth=1;ctx.stroke();
-  }
-  ctx.strokeStyle='rgba(130,80,40,0.2)';ctx.lineWidth=2;
-  for(let i=0;i<6;i++){
-    ctx.beginPath();let sx=Math.random()*size,sy=size*0.28+Math.random()*size*0.44;
-    ctx.moveTo(sx,sy);
-    for(let j=0;j<8;j++){sx+=(Math.random()-0.5)*250;sy+=(Math.random()-0.5)*30;ctx.lineTo(sx,sy);}
-    ctx.stroke();
-  }
-  return new THREE.CanvasTexture(c);
-}
-const marsTex=createMarsTex(2048);marsTex.colorSpace=THREE.SRGBColorSpace;
-const marsBump=createMarsTex(1024);
-const marsGlobe=new THREE.Mesh(new THREE.SphereGeometry(500,96,64),
-  new THREE.MeshStandardMaterial({map:marsTex,bumpMap:marsBump,bumpScale:6,roughness:0.85,metalness:0.05,color:new THREE.Color('#d2956a')}));
+/* ---- 火星模型 ---- */
+  const marsGlobe = new THREE.Group(); marsGlobe.visible = false; scene.add(marsGlobe);
+  new GLTFLoader().load('mars.glb', (gltf) => {
+    const model = gltf.scene;
+    model.scale.setScalar(500);
+    marsGlobe.add(model);
+    marsGlobe.visible = true;
+  });
 scene.add(marsGlobe);
 
 // 大气光晕

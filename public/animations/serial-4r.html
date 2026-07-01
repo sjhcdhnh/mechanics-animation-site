@@ -6,7 +6,7 @@
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    background: #0a0a14;
+    background: #87CEEB;
     font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     color: #cdd6f4;
   }
@@ -214,7 +214,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 /* ============================================================
  *  色彩规范
  * ============================================================ */
-const COLOR_BG    = 0x0a0a14;
+const COLOR_BG    = 0x87CEEB;
 const COLOR_FRAME = 0x6b7280;
 const COLOR_LINK  = [0xff6b35, 0xffe66d, 0x4ecdc4, 0xa78bfa]; // L1..L4
 const COLOR_PIN   = 0xf5e0dc;
@@ -241,7 +241,7 @@ const state = {
  * ============================================================ */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(COLOR_BG);
-scene.fog = new THREE.Fog(COLOR_BG, 600, 1800);
+scene.fog = new THREE.Fog(0xccccdd, 600, 1800);
 
 const camera = new THREE.PerspectiveCamera(
   45, window.innerWidth / window.innerHeight, 1, 5000

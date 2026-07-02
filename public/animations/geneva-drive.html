@@ -1,37 +1,108 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>日内瓦机构</title><style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;pointer-events:none;z-index:10;font-size:14px;border-left:4px solid #ffaa33}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}</style></head><body><div id="info"><span class="dot" style="background:#3a7bd5"></span>主动盘(蓝)·匀速 <span class="dot" style="background:#e63946"></span>从动槽轮(粉)·间歇 <span class="dot" style="background:#f4d03f"></span>销 4槽·90°/步</div><script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script><script type="module">
-import*as T from"three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";var S=new T.Scene();S.background=new T.Color("#1a1d24");var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;document.body.appendChild(R.domElement);var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();S.add(new T.AmbientLight("#3a4050",2.5));var L=new T.DirectionalLight("#ffffff",5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.width=2048;L.shadow.mapSize.height=2048;S.add(L);S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));S.add(new T.GridHelper(16,24,"#3a3f4a","#252830").translateY(-4));S.add(new T.Mesh(new T.PlaneGeometry(20,20),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15})).rotateX(-Math.PI/2).translateY(-4.1).receiveShadow=true);
-var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});var mB2=new T.MeshStandardMaterial({color:"#2563eb",roughness:.25,metalness:.55});var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});var mP2=new T.MeshStandardMaterial({color:"#dc2626",roughness:.25,metalness:.55});var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
-var Cd=1.8,crankR=1.4,gR=3.2,dR=0.6,lockR=1.82,pinR=0.09,sL=2.2,sW=0.22,slots=4;
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>日内瓦机构</title>
+<style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}
+#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+</style></head><body>
+<div id="info">
+  <span class="dot" style="background:#3a7bd5"></span>主动盘·匀速转 &nbsp;
+  <span class="dot" style="background:#e63946"></span>从动槽轮·间歇转 &nbsp;
+  <span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90&deg;/步
+</div>
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as T from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+var S=new T.Scene();S.background=new T.Color("#1a1d24");
+var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,40);C.position.set(0,0,12);C.lookAt(0,0,0);
+var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);
+R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
+S.add(new T.AmbientLight("#3a4050",2.5));
+var L=new T.DirectionalLight("#ffffff",5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.width=2048;L.shadow.mapSize.height=2048;S.add(L);
+S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));
+S.add(new T.GridHelper(16,24,"#3a3f4a","#252830").translateY(-4.5));
+S.add(new T.Mesh(new T.PlaneGeometry(22,22),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15})).rotateX(-Math.PI/2).translateY(-4.6).receiveShadow=true);
+
+var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});
+var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});
+var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});
+var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
+var mL=new T.MeshStandardMaterial({color:"#2563eb",roughness:.2,metalness:.6});
+
+var Cd=1.8,crankR=1.4,dR=0.6,lockR=1.7,gR=3.2,sL=2.2,sW=0.22,pinR=0.09,slots=4;
 
 // ═══ DRIVER (BLUE, right x=+Cd) ═══
 var dG=new T.Group();dG.position.set(Cd,0,0);S.add(dG);
-var ds=new T.Shape();ds.absarc(0,0,dR,0,Math.PI*2,false);ds.holes.push(new T.Path().absellipse(0,0,.10,.10,0,Math.PI*2,true));
-dG.add(new T.Mesh(new T.ExtrudeGeometry(ds,{steps:1,depth:.06,bevelEnabled:false}),mB).translateZ(-.03).castShadow=true);
-// THICK LOCKING CRESCENT — outer radius reaches geneva
-var lk=new T.Shape();lk.moveTo(-1.5794,-0.9043);lk.lineTo(-1.4929,-1.0409);lk.lineTo(-1.3947,-1.1693);lk.lineTo(-1.2854,-1.2885);lk.lineTo(-1.1660,-1.3975);lk.lineTo(-1.0373,-1.4954);lk.lineTo(-0.9005,-1.5816);lk.lineTo(-0.7566,-1.6553);lk.lineTo(-0.6067,-1.7159);lk.lineTo(-0.4520,-1.7630);lk.lineTo(-0.2938,-1.7961);lk.lineTo(-0.1332,-1.8151);lk.lineTo(0.0284,-1.8198);lk.lineTo(0.1898,-1.8101);lk.lineTo(0.3497,-1.7861);lk.lineTo(0.5068,-1.7480);lk.lineTo(0.6600,-1.6961);lk.lineTo(0.8079,-1.6309);lk.lineTo(0.9495,-1.5527);lk.lineTo(1.0835,-1.4623);lk.lineTo(1.2090,-1.3604);lk.lineTo(1.3250,-1.2477);lk.lineTo(1.4305,-1.1252);lk.lineTo(1.5247,-0.9938);lk.lineTo(1.6069,-0.8546);lk.lineTo(1.6764,-0.7086);lk.lineTo(1.7327,-0.5570);lk.lineTo(1.7753,-0.4010);lk.lineTo(1.8039,-0.2419);lk.lineTo(1.8182,-0.0808);lk.lineTo(1.8182,0.0808);lk.lineTo(1.8039,0.2419);lk.lineTo(1.7753,0.4010);lk.lineTo(1.7327,0.5570);lk.lineTo(1.6764,0.7086);lk.lineTo(1.6069,0.8546);lk.lineTo(1.5247,0.9938);lk.lineTo(1.4305,1.1252);lk.lineTo(1.3250,1.2477);lk.lineTo(1.2090,1.3604);lk.lineTo(1.0835,1.4623);lk.lineTo(0.9495,1.5527);lk.lineTo(0.8079,1.6309);lk.lineTo(0.6600,1.6961);lk.lineTo(0.5068,1.7480);lk.lineTo(0.3497,1.7861);lk.lineTo(0.1898,1.8101);lk.lineTo(0.0284,1.8198);lk.lineTo(-0.1332,1.8151);lk.lineTo(-0.2938,1.7961);lk.lineTo(-0.4520,1.7630);lk.lineTo(-0.6067,1.7159);lk.lineTo(-0.7566,1.6553);lk.lineTo(-0.9005,1.5816);lk.lineTo(-1.0373,1.4954);lk.lineTo(-1.1660,1.3975);lk.lineTo(-1.2854,1.2885);lk.lineTo(-1.3947,1.1693);lk.lineTo(-1.4929,1.0409);lk.lineTo(-1.5794,0.9043);lk.lineTo(-0.5380,0.3081);lk.lineTo(-0.5086,0.3546);lk.lineTo(-0.4751,0.3983);lk.lineTo(-0.4379,0.4389);lk.lineTo(-0.3972,0.4761);lk.lineTo(-0.3534,0.5094);lk.lineTo(-0.3068,0.5388);lk.lineTo(-0.2577,0.5639);lk.lineTo(-0.2067,0.5845);lk.lineTo(-0.1540,0.6006);lk.lineTo(-0.1001,0.6119);lk.lineTo(-0.0454,0.6183);lk.lineTo(0.0097,0.6199);lk.lineTo(0.0647,0.6166);lk.lineTo(0.1191,0.6084);lk.lineTo(0.1727,0.5955);lk.lineTo(0.2248,0.5778);lk.lineTo(0.2752,0.5556);lk.lineTo(0.3234,0.5289);lk.lineTo(0.3691,0.4982);lk.lineTo(0.4119,0.4634);lk.lineTo(0.4514,0.4250);lk.lineTo(0.4873,0.3833);lk.lineTo(0.5194,0.3385);lk.lineTo(0.5474,0.2911);lk.lineTo(0.5711,0.2414);lk.lineTo(0.5903,0.1897);lk.lineTo(0.6048,0.1366);lk.lineTo(0.6145,0.0824);lk.lineTo(0.6194,0.0275);lk.lineTo(0.6194,-0.0275);lk.lineTo(0.6145,-0.0824);lk.lineTo(0.6048,-0.1366);lk.lineTo(0.5903,-0.1897);lk.lineTo(0.5711,-0.2414);lk.lineTo(0.5474,-0.2911);lk.lineTo(0.5194,-0.3385);lk.lineTo(0.4873,-0.3833);lk.lineTo(0.4514,-0.4250);lk.lineTo(0.4119,-0.4634);lk.lineTo(0.3691,-0.4982);lk.lineTo(0.3234,-0.5289);lk.lineTo(0.2752,-0.5556);lk.lineTo(0.2248,-0.5778);lk.lineTo(0.1727,-0.5955);lk.lineTo(0.1191,-0.6084);lk.lineTo(0.0647,-0.6166);lk.lineTo(0.0097,-0.6199);lk.lineTo(-0.0454,-0.6183);lk.lineTo(-0.1001,-0.6119);lk.lineTo(-0.1540,-0.6006);lk.lineTo(-0.2067,-0.5845);lk.lineTo(-0.2577,-0.5639);lk.lineTo(-0.3068,-0.5388);lk.lineTo(-0.3534,-0.5094);lk.lineTo(-0.3972,-0.4761);lk.lineTo(-0.4379,-0.4389);lk.lineTo(-0.4751,-0.3983);lk.lineTo(-0.5086,-0.3546);lk.lineTo(-0.5380,-0.3081);lk.closePath();
-dG.add(new T.Mesh(new T.ExtrudeGeometry(lk,{steps:1,depth:.20,bevelEnabled:true,bevelThickness:.03,bevelSize:.03,bevelSegments:3}),mB2).translateZ(.06).castShadow=true);
+
+// Base disc
+dG.add(new T.Mesh(new T.CylinderGeometry(dR,dR,.06,48),mB).translateZ(-.03).castShadow=true);
+
+// Locking crescent: THICK ring segment from dR+0.02 to lockR, spanning ~280deg except arm gap
+// Parts: outer arc wall, inner arc wall, two flat sides
+// Use TorusGeometry segment for the raised ring
+var cresArc = new T.TorusGeometry((dR+lockR)/2, (lockR-dR)/2, 8, 48, Math.PI*1.56);
+var cres = new T.Mesh(cresArc, mL);
+cres.position.z = .06;
+cres.rotation.z = Math.PI*0.22; // rotate so gap faces -X (where pin arm goes)
+cres.castShadow = true;
+dG.add(cres);
+
 // Pin arm
-dG.add(new T.Mesh(new T.BoxGeometry(crankR,.05,.04),mB).position.set(-crankR/2,0,.01));
+dG.add(new T.Mesh(new T.BoxGeometry(crankR,.06,.05),mB).position.set(-crankR/2,0,0));
+
+// Drive pin
 var pin=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.22,24),mG);pin.rotation.x=Math.PI/2;pin.position.set(-crankR,0,0);dG.add(pin);
-dG.add(new T.Mesh(new T.CylinderGeometry(.26,.26,.15,24),mG).translateZ(.14));
-dG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.22));
+
+// Hub
+dG.add(new T.Mesh(new T.CylinderGeometry(.28,.28,.15,24),mG).translateZ(.12));
+dG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.50,10),mD).translateZ(.22));
 
 // ═══ GENEVA (PINK, left x=-Cd) ═══
 var gG=new T.Group();gG.position.set(-Cd,0,0);S.add(gG);
-// Disc with 4 concave cutout indentations
-var gs=new T.Shape();gs.moveTo(3.2000,0.0000);gs.lineTo(3.1726,0.4177);gs.lineTo(1.7387,0.4659);gs.lineTo(1.6630,0.6888);gs.lineTo(1.5588,0.9000);gs.lineTo(1.4280,1.0958);gs.lineTo(1.2728,1.2728);gs.lineTo(1.0958,1.4280);gs.lineTo(0.9000,1.5588);gs.lineTo(0.6888,1.6630);gs.lineTo(0.4659,1.7387);gs.lineTo(0.4177,3.1726);gs.lineTo(0.0000,3.2000);gs.lineTo(-0.4177,3.1726);gs.lineTo(-0.4659,1.7387);gs.lineTo(-0.6888,1.6630);gs.lineTo(-0.9000,1.5588);gs.lineTo(-1.0958,1.4280);gs.lineTo(-1.2728,1.2728);gs.lineTo(-1.4280,1.0958);gs.lineTo(-1.5588,0.9000);gs.lineTo(-1.6630,0.6888);gs.lineTo(-1.7387,0.4659);gs.lineTo(-3.1726,0.4177);gs.lineTo(-3.2000,0.0000);gs.lineTo(-3.1726,-0.4177);gs.lineTo(-1.7387,-0.4659);gs.lineTo(-1.6630,-0.6888);gs.lineTo(-1.5588,-0.9000);gs.lineTo(-1.4280,-1.0958);gs.lineTo(-1.2728,-1.2728);gs.lineTo(-1.0958,-1.4280);gs.lineTo(-0.9000,-1.5588);gs.lineTo(-0.6888,-1.6630);gs.lineTo(-0.4659,-1.7387);gs.lineTo(-0.4177,-3.1726);gs.lineTo(-0.0000,-3.2000);gs.lineTo(0.4177,-3.1726);gs.lineTo(0.4659,-1.7387);gs.lineTo(0.6888,-1.6630);gs.lineTo(0.9000,-1.5588);gs.lineTo(1.0958,-1.4280);gs.lineTo(1.2728,-1.2728);gs.lineTo(1.4280,-1.0958);gs.lineTo(1.5588,-0.9000);gs.lineTo(1.6630,-0.6888);gs.lineTo(1.7387,-0.4659);gs.lineTo(3.1726,-0.4177);gs.closePath();gs.holes.push(new T.Path().absellipse(0,0,.12,.12,0,Math.PI*2,true));
-var gm=new T.Mesh(new T.ExtrudeGeometry(gs,{steps:1,depth:.12,bevelEnabled:true,bevelThickness:.015,bevelSize:.015,bevelSegments:2}),mP2);gm.position.z=-.06;gm.castShadow=true;gG.add(gm);
-// 4 U-slots
+
+// Main disc
+gG.add(new T.Mesh(new T.CylinderGeometry(gR,gR,.08,48),mP).translateZ(-.04).castShadow=true);
+
+// 4 U-slots (dark boxes, radial)
 var so=gR-.04;
-for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;gG.add(new T.Mesh(new T.BoxGeometry(sW,.10,sL),mD).position.set(Math.cos(a)*(so-sL/2),Math.sin(a)*(so-sL/2),0).rotateZ(a));}
-gG.add(new T.Mesh(new T.CylinderGeometry(.36,.36,.15,24),mG).translateZ(.14));
-gG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.22));
+for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
+  gG.add(new T.Mesh(new T.BoxGeometry(sW,.10,sL),mD).position.set(Math.cos(a)*(so-sL/2),Math.sin(a)*(so-sL/2),0).rotateZ(a));}
 
-S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,2.8,8),mD).position.set(-Cd,-3.2,0).castShadow=true);
-S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,2.8,8),mD).position.set(Cd,-3.2,0).castShadow=true);
+// 4 concave lock cutouts on geneva outer edge
+// Cut into the disc: use TorusGeometry segments inset at lockR radius between slots
+for(var i=0;i<slots;i++){
+  var ca=(i+.5)*Math.PI*2/slots; // center angle of cutout (between adjacent slots)
+  var cutArc = new T.TorusGeometry(lockR+.04, .12, 8, 24, Math.PI*.6);
+  var cut = new T.Mesh(cutArc, mP);
+  cut.position.set(Math.cos(ca)*(gR-.08),Math.sin(ca)*(gR-.08),.07);
+  cut.rotation.z = ca;
+  cut.castShadow = true;
+  gG.add(cut);
+}
 
-var pg=new T.BufferGeometry();var pa=new Float32Array(80*3);for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*18;pa[i*3+1]=(Math.random()-.5)*12;pa[i*3+2]=(Math.random()-.5)*8;}pg.setAttribute("position",new T.BufferAttribute(pa,3));var pt=new T.Points(pg,new T.PointsMaterial({color:"#bcc6d0",size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(pt);
-function gRot(drv){var p=((drv%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;var en=Math.PI/2-Math.PI/slots,ex=Math.PI/2+Math.PI/slots;if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}var an=0;
+// Hub
+gG.add(new T.Mesh(new T.CylinderGeometry(.38,.38,.15,24),mG).translateZ(.12));
+gG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.50,10),mD).translateZ(.22));
+
+// Pillars
+S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,3,8),mD).position.set(-Cd,-3.5,0).castShadow=true);
+S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,3,8),mD).position.set(Cd,-3.5,0).castShadow=true);
+
+// Particles
+var pg=new T.BufferGeometry();var pa=new Float32Array(80*3);
+for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*18;pa[i*3+1]=(Math.random()-.5)*12;pa[i*3+2]=(Math.random()-.5)*8;}
+pg.setAttribute("position",new T.BufferAttribute(pa,3));
+var pt=new T.Points(pg,new T.PointsMaterial({color:"#bcc6d0",size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(pt);
+
+// Geneva motion
+function gRot(drv){var p=((drv%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;
+  var en=Math.PI/2-Math.PI/slots,ex=Math.PI/2+Math.PI/slots;
+  if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
+var an=0;
 function A(){requestAnimationFrame(A);an+=.02;dG.rotation.z=an%(Math.PI*2);gG.rotation.z=gRot(an%(Math.PI*2));pt.rotation.z+=.0004;O.update();R.render(S,C);}A();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

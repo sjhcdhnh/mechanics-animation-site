@@ -39,7 +39,7 @@ var Cd=1.8,crankR=1.4,dR=0.6,lockR=1.7,gR=3.2,sL=2.2,sW=0.22,pinR=0.09,slots=4;
 var dG=new T.Group();dG.position.set(Cd,0,0);S.add(dG);
 
 // Base disc
-dG.add(new T.Mesh(new T.CylinderGeometry(dR,dR,.06,48),mB).translateZ(-.03).castShadow=true);
+var _d=new T.Mesh(new T.CylinderGeometry(dR,dR,.06,48),mB);_d.position.z=-0.03;_d.castShadow=true;dG.add(_d);
 
 // Locking crescent: THICK ring segment from dR+0.02 to lockR, spanning ~280deg except arm gap
 // Parts: outer arc wall, inner arc wall, two flat sides
@@ -65,7 +65,7 @@ dG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.50,10),mD).translateZ(.22));
 var gG=new T.Group();gG.position.set(-Cd,0,0);S.add(gG);
 
 // Main disc
-gG.add(new T.Mesh(new T.CylinderGeometry(gR,gR,.08,48),mP).translateZ(-.04).castShadow=true);
+var _g=new T.Mesh(new T.CylinderGeometry(gR,gR,.08,48),mP);_g.position.z=-0.04;_g.castShadow=true;gG.add(_g);
 
 // 4 U-slots (dark boxes, radial)
 var so=gR-.04;

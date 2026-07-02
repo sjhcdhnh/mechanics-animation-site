@@ -79,12 +79,15 @@ var mRed = new T.MeshStandardMaterial({ color: "#e63946", roughness: 0.25, metal
 var mGold = new T.MeshStandardMaterial({ color: "#f4d03f", roughness: 0.2, metalness: 0.85 });
 var mDark = new T.MeshStandardMaterial({ color: "#4a4f5a", roughness: 0.55, metalness: 0.5 });
 
-var Cd = 1.9;
-var dR = 0.6;
-var gR = 1.0;
+// Geneva geometry: Cd = pinDist/sin(pi/4). Pin arm extends beyond driver disc.
+var Cd = 0.72;
+var dR = 0.45;
+var gR = 0.62;
 var slots = 4;
-var pinDist = 0.78;
-var pinR = 0.09;
+var pinDist = 0.85;
+var pinR = 0.08;
+var slotW = 0.16;
+var slotL = 0.55;
 
 // ── Driver (blue, left side) ──
 var dG = new T.Group();
@@ -93,20 +96,20 @@ scene.add(dG);
 
 var dShape = new T.Shape();
 dShape.absarc(0, 0, dR, 0, Math.PI * 2, false);
-dShape.holes.push(new T.Path().absellipse(0, 0, 0.14, 0.14, 0, Math.PI * 2, true));
+dShape.holes.push(new T.Path().absellipse(0, 0, 0.12, 0.12, 0, Math.PI * 2, true));
 var dMesh = new T.Mesh(new T.ExtrudeGeometry(dShape, { steps: 1, depth: 0.12, bevelEnabled: false }), mBlue);
 dMesh.position.z = -0.06;
 dMesh.castShadow = true;
 dG.add(dMesh);
 
 var lkShape = new T.Shape();
-lkShape.absarc(0, 0, dR + 0.08, 0.5, 5.8, false);
+lkShape.absarc(0, 0, dR + 0.06, 0.5, 5.8, false);
 lkShape.absarc(0, 0, dR - 0.04, 5.8, 0.5, true);
 var lkMesh = new T.Mesh(new T.ExtrudeGeometry(lkShape, { steps: 1, depth: 0.08, bevelEnabled: false }), mBlue);
 lkMesh.position.z = 0.04;
 dG.add(lkMesh);
 
-var dHub = new T.Mesh(new T.CylinderGeometry(0.55, 0.55, 0.14, 24), mGold);
+var dHub = new T.Mesh(new T.CylinderGeometry(0.45, 0.45, 0.14, 24), mGold);
 dHub.position.z = 0.08;
 dG.add(dHub);
 
@@ -114,7 +117,7 @@ var pin = new T.Mesh(new T.CylinderGeometry(pinR, pinR, 0.18, 24), mGold);
 pin.rotation.x = Math.PI / 2;
 dG.add(pin);
 
-var dShaft = new T.Mesh(new T.CylinderGeometry(0.05, 0.05, 0.45, 10), mDark);
+var dShaft = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 0.45, 10), mDark);
 dShaft.position.z = 0.18;
 dG.add(dShaft);
 
@@ -125,7 +128,7 @@ scene.add(gG);
 
 var gSh = new T.Shape();
 gSh.absarc(0, 0, gR, 0, Math.PI * 2, false);
-gSh.holes.push(new T.Path().absellipse(0, 0, 0.16, 0.16, 0, Math.PI * 2, true));
+gSh.holes.push(new T.Path().absellipse(0, 0, 0.14, 0.14, 0, Math.PI * 2, true));
 var gMesh = new T.Mesh(new T.ExtrudeGeometry(gSh, { steps: 1, depth: 0.12, bevelEnabled: false }), mRed);
 gMesh.position.z = -0.06;
 gMesh.castShadow = true;
@@ -133,8 +136,8 @@ gG.add(gMesh);
 
 for (var i = 0; i < slots; i++) {
   var a = i * Math.PI * 2 / slots;
-  var slot = new T.Mesh(new T.BoxGeometry(0.24, 0.07, 0.75), mDark);
-  slot.position.set(Math.cos(a) * gR * 0.48, Math.sin(a) * gR * 0.48, 0);
+  var slot = new T.Mesh(new T.BoxGeometry(slotW, 0.07, slotL), mDark);
+  slot.position.set(Math.cos(a) * gR * 0.42, Math.sin(a) * gR * 0.42, 0);
   slot.rotation.z = a;
   gG.add(slot);
 }
@@ -142,14 +145,14 @@ for (var i = 0; i < slots; i++) {
 for (var i = 0; i < slots; i++) {
   var a = i * Math.PI * 2 / slots;
   var aSh = new T.Shape();
-  aSh.absarc(0, 0, dR + 0.13, 0.48 + a, 5.82 + a, true);
-  aSh.absarc(0, 0, dR + 0.22, 5.82 + a, 0.48 + a, false);
+  aSh.absarc(0, 0, dR + 0.12, 0.48 + a, 5.82 + a, true);
+  aSh.absarc(0, 0, dR + 0.20, 5.82 + a, 0.48 + a, false);
   var aMesh = new T.Mesh(new T.ExtrudeGeometry(aSh, { steps: 1, depth: 0.08, bevelEnabled: false }), mRed);
   aMesh.position.z = 0.04;
   gG.add(aMesh);
 }
 
-var gHub = new T.Mesh(new T.CylinderGeometry(0.6, 0.6, 0.14, 24), mGold);
+var gHub = new T.Mesh(new T.CylinderGeometry(0.5, 0.5, 0.14, 24), mGold);
 gHub.position.z = 0.08;
 gG.add(gHub);
 
@@ -158,10 +161,10 @@ gShaft.position.z = 0.18;
 gG.add(gShaft);
 
 // ── Pillars ──
-var p1 = new T.Mesh(new T.CylinderGeometry(0.12, 0.16, 0.8, 8), mDark);
-p1.position.set(-Cd, -2.55, 0); p1.castShadow = true; scene.add(p1);
-var p2 = new T.Mesh(new T.CylinderGeometry(0.12, 0.16, 0.8, 8), mDark);
-p2.position.set(Cd, -2.55, 0); p2.castShadow = true; scene.add(p2);
+var p1 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2.2, 8), mDark);
+p1.position.set(-Cd, -2.0, 0); p1.castShadow = true; scene.add(p1);
+var p2 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2.2, 8), mDark);
+p2.position.set(Cd, -2.0, 0); p2.castShadow = true; scene.add(p2);
 
 // ── Particles ──
 var ptGeo = new T.BufferGeometry();

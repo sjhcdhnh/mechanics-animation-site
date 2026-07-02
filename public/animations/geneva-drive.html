@@ -1,108 +1,56 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><title>日内瓦机构</title>
-<style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}
+<style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:sans-serif}
 #info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
 </style></head><body>
-<div id="info">
-  <span class="dot" style="background:#3a7bd5"></span>主动盘·匀速转 &nbsp;
-  <span class="dot" style="background:#e63946"></span>从动槽轮·间歇转 &nbsp;
-  <span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90&deg;/步
-</div>
-<script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}
-</script>
+<div id="info"><span class="dot" style="background:#3a7bd5"></span>主动盘 <span class="dot" style="background:#e63946"></span>从动槽轮 <span class="dot" style="background:#f4d03f"></span>驱动销</div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
 <script type="module">
 import * as T from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-
 var S=new T.Scene();S.background=new T.Color("#1a1d24");
-var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,40);C.position.set(0,0,12);C.lookAt(0,0,0);
-var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);
-R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,0.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);
+var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
 var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
 S.add(new T.AmbientLight("#3a4050",2.5));
-var L=new T.DirectionalLight("#ffffff",5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.width=2048;L.shadow.mapSize.height=2048;S.add(L);
-S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));
-S.add(new T.GridHelper(16,24,"#3a3f4a","#252830").translateY(-4.5));
-S.add(new T.Mesh(new T.PlaneGeometry(22,22),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15})).rotateX(-Math.PI/2).translateY(-4.6).receiveShadow=true);
-
-var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});
-var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});
-var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});
-var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
-var mL=new T.MeshStandardMaterial({color:"#2563eb",roughness:.2,metalness:.6});
-
-var Cd=1.8,crankR=1.4,dR=0.6,lockR=1.7,gR=3.2,sL=2.2,sW=0.22,pinR=0.09,slots=4;
-
-// ═══ DRIVER (BLUE, right x=+Cd) ═══
+var dL=new T.DirectionalLight("#ffffff",5);dL.position.set(6,8,5);dL.castShadow=true;dL.shadow.mapSize.width=2048;dL.shadow.mapSize.height=2048;S.add(dL);
+var fL=new T.DirectionalLight("#8a9bb5",2);fL.position.set(-3,2,-3);S.add(fL);
+var gH=new T.GridHelper(14,22,"#3a3f4a","#252830");gH.position.y=-4;S.add(gH);
+var gP=new T.PlaneGeometry(18,18);var gM=new T.MeshStandardMaterial({color:"#1e2128",roughness:0.9,metalness:0.15});var gO=new T.Mesh(gP,gM);gO.rotation.x=-Math.PI/2;gO.position.y=-4.1;gO.receiveShadow=true;S.add(gO);
+var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:0.25,metalness:0.55});
+var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:0.25,metalness:0.55});
+var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:0.2,metalness:0.85});
+var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:0.55,metalness:0.5});
+var mL=new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.6});
+var Cd=1.8;var crankR=1.4;var dR=0.6;var lockR=1.7;var gR=3.2;var sL=2.2;var sW=0.22;var pinR=0.09;var slots=4;
 var dG=new T.Group();dG.position.set(Cd,0,0);S.add(dG);
-
-// Base disc
-var _d=new T.Mesh(new T.CylinderGeometry(dR,dR,.06,48),mB);_d.position.z=-0.03;_d.castShadow=true;dG.add(_d);
-
-// Locking crescent: THICK ring segment from dR+0.02 to lockR, spanning ~280deg except arm gap
-// Parts: outer arc wall, inner arc wall, two flat sides
-// Use TorusGeometry segment for the raised ring
-var cresArc = new T.TorusGeometry((dR+lockR)/2, (lockR-dR)/2, 8, 48, Math.PI*1.56);
-var cres = new T.Mesh(cresArc, mL);
-cres.position.z = .06;
-cres.rotation.z = Math.PI*0.22; // rotate so gap faces -X (where pin arm goes)
-cres.castShadow = true;
-dG.add(cres);
-
-// Pin arm
-dG.add(new T.Mesh(new T.BoxGeometry(crankR,.06,.05),mB).position.set(-crankR/2,0,0));
-
-// Drive pin
-var pin=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.22,24),mG);pin.rotation.x=Math.PI/2;pin.position.set(-crankR,0,0);dG.add(pin);
-
-// Hub
-dG.add(new T.Mesh(new T.CylinderGeometry(.28,.28,.15,24),mG).translateZ(.12));
-dG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.50,10),mD).translateZ(.22));
-
-// ═══ GENEVA (PINK, left x=-Cd) ═══
-var gG=new T.Group();gG.position.set(-Cd,0,0);S.add(gG);
-
-// Main disc
-var _g=new T.Mesh(new T.CylinderGeometry(gR,gR,.08,48),mP);_g.position.z=-0.04;_g.castShadow=true;gG.add(_g);
-
-// 4 U-slots (dark boxes, radial)
-var so=gR-.04;
-for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
-  gG.add(new T.Mesh(new T.BoxGeometry(sW,.10,sL),mD).position.set(Math.cos(a)*(so-sL/2),Math.sin(a)*(so-sL/2),0).rotateZ(a));}
-
-// 4 concave lock cutouts on geneva outer edge
-// Cut into the disc: use TorusGeometry segments inset at lockR radius between slots
-for(var i=0;i<slots;i++){
-  var ca=(i+.5)*Math.PI*2/slots; // center angle of cutout (between adjacent slots)
-  var cutArc = new T.TorusGeometry(lockR+.04, .12, 8, 24, Math.PI*.6);
-  var cut = new T.Mesh(cutArc, mP);
-  cut.position.set(Math.cos(ca)*(gR-.08),Math.sin(ca)*(gR-.08),.07);
-  cut.rotation.z = ca;
-  cut.castShadow = true;
-  gG.add(cut);
-}
-
-// Hub
-gG.add(new T.Mesh(new T.CylinderGeometry(.38,.38,.15,24),mG).translateZ(.12));
-gG.add(new T.Mesh(new T.CylinderGeometry(.05,.05,.50,10),mD).translateZ(.22));
-
-// Pillars
-S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,3,8),mD).position.set(-Cd,-3.5,0).castShadow=true);
-S.add(new T.Mesh(new T.CylinderGeometry(.10,.14,3,8),mD).position.set(Cd,-3.5,0).castShadow=true);
-
-// Particles
-var pg=new T.BufferGeometry();var pa=new Float32Array(80*3);
-for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*18;pa[i*3+1]=(Math.random()-.5)*12;pa[i*3+2]=(Math.random()-.5)*8;}
-pg.setAttribute("position",new T.BufferAttribute(pa,3));
-var pt=new T.Points(pg,new T.PointsMaterial({color:"#bcc6d0",size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(pt);
-
-// Geneva motion
-function gRot(drv){var p=((drv%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;
-  var en=Math.PI/2-Math.PI/slots,ex=Math.PI/2+Math.PI/slots;
-  if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
-var an=0;
-function A(){requestAnimationFrame(A);an+=.02;dG.rotation.z=an%(Math.PI*2);gG.rotation.z=gRot(an%(Math.PI*2));pt.rotation.z+=.0004;O.update();R.render(S,C);}A();
+var bG=new T.CylinderGeometry(dR,dR,0.06,48);
+var bM=new T.Mesh(bG,mB);bM.position.z=-0.03;bM.castShadow=true;dG.add(bM);
+var cG=new T.TorusGeometry((dR+lockR)/2,(lockR-dR)/2,8,48,4.9);
+var cM=new T.Mesh(cG,mL);cM.position.z=0.06;cM.rotation.z=0.69;cM.castShadow=true;dG.add(cM);
+var aG=new T.BoxGeometry(crankR,0.06,0.05);
+var aM=new T.Mesh(aG,mB);aM.position.set(-crankR/2,0,0);dG.add(aM);
+var pG=new T.CylinderGeometry(pinR,pinR,0.22,24);
+var pM=new T.Mesh(pG,mG);pM.rotation.x=Math.PI/2;pM.position.set(-crankR,0,0);dG.add(pM);
+var hG=new T.CylinderGeometry(0.28,0.28,0.15,24);
+var hM=new T.Mesh(hG,mG);hM.position.z=0.12;dG.add(hM);
+var sG=new T.CylinderGeometry(0.05,0.05,0.50,10);
+var sM=new T.Mesh(sG,mD);sM.position.z=0.22;dG.add(sM);
+var gG2=new T.Group();gG2.position.set(-Cd,0,0);S.add(gG2);
+var dG2=new T.CylinderGeometry(gR,gR,0.08,48);
+var dM=new T.Mesh(dG2,mP);dM.position.z=-0.04;dM.castShadow=true;gG2.add(dM);
+var so3=gR-0.04;
+for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;var slG=new T.BoxGeometry(sW,0.10,sL);var slM=new T.Mesh(slG,mD);slM.position.set(Math.cos(a)*(so3-sL/2),Math.sin(a)*(so3-sL/2),0);slM.rotation.z=a;gG2.add(slM);}
+var h2G=new T.CylinderGeometry(0.38,0.38,0.15,24);
+var h2M=new T.Mesh(h2G,mG);h2M.position.z=0.12;gG2.add(h2M);
+var s2G=new T.CylinderGeometry(0.05,0.05,0.50,10);
+var s2M=new T.Mesh(s2G,mD);s2M.position.z=0.22;gG2.add(s2M);
+var p1G=new T.CylinderGeometry(0.10,0.14,3,8);var p1M=new T.Mesh(p1G,mD);p1M.position.set(-Cd,-3.5,0);p1M.castShadow=true;S.add(p1M);
+var p2G=new T.CylinderGeometry(0.10,0.14,3,8);var p2M=new T.Mesh(p2G,mD);p2M.position.set(Cd,-3.5,0);p2M.castShadow=true;S.add(p2M);
+var ptG=new T.BufferGeometry();var ptA=new Float32Array(240);for(var i=0;i<240;i+=3){ptA[i]=(Math.random()-0.5)*18;ptA[i+1]=(Math.random()-0.5)*12;ptA[i+2]=(Math.random()-0.5)*8;}ptG.setAttribute("position",new T.BufferAttribute(ptA,3));var ptM=new T.PointsMaterial({color:"#bcc6d0",size:0.05,opacity:0.4,depthWrite:false});var ptO=new T.Points(ptG,ptM);S.add(ptO);
+function gRot(d){var p=((d%(Math.PI*2))+Math.PI*2)%(Math.PI*2);var seg=Math.PI*2/slots;var idx=Math.floor(p/seg);var lp=p-idx*seg;var en=Math.PI/2-Math.PI/slots;var ex=Math.PI/2+Math.PI/slots;if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
+var ang=0;
+function anim(){requestAnimationFrame(anim);ang+=0.02;dG.rotation.z=ang%(Math.PI*2);gG2.rotation.z=gRot(ang%(Math.PI*2));ptO.rotation.z+=0.0004;O.update();R.render(S,C);}anim();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

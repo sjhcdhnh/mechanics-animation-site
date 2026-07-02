@@ -7,16 +7,10 @@ body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFan
 #info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
 </style></head><body>
-<div id="info">
-  <span class="dot" style="background:#3a7bd5"></span>主动轮·匀速 &nbsp;
-  <span class="dot" style="background:#e63946"></span>从动槽轮·间歇 &nbsp;
-  <span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90°/步
-</div>
-<script type="importmap">
-{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}
-</script>
+<div id="info"><span class="dot" style="background:#3a7bd5"></span>主动轮 <span class="dot" style="background:#e63946"></span>从动槽轮 <span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90°/步</div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
 <script type="module">
-import * as T from"three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";
+import*as T from"three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";
 var S=new T.Scene();S.background=new T.Color("#1a1d24");
 var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);
 var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
@@ -26,16 +20,11 @@ var L=new T.DirectionalLight("#ffffff",5.5);L.position.set(6,8,5);L.castShadow=t
 S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));S.add(new T.DirectionalLight("#5a6b82",1.8).position.set(0,-2,2));
 S.add(new T.GridHelper(14,20,"#3a3f4a","#252830").translateY(-4));
 var G=new T.Mesh(new T.PlaneGeometry(18,18),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15}));G.rotation.x=-Math.PI/2;G.position.y=-4.1;G.receiveShadow=true;S.add(G);
-
 var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});
 var mR2=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});
 var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});
 var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
-
-// ── GEOMETRY ──
-var Cd=1.2,dR=0.5,gR=3.2,slots=4,crankR=0.85,pinR2=0.08,sW=0.2,sL=1.15;
-
-// ── Driver (blue) ──
+var Cd=1.2,dR=0.5,gR=3.2,slots=4,crankR=0.85,pinR2=0.08,sW=0.2,sL=1.5;
 var dG=new T.Group();dG.position.set(-Cd,0,0);S.add(dG);
 var ds=new T.Shape();ds.absarc(0,0,dR,0,Math.PI*2,false);ds.holes.push(new T.Path().absellipse(0,0,.10,.10,0,Math.PI*2,true));
 var dm=new T.Mesh(new T.ExtrudeGeometry(ds,{steps:1,depth:.12,bevelEnabled:false}),mB);dm.position.z=-.06;dm.castShadow=true;dG.add(dm);
@@ -44,8 +33,6 @@ dG.add(new T.Mesh(new T.ExtrudeGeometry(lk,{steps:1,depth:.09,bevelEnabled:false
 var pin=new T.Mesh(new T.CylinderGeometry(pinR2,pinR2,.22,24),mG);pin.rotation.x=Math.PI/2;pin.position.set(crankR,0,0);dG.add(pin);
 dG.add(new T.Mesh(new T.CylinderGeometry(.30,.30,.15,24),mG).translateZ(.09));
 dG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.18));
-
-// ── Geneva (red) ──
 var gG=new T.Group();gG.position.set(Cd,0,0);S.add(gG);
 var gs=new T.Shape();gs.absarc(0,0,gR,0,Math.PI*2,false);gs.holes.push(new T.Path().absellipse(0,0,.12,.12,0,Math.PI*2,true));
 var gm=new T.Mesh(new T.ExtrudeGeometry(gs,{steps:1,depth:.12,bevelEnabled:false}),mR2);gm.position.z=-.06;gm.castShadow=true;gG.add(gm);
@@ -55,21 +42,18 @@ for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
   s.position.set(Math.cos(a)*(so-sL/2),Math.sin(a)*(so-sL/2),0);s.rotation.z=a;gG.add(s);}
 for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
   var as=new T.Shape();
-  as.absarc(0,0,dR+.12,.28+a,6.00+a,true);
-  as.absarc(0,0,dR+.22,6.00+a,.28+a,false);
+  as.absarc(0,0,dR+.12,.28+a,6.0+a,true);
+  as.absarc(0,0,dR+.22,6.0+a,.28+a,false);
   gG.add(new T.Mesh(new T.ExtrudeGeometry(as,{steps:1,depth:.09,bevelEnabled:false}),mR2).translateZ(.05));}
 gG.add(new T.Mesh(new T.CylinderGeometry(.40,.40,.15,24),mG).translateZ(.09));
 gG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.18));
-
 var p1=new T.Mesh(new T.CylinderGeometry(.08,.12,2.5,8),mD);p1.position.set(-Cd,-3.2,0);p1.castShadow=true;S.add(p1);
 var p2=new T.Mesh(new T.CylinderGeometry(.08,.12,2.5,8),mD);p2.position.set(Cd,-3.2,0);p2.castShadow=true;S.add(p2);
-
 var pg=new T.BufferGeometry();var pa=new Float32Array(80*3);
 for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*16;pa[i*3+1]=(Math.random()-.5)*12;pa[i*3+2]=(Math.random()-.5)*8;}
 pg.setAttribute("position",new T.BufferAttribute(pa,3));
 var pt=new T.Points(pg,new T.PointsMaterial({color:"#bcc6d0",size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(pt);
-
-function gRot(drvAng){var p=((drvAng%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;
+function gRot(drv){var p=((drv%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;
   var en=Math.PI/2-Math.PI/slots,ex=Math.PI/2+Math.PI/slots;
   if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
 var an=0;

@@ -199,11 +199,12 @@ var hudEl = document.getElementById("hud");
 function animate() {
   requestAnimationFrame(animate);
   angle += 0.02;
+  sun.rotation.z = angle * 0.5;
   armG.rotation.z = angle;
   for (var k = 0; k < planetGroups.length; k++) {
     planetGroups[k].rotation.z = -angle * (z1 / z2);
   }
-  hudEl.textContent = "公转: " + (angle % (Math.PI * 2)).toFixed(2) + "rad  自转: " + (-angle * (z1 / z2) % (Math.PI * 2)).toFixed(2) + "rad";
+  hudEl.textContent = "太阳轮: " + (sun.rotation.z % (Math.PI * 2)).toFixed(2) + "rad  行星轮自转: " + (-angle * (z1 / z2) % (Math.PI * 2)).toFixed(2) + "rad";
   pts.rotation.z += 0.0005;
   controls.update();
   renderer.render(scene, camera);

@@ -28,7 +28,7 @@ const scene = new T.Scene();
 scene.background = new T.Color("#1a1d24");
 
 const camera = new T.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 30);
-camera.position.set(0, 0, 9);
+camera.position.set(0, 0, 10);
 camera.lookAt(0, 0, 0);
 
 const renderer = new T.WebGLRenderer({ antialias: true });
@@ -63,7 +63,6 @@ scene.add(new T.DirectionalLight("#5a6b82", 1.8).position.set(0, -2, 2));
 var grid = new T.GridHelper(10, 16, "#3a3f4a", "#252830");
 grid.position.y = -3;
 scene.add(grid);
-
 var ground = new T.Mesh(
   new T.PlaneGeometry(12, 12),
   new T.MeshStandardMaterial({ color: "#1e2128", roughness: 0.9, metalness: 0.15 })
@@ -73,27 +72,30 @@ ground.position.y = -3.1;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ── Common materials ──
 var mBlue = new T.MeshStandardMaterial({ color: "#3a7bd5", roughness: 0.25, metalness: 0.55 });
 var mRed = new T.MeshStandardMaterial({ color: "#e63946", roughness: 0.25, metalness: 0.55 });
 var mGold = new T.MeshStandardMaterial({ color: "#f4d03f", roughness: 0.2, metalness: 0.85 });
 var mDark = new T.MeshStandardMaterial({ color: "#4a4f5a", roughness: 0.55, metalness: 0.5 });
 
-// Geneva geometry: Cd = pinDist/sin(pi/4). Pin arm extends beyond driver disc.
-var Cd = 0.72;
-var dR = 0.45;
-var gR = 0.62;
+// ── Geneva geometry ──
+// 4-slot Geneva: driver pin on crank arm enters radial slot → drives geneva 90°/step
+// Driver at x=-Cd, geneva at x=+Cd. Pin at radius pinDist from driver center.
+// Condition: pinDist > 2*Cd - gR (pin must reach geneva outer edge)
+var Cd = 1.25;
+var dR = 0.55;
+var gR = 1.1;
 var slots = 4;
-var pinDist = 0.85;
-var pinR = 0.08;
-var slotW = 0.16;
-var slotL = 0.55;
+var pinDist = 1.7;
+var pinR = 0.09;
+var slotW = 0.2;
+var slotL = 0.65;
 
-// ── Driver (blue, left side) ──
+// ── Driver (blue, left) ──
 var dG = new T.Group();
 dG.position.set(-Cd, 0, 0);
 scene.add(dG);
 
+// Disc body (small relative to pin arm)
 var dShape = new T.Shape();
 dShape.absarc(0, 0, dR, 0, Math.PI * 2, false);
 dShape.holes.push(new T.Path().absellipse(0, 0, 0.12, 0.12, 0, Math.PI * 2, true));
@@ -102,26 +104,37 @@ dMesh.position.z = -0.06;
 dMesh.castShadow = true;
 dG.add(dMesh);
 
+// Locking crescent (outer arc of driver disc, engages geneva concave lock)
 var lkShape = new T.Shape();
-lkShape.absarc(0, 0, dR + 0.06, 0.5, 5.8, false);
-lkShape.absarc(0, 0, dR - 0.04, 5.8, 0.5, true);
+lkShape.absarc(0, 0, dR + 0.06, 0.4, 5.9, false);
+lkShape.absarc(0, 0, dR - 0.05, 5.9, 0.4, true);
 var lkMesh = new T.Mesh(new T.ExtrudeGeometry(lkShape, { steps: 1, depth: 0.08, bevelEnabled: false }), mBlue);
 lkMesh.position.z = 0.04;
 dG.add(lkMesh);
 
-var dHub = new T.Mesh(new T.CylinderGeometry(0.45, 0.45, 0.14, 24), mGold);
+// Crank arm (extends from driver disc edge to pin position)
+var armLen = pinDist - dR * 0.4;
+var crankArm = new T.Mesh(new T.BoxGeometry(0.1, armLen, 0.08), mBlue);
+crankArm.position.set(0, dR * 0.4 + armLen / 2, 0);
+crankArm.position.z = 0.01;
+dG.add(crankArm);
+
+// Hub
+var dHub = new T.Mesh(new T.CylinderGeometry(0.4, 0.4, 0.14, 24), mGold);
 dHub.position.z = 0.08;
 dG.add(dHub);
 
-var pin = new T.Mesh(new T.CylinderGeometry(pinR, pinR, 0.18, 24), mGold);
+// Drive pin (gold, at end of crank arm)
+var pin = new T.Mesh(new T.CylinderGeometry(pinR, pinR, 0.2, 24), mGold);
 pin.rotation.x = Math.PI / 2;
 dG.add(pin);
 
+// Shaft
 var dShaft = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 0.45, 10), mDark);
 dShaft.position.z = 0.18;
 dG.add(dShaft);
 
-// ── Geneva wheel (red, right side) ──
+// ── Geneva wheel (red, right) ──
 var gG = new T.Group();
 gG.position.set(Cd, 0, 0);
 scene.add(gG);
@@ -134,36 +147,39 @@ gMesh.position.z = -0.06;
 gMesh.castShadow = true;
 gG.add(gMesh);
 
+// 4 slots: from outer edge inward, slot center at gR - slotL/2
+var slotCenter = gR - slotL / 2;
 for (var i = 0; i < slots; i++) {
   var a = i * Math.PI * 2 / slots;
   var slot = new T.Mesh(new T.BoxGeometry(slotW, 0.07, slotL), mDark);
-  slot.position.set(Math.cos(a) * gR * 0.42, Math.sin(a) * gR * 0.42, 0);
+  slot.position.set(Math.cos(a) * slotCenter, Math.sin(a) * slotCenter, 0);
   slot.rotation.z = a;
   gG.add(slot);
 }
 
+// 4 concave lock arcs (radius ≈ dR, positioned between slots, engage driver crescent)
 for (var i = 0; i < slots; i++) {
   var a = i * Math.PI * 2 / slots;
   var aSh = new T.Shape();
-  aSh.absarc(0, 0, dR + 0.12, 0.48 + a, 5.82 + a, true);
-  aSh.absarc(0, 0, dR + 0.20, 5.82 + a, 0.48 + a, false);
+  aSh.absarc(0, 0, dR + 0.12, 0.4 + a, 5.9 + a, true);
+  aSh.absarc(0, 0, dR + 0.20, 5.9 + a, 0.4 + a, false);
   var aMesh = new T.Mesh(new T.ExtrudeGeometry(aSh, { steps: 1, depth: 0.08, bevelEnabled: false }), mRed);
   aMesh.position.z = 0.04;
   gG.add(aMesh);
 }
 
-var gHub = new T.Mesh(new T.CylinderGeometry(0.5, 0.5, 0.14, 24), mGold);
+var gHub = new T.Mesh(new T.CylinderGeometry(0.45, 0.45, 0.14, 24), mGold);
 gHub.position.z = 0.08;
 gG.add(gHub);
 
-var gShaft = new T.Mesh(new T.CylinderGeometry(0.05, 0.05, 0.45, 10), mDark);
+var gShaft = new T.Mesh(new T.CylinderGeometry(0.04, 0.04, 0.45, 10), mDark);
 gShaft.position.z = 0.18;
 gG.add(gShaft);
 
 // ── Pillars ──
-var p1 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2.2, 8), mDark);
+var p1 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2, 8), mDark);
 p1.position.set(-Cd, -2.0, 0); p1.castShadow = true; scene.add(p1);
-var p2 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2.2, 8), mDark);
+var p2 = new T.Mesh(new T.CylinderGeometry(0.10, 0.14, 2, 8), mDark);
 p2.position.set(Cd, -2.0, 0); p2.castShadow = true; scene.add(p2);
 
 // ── Particles ──
@@ -180,7 +196,7 @@ var pts = new T.Points(ptGeo, new T.PointsMaterial({
 }));
 scene.add(pts);
 
-// ── Geneva motion math ──
+// ── Geneva motion ──
 function genevaRot(drvAng) {
   var p = ((drvAng % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   var seg = Math.PI * 2 / slots;
@@ -200,6 +216,7 @@ function animate() {
   an += 0.025;
   var da = an % (Math.PI * 2);
   dG.rotation.z = da;
+  // Pin on crank arm: position relative to driver group
   pin.position.set(Math.cos(da) * pinDist, Math.sin(da) * pinDist, 0);
   gG.rotation.z = genevaRot(da);
   pts.rotation.z += 0.0004;

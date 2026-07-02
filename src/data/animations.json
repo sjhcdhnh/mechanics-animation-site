@@ -1,5 +1,37 @@
 [
   {
+    "slug": "coriolis-demo",
+    "title": "科氏加速度演示 · 转盘+径向滑块",
+    "subtitle": "Coriolis Acceleration — Rotating Disc with Radial Slider",
+    "category": "planar-linkage",
+    "tags": ["科氏加速度", "合成运动", "牵连运动", "相对运动", "转盘"],
+    "mechanismType": "科氏加速度合成运动演示",
+    "fileName": "coriolis-demo.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "科氏加速度的直观三维演示。蓝色大转盘以匀角速度ω旋转（牵连运动=转动），红色滑块沿转盘径向导轨匀速向外滑动（相对运动=直线）。实时显示牵连速度ve(蓝)、相对速度vr(绿)、科氏加速度ac=2ω×vr(红)的矢量箭头。黄色螺旋轨迹线展示滑块的绝对运动路径——在转盘上看是直线，在地面看是螺旋线。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "转盘半径3.0m，以ω=1.5rad/s绕竖直轴匀速旋转。径向滑块以vr=0.8m/s沿导轨向外匀速运动。科氏加速度ac=2ω×vr=2.4m/s²，方向垂直于径向(切线方向)。滑块绝对轨迹为阿基米德螺旋线。HUD实时更新ω、vr、ac数值。浅蓝背景+矢量化箭头。"
+  },
+  {
+    "slug": "compound-slider-crank",
+    "title": "曲柄滑块 · 点的合成运动",
+    "subtitle": "Slider-Crank — Composite Motion: Transport + Relative",
+    "category": "planar-linkage",
+    "tags": ["合成运动", "牵连运动", "相对运动", "曲柄滑块", "速度矢量"],
+    "mechanismType": "曲柄滑块合成运动分析",
+    "fileName": "compound-slider-crank.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "曲柄滑块机构的合成运动视角分析。曲柄OA匀速转动（牵连运动），连杆AB上的任意点C同时参与牵连转动和沿连杆的相对滑动。实时显示点C的牵连速度ve(蓝)、相对速度vr(绿)、绝对速度va(红)矢量箭头。拖拽滑块可调节点C在AB上的位置（5%~95%），黄色轨迹显示点C的绝对运动路径。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "曲柄r=0.8m，连杆l=1.8m，ω=2.5rad/s。点C在连杆AB上位置可调。牵连运动=绕O的转动（ve=ω×r_OC），相对运动=沿AB杆方向的运动。绝对速度=牵连速度+相对速度（矢量合成）。点C位于连杆不同位置时绝对轨迹形状不同——靠近A点近似圆，靠近B点近似椭圆。"
+  },
+  {
     "slug": "geneva-drive",
     "title": "日内瓦机构 · 间歇运动",
     "subtitle": "Geneva Drive — Intermittent Rotary Motion Mechanism",

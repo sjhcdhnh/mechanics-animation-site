@@ -1,0 +1,80 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>曲柄滑块·合成运动</title>
+<style>body{margin:0;overflow:hidden;background:#87CEEB;font-family:"Segoe UI","PingFang SC",sans-serif}
+#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.88);padding:10px 16px;border-radius:8px;font-size:12px;line-height:1.7;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
+#hud b{color:#dc2626}.b{color:#2563eb}.g{color:#16a34a}.r{color:#dc2626}
+#p{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.88);padding:10px 14px;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(6px)}
+#p input{width:100px;accent-color:#2563eb}#vl{color:#2563eb;font-weight:600}
+#hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
+</style></head><body>
+<div id="hud"><b>曲柄滑块·点的合成运动</b><br>曲柄r=<span class="b">0.8</span> 连杆l=<span class="b">1.8</span><br>点C在AB上 <span class="b" id="vc">50%</span>处<br>蓝=牵连v<sub>e</sub> 绿=相对v<sub>r</sub> 红=绝对v<sub>a</sub></div>
+<div id="p"><div>C在AB位置 <input type="range" id="scpos" min="5" max="95" value="50" step="1"> <span id="vsl" class="b">50%</span></div></div>
+<div id="hint">蓝箭头=牵连速度 ⊥OC &nbsp; 绿箭头=相对速度 ∥AB &nbsp; 黄轨迹=C点绝对轨迹</div>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
+<script type="module">
+import * as T from "three";import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+var S=new T.Scene();S.background=new T.Color("#87CEEB");S.fog=new T.Fog("#a4d3ee",6,25);
+var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,0.1,25);C.position.set(0,1,8);C.lookAt(0,0,0);
+var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
+var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
+S.add(new T.AmbientLight("#c0d0e0",3.0));
+var dL=new T.DirectionalLight("#ffffff",4);dL.position.set(4,6,3);dL.castShadow=true;dL.shadow.mapSize.width=1024;dL.shadow.mapSize.height=1024;S.add(dL);
+S.add(new T.DirectionalLight("#8899cc",1.5).position.set(-2,2,-2));
+S.add(new T.GridHelper(8,16,"#ccc","#e8e8e8"));
+var r=0.8;var l=1.8;var omega=2.5;
+var mCrank=new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.25,metalness:0.55});
+var mRod=new T.MeshStandardMaterial({color:"#e63946",roughness:0.25,metalness:0.55});
+var mPin=new T.MeshStandardMaterial({color:"#f4d03f",roughness:0.15,metalness:0.85});
+var mBlock=new T.MeshStandardMaterial({color:"#dc2626",roughness:0.25,metalness:0.55});
+var mRail=new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.6});
+var mBase=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:0.55,metalness:0.5});
+var mVe=new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.05,emissive:"#3b82f6",emissiveIntensity:0.6});
+var mVr=new T.MeshStandardMaterial({color:"#16a34a",roughness:0.05,emissive:"#16a34a",emissiveIntensity:0.6});
+var mVa=new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.6});
+function arrow(rr,h,mat){var g=new T.Group();
+var sG=new T.CylinderGeometry(rr*0.6,rr*0.6,h*0.78,8);var sM=new T.Mesh(sG,mat);sM.position.y=h*0.39;g.add(sM);
+var hG=new T.ConeGeometry(rr*2.5,h*0.22,8);var hM=new T.Mesh(hG,mat);hM.position.y=h*0.89;g.add(hM);return g;}
+var rG2=new T.BoxGeometry(4.5,0.06,0.3);var rM2=new T.Mesh(rG2,mRail);rM2.position.set(0,-0.3,-0.3);rM2.castShadow=true;S.add(rM2);
+var oG=new T.CylinderGeometry(0.06,0.06,0.4,12);var oM=new T.Mesh(oG,mBase);oM.position.set(0,0,0);oM.castShadow=true;S.add(oM);
+var crankG=new T.Group();S.add(crankG);
+var crG=new T.BoxGeometry(r,0.08,0.06);var crM=new T.Mesh(crG,mCrank);crM.position.set(r/2,0,0);crM.castShadow=true;crankG.add(crM);
+var apG=new T.CylinderGeometry(0.06,0.06,0.2,12);var apM=new T.Mesh(apG,mPin);apM.position.set(r,0,0);crankG.add(apM);
+var rodG=new T.Group();S.add(rodG);
+var rdG=new T.BoxGeometry(l,0.06,0.06);var rdM=new T.Mesh(rdG,mRod);rdM.position.set(l/2,0,0);rdM.castShadow=true;rodG.add(rdM);
+var cmG=new T.SphereGeometry(0.07,12,12);var cmM=new T.Mesh(cmG,mPin);rodG.add(cmM);
+var blG=new T.BoxGeometry(0.2,0.2,0.3);var blM=new T.Mesh(blG,mBlock);blM.position.set(0,-0.2,0);blM.castShadow=true;S.add(blM);
+var arrG2=new T.Group();S.add(arrG2);
+var trailG2=new T.Group();S.add(trailG2);
+var trailPts2=[];
+function upd(an){
+var Ax=r*Math.cos(an);var Ay=r*Math.sin(an);
+crankG.rotation.z=an;
+var Bx;if(l<=Math.abs(Ay)){Bx=Ax;}else{Bx=Ax+Math.sqrt(l*l-Ay*Ay);}
+var rodAng=Math.atan2(-Ay,Bx-Ax);
+rodG.position.set(Ax,Ay,0);rodG.rotation.z=rodAng;
+blM.position.set(Bx,-0.2,0);
+var tP=parseInt(document.getElementById("scpos").value)/100;
+cmM.position.set(l*tP,0,0);
+var Cwx=Ax+Math.cos(rodAng)*l*tP;var Cwy=Ay+Math.sin(rodAng)*l*tP;
+var veLen=omega*Math.sqrt(Cwx*Cwx+Cwy*Cwy);
+var veAng=Math.atan2(Cwy,Cwx)+Math.PI/2;
+var rodOmega=Bx>Ax?Ay/(Bx-Ax)*omega*0.3:0;
+var vrLen=Math.abs(rodOmega)*l*tP+omega*r*0.15;
+var vrAng=rodAng;
+var vax=veLen*Math.cos(veAng)+vrLen*Math.cos(vrAng);
+var vay=veLen*Math.sin(veAng)+vrLen*Math.sin(vrAng);
+var vaLen=Math.sqrt(vax*vax+vay*vay);
+var vaAng=Math.atan2(vay,vax);
+while(arrG2.children.length>0)arrG2.remove(arrG2.children[0]);
+var aVe=arrow(0.035,veLen*0.3,mVe);aVe.position.set(Cwx,Cwy,0.12);aVe.rotation.z=veAng-Math.PI/2;arrG2.add(aVe);
+var aVr=arrow(0.035,vrLen*2,mVr);aVr.position.set(Cwx,Cwy,0.12);aVr.rotation.z=vrAng-Math.PI/2;arrG2.add(aVr);
+var aVa=arrow(0.04,vaLen*0.4,mVa);aVa.position.set(Cwx,Cwy,0.14);aVa.rotation.z=vaAng-Math.PI/2;arrG2.add(aVa);
+trailPts2.push(new T.Vector3(Cwx,Cwy,0.05));if(trailPts2.length>120)trailPts2.shift();
+while(trailG2.children.length>0)trailG2.remove(trailG2.children[0]);
+for(var k=0;k<trailPts2.length;k+=4){var ttG=new T.SphereGeometry(0.02,4,4);var ttM=new T.Mesh(ttG,new T.MeshBasicMaterial({color:"#fbbf24",opacity:0.5}));ttM.position.copy(trailPts2[k]);trailG2.add(ttM);}
+document.getElementById("vc").textContent=(tP*100).toFixed(0)+"%";
+document.getElementById("vsl").textContent=(tP*100).toFixed(0)+"%";
+}
+var ang2=0;function anim(){requestAnimationFrame(anim);ang2+=omega*0.016;upd(ang2);O.update();R.render(S,C);}upd(0);anim();
+var slider2=document.getElementById("scpos");slider2.addEventListener("input",function(){upd(ang2);});
+window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
+</script></body></html>

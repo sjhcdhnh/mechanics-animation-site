@@ -1,62 +1,55 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>日内瓦机构 · 间歇运动</title>
-<style>
-body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}
-#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
-</style></head><body>
-<div id="info"><span class="dot" style="background:#3a7bd5"></span>主动轮 <span class="dot" style="background:#e63946"></span>从动槽轮 <span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90°/步</div>
-<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
-<script type="module">
-import*as T from"three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";
-var S=new T.Scene();S.background=new T.Color("#1a1d24");
-var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);
-var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);
-var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
-S.add(new T.AmbientLight("#3a4050",2.2));S.add(new T.HemisphereLight("#b0c0d8","#282e3a",1.6));
-var L=new T.DirectionalLight("#ffffff",5.5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.width=2048;L.shadow.mapSize.height=2048;L.shadow.camera.near=.5;L.shadow.camera.far=30;L.shadow.camera.left=-10;L.shadow.camera.right=10;L.shadow.camera.top=8;L.shadow.camera.bottom=-8;S.add(L);
-S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));S.add(new T.DirectionalLight("#5a6b82",1.8).position.set(0,-2,2));
-S.add(new T.GridHelper(14,20,"#3a3f4a","#252830").translateY(-4));
-var G=new T.Mesh(new T.PlaneGeometry(18,18),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15}));G.rotation.x=-Math.PI/2;G.position.y=-4.1;G.receiveShadow=true;S.add(G);
-var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});
-var mR2=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});
-var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});
-var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
-var Cd=1.2,dR=0.5,gR=3.2,slots=4,crankR=0.85,pinR2=0.08,sW=0.2,sL=1.5;
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>日内瓦机构</title><style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:"Segoe UI","PingFang SC",sans-serif}#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;backdrop-filter:blur(8px);pointer-events:none;z-index:10;font-size:14px;border-left:4px solid #ffaa33}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}</style></head><body><div id="info"><span class="dot" style="background:#e63946"></span>主动盘(粉) &nbsp;<span class="dot" style="background:#3a7bd5"></span>从动槽轮(蓝) &nbsp;<span class="dot" style="background:#f4d03f"></span>驱动销 &nbsp; 4槽·90°/步</div><script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script><script type="module">import*as T from"three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";var S=new T.Scene();S.background=new T.Color("#1a1d24");var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;R.shadowMap.type=T.PCFSoftShadowMap;document.body.appendChild(R.domElement);var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();S.add(new T.AmbientLight("#3a4050",2.2));S.add(new T.HemisphereLight("#b0c0d8","#282e3a",1.6));var L=new T.DirectionalLight("#ffffff",5.5);L.position.set(6,8,5);L.castShadow=true;L.shadow.mapSize.width=2048;L.shadow.mapSize.height=2048;L.shadow.camera.near=.5;L.shadow.camera.far=30;L.shadow.camera.left=-10;L.shadow.camera.right=10;L.shadow.camera.top=8;L.shadow.camera.bottom=-8;S.add(L);S.add(new T.DirectionalLight("#8a9bb5",2).position.set(-3,2,-3));S.add(new T.DirectionalLight("#5a6b82",1.8).position.set(0,-2,2));S.add(new T.GridHelper(16,24,"#3a3f4a","#252830").translateY(-5));var G=new T.Mesh(new T.PlaneGeometry(20,20),new T.MeshStandardMaterial({color:"#1e2128",roughness:.9,metalness:.15}));G.rotation.x=-Math.PI/2;G.position.y=-5.1;G.receiveShadow=true;S.add(G);var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:.25,metalness:.55});var mB2=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:.25,metalness:.55});var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:.2,metalness:.85});var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:.55,metalness:.5});
+
+// ── DIMENSIONS ──
+var Cd=1.8,crankR=1.27,gR=5.0,dR=0.55,slots=4,pinR=0.09,sW=0.20,sL=0.65;
+
+// ── ACTIVE DRIVER (PINK, left at x=-Cd) ──
 var dG=new T.Group();dG.position.set(-Cd,0,0);S.add(dG);
+// Disc body
 var ds=new T.Shape();ds.absarc(0,0,dR,0,Math.PI*2,false);ds.holes.push(new T.Path().absellipse(0,0,.10,.10,0,Math.PI*2,true));
-var dm=new T.Mesh(new T.ExtrudeGeometry(ds,{steps:1,depth:.12,bevelEnabled:false}),mB);dm.position.z=-.06;dm.castShadow=true;dG.add(dm);
+var dm=new T.Mesh(new T.ExtrudeGeometry(ds,{steps:1,depth:.12,bevelEnabled:false}),mP);dm.position.z=-.06;dm.castShadow=true;dG.add(dm);
+// Convex locking arc on driver rim
 var lk=new T.Shape();lk.absarc(0,0,dR+.08,.32,5.96,false);lk.absarc(0,0,dR-.03,5.96,.32,true);
-dG.add(new T.Mesh(new T.ExtrudeGeometry(lk,{steps:1,depth:.09,bevelEnabled:false}),mB).translateZ(.05));
-var pin=new T.Mesh(new T.CylinderGeometry(pinR2,pinR2,.22,24),mG);pin.rotation.x=Math.PI/2;pin.position.set(crankR,0,0);dG.add(pin);
+dG.add(new T.Mesh(new T.ExtrudeGeometry(lk,{steps:1,depth:.10,bevelEnabled:false}),mP).translateZ(.05));
+// Drive pin
+var pin=new T.Mesh(new T.CylinderGeometry(pinR,pinR,.22,24),mG);pin.rotation.x=Math.PI/2;pin.position.set(crankR,0,0);dG.add(pin);
+// Hub+shaft
 dG.add(new T.Mesh(new T.CylinderGeometry(.30,.30,.15,24),mG).translateZ(.09));
 dG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.18));
+
+// ── DRIVEN GENEVA (LIGHT BLUE, right at x=+Cd) ──
 var gG=new T.Group();gG.position.set(Cd,0,0);S.add(gG);
+// Large disc
 var gs=new T.Shape();gs.absarc(0,0,gR,0,Math.PI*2,false);gs.holes.push(new T.Path().absellipse(0,0,.12,.12,0,Math.PI*2,true));
-var gm=new T.Mesh(new T.ExtrudeGeometry(gs,{steps:1,depth:.12,bevelEnabled:false}),mR2);gm.position.z=-.06;gm.castShadow=true;gG.add(gm);
+var gm=new T.Mesh(new T.ExtrudeGeometry(gs,{steps:1,depth:.12,bevelEnabled:false}),mB2);gm.position.z=-.06;gm.castShadow=true;gG.add(gm);
+// 4 radial U-slots
 var so=gR-.04;
 for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
   var s=new T.Mesh(new T.BoxGeometry(sW,.08,sL),mD);
   s.position.set(Math.cos(a)*(so-sL/2),Math.sin(a)*(so-sL/2),0);s.rotation.z=a;gG.add(s);}
+// 4 concave lock arcs (mates with driver convex arc)
 for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;
-  var as=new T.Shape();
-  as.absarc(0,0,dR+.12,.28+a,6.0+a,true);
-  as.absarc(0,0,dR+.22,6.0+a,.28+a,false);
-  gG.add(new T.Mesh(new T.ExtrudeGeometry(as,{steps:1,depth:.09,bevelEnabled:false}),mR2).translateZ(.05));}
+  var as2=new T.Shape();
+  as2.absarc(0,0,dR+.12,.28+a,6.00+a,true);
+  as2.absarc(0,0,dR+.22,6.00+a,.28+a,false);
+  gG.add(new T.Mesh(new T.ExtrudeGeometry(as2,{steps:1,depth:.10,bevelEnabled:false}),mB2).translateZ(.05));}
+// Hub+shaft
 gG.add(new T.Mesh(new T.CylinderGeometry(.40,.40,.15,24),mG).translateZ(.09));
 gG.add(new T.Mesh(new T.CylinderGeometry(.04,.04,.45,10),mD).translateZ(.18));
-var p1=new T.Mesh(new T.CylinderGeometry(.08,.12,2.5,8),mD);p1.position.set(-Cd,-3.2,0);p1.castShadow=true;S.add(p1);
-var p2=new T.Mesh(new T.CylinderGeometry(.08,.12,2.5,8),mD);p2.position.set(Cd,-3.2,0);p2.castShadow=true;S.add(p2);
+
+var p1=new T.Mesh(new T.CylinderGeometry(.10,.14,3.5,8),mD);p1.position.set(-Cd,-4.2,0);p1.castShadow=true;S.add(p1);
+var p2=new T.Mesh(new T.CylinderGeometry(.10,.14,3.5,8),mD);p2.position.set(Cd,-4.2,0);p2.castShadow=true;S.add(p2);
+
 var pg=new T.BufferGeometry();var pa=new Float32Array(80*3);
-for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*16;pa[i*3+1]=(Math.random()-.5)*12;pa[i*3+2]=(Math.random()-.5)*8;}
+for(var i=0;i<80;i++){pa[i*3]=(Math.random()-.5)*18;pa[i*3+1]=(Math.random()-.5)*14;pa[i*3+2]=(Math.random()-.5)*10;}
 pg.setAttribute("position",new T.BufferAttribute(pa,3));
 var pt=new T.Points(pg,new T.PointsMaterial({color:"#bcc6d0",size:.05,transparent:true,opacity:.4,depthWrite:false}));S.add(pt);
+
+// ── Geneva motion ──
 function gRot(drv){var p=((drv%(Math.PI*2))+Math.PI*2)%(Math.PI*2),seg=Math.PI*2/slots,idx=Math.floor(p/seg),lp=p-idx*seg;
   var en=Math.PI/2-Math.PI/slots,ex=Math.PI/2+Math.PI/slots;
   if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
 var an=0;
-function A(){requestAnimationFrame(A);an+=.022;dG.rotation.z=an%(Math.PI*2);gG.rotation.z=gRot(an%(Math.PI*2));pt.rotation.z+=.0004;O.update();R.render(S,C);}A();
+function A(){requestAnimationFrame(A);an+=.018;dG.rotation.z=an%(Math.PI*2);gG.rotation.z=gRot(an%(Math.PI*2));pt.rotation.z+=.0004;O.update();R.render(S,C);}A();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

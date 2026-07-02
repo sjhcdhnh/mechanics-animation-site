@@ -112,11 +112,9 @@ var lkMesh = new T.Mesh(new T.ExtrudeGeometry(lkShape, { steps: 1, depth: 0.08, 
 lkMesh.position.z = 0.04;
 dG.add(lkMesh);
 
-// Crank arm (extends from driver disc edge to pin position)
-var armLen = pinDist - dR * 0.4;
-var crankArm = new T.Mesh(new T.BoxGeometry(0.1, armLen, 0.08), mBlue);
-crankArm.position.set(0, dR * 0.4 + armLen / 2, 0);
-crankArm.position.z = 0.01;
+// Crank arm (thin bar from center to pin, rotates with dG)
+var crankArm = new T.Mesh(new T.BoxGeometry(pinDist, 0.08, 0.06), mBlue);
+crankArm.position.set(pinDist / 2, 0, 0.02);
 dG.add(crankArm);
 
 // Hub
@@ -124,9 +122,10 @@ var dHub = new T.Mesh(new T.CylinderGeometry(0.4, 0.4, 0.14, 24), mGold);
 dHub.position.z = 0.08;
 dG.add(dHub);
 
-// Drive pin (gold, at end of crank arm)
+// Drive pin (gold, at end of crank arm, positioned at (pinDist, 0))
 var pin = new T.Mesh(new T.CylinderGeometry(pinR, pinR, 0.2, 24), mGold);
 pin.rotation.x = Math.PI / 2;
+pin.position.set(pinDist, 0, 0); // once at init — dG.rotation handles motion
 dG.add(pin);
 
 // Shaft
@@ -216,8 +215,7 @@ function animate() {
   an += 0.025;
   var da = an % (Math.PI * 2);
   dG.rotation.z = da;
-  // Pin on crank arm: position relative to driver group
-  pin.position.set(Math.cos(da) * pinDist, Math.sin(da) * pinDist, 0);
+  // pin rotates with dG (position fixed at init)
   gG.rotation.z = genevaRot(da);
   pts.rotation.z += 0.0004;
   controls.update();

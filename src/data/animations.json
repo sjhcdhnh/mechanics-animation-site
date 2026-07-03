@@ -1,5 +1,37 @@
 [
   {
+    "slug": "collision-central",
+    "title": "对心正碰撞 · 恢复系数",
+    "subtitle": "Central Impact — Coefficient of Restitution Demonstration",
+    "category": "planar-linkage",
+    "tags": ["碰撞", "恢复系数", "对心碰撞", "动量守恒", "动能"],
+    "mechanismType": "对心正碰撞分析",
+    "fileName": "collision-central.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "水平导轨上两球对心正碰撞的三维演示。蓝色球以初速v₁向右运动，撞击静止的红色球。碰撞后速度由恢复系数e和两球质量比决定。可调节e(0完全塑性~1完全弹性)和m₁/m₂(0.3~3.0)，复位键重播。实时显示碰撞前后速度矢量箭头、总动量、总动能。碰撞前后箭头由蓝色→绿色标识。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "两球质量m₁,m₂，初速v₁>0, v₂=0。碰撞后速度：v₁'=(m₁−e·m₂)v₁/(m₁+m₂), v₂'=(1+e)m₁v₁/(m₁+m₂)。恢复系数e=|v₂'−v₁'|/|v₁−v₂|。e=1完全弹性(动能守恒)，e=0完全塑性(两球粘合)。碰撞过程动量守恒，动能变化ΔT=−½μ(1−e²)(v₁−v₂)²。"
+  },
+  {
+    "slug": "collision-oblique",
+    "title": "斜碰撞 · 小球撞壁",
+    "subtitle": "Oblique Impact — Ball-Wall Collision with Angle & Restitution",
+    "category": "planar-linkage",
+    "tags": ["斜碰撞", "恢复系数", "反射角", "法向", "切向", "碰撞"],
+    "mechanismType": "斜碰撞分析",
+    "fileName": "collision-oblique.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "小球以角度θ射向竖直墙壁的三维斜碰撞演示。法向速度分量(vₓ)碰撞后乘以(-e)反向，切向分量(vᵧ)保持不变。可调节入射角θ(10°~75°)、恢复系数e(0~1.0)和球速v。黄色轨迹线显示入射路径，绿色轨迹线显示反射路径。墙壁显示法向(蓝)和切向(红)矢量箭头。直观展示反射定律在非弹性碰撞中的偏离。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "球以速度v=(vcosθ,-vsinθ)射向右侧墙壁(x=3)。碰撞后：vₓ→−e·vₓ(法向反射)，vᵧ→vᵧ(切向不变，无摩擦光滑墙面)。反射角θ'满足tanθ'=tanθ/e。e=1时θ'=θ(完美反射)，e<1时θ'<θ(反射角减小)。恢复系数仅影响法向分量，不影响切向分量。"
+  },
+  {
     "slug": "coriolis-demo",
     "title": "科氏加速度演示 · 转盘+径向滑块",
     "subtitle": "Coriolis Acceleration — Rotating Disc with Radial Slider",

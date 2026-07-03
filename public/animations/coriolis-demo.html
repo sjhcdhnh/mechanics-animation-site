@@ -1,85 +1,211 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>科氏加速度演示</title>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>科氏加速度演示</title>
 <style>body{margin:0;overflow:hidden;background:#87CEEB;font-family:sans-serif}
 #hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.88);padding:10px 16px;border-radius:8px;font-size:12px;line-height:1.7;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
-#hud b{color:#dc2626}.b{color:#2563eb}.g{color:#16a34a}.r{color:#dc2626}
 #leg{position:absolute;bottom:16px;left:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
 #hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
 .sw{display:inline-block;width:10px;height:6px;border-radius:1px;margin-right:3px;border:1px solid rgba(0,0,0,.15)}
+.b{color:#2563eb}.g{color:#16a34a}.r{color:#dc2626}
 </style></head><body>
-<div id="hud"><b>科氏加速度 a<sub>c</sub> = 2ω × v<sub>r</sub></b><br>ω=<span class="b" id="vw">1.5</span> rad/s &nbsp; v<sub>r</sub>=<span class="g" id="vv">0.8</span> m/s<br>a<sub>c</sub>=2ωv<sub>r</sub>=<span class="r" id="va">2.4</span> m/s&sup2;</div>
+<div id="hud"><b>科氏加速度 a<sub>c</sub> = 2ω × v<sub>r</sub></b><br>
+  ω=<span class="b" id="vw">1.5</span> rad/s &nbsp; v<sub>r</sub>=<span class="g" id="vv">0.8</span> m/s &nbsp; a<sub>c</sub>=<span class="r" id="va">2.4</span> m/s&sup2;
+</div>
 <div id="leg"><span class="sw" style="background:#3b82f6"></span>牵连v<sub>e</sub> &nbsp;<span class="sw" style="background:#16a34a"></span>相对v<sub>r</sub> &nbsp;<span class="sw" style="background:#dc2626"></span>科氏a<sub>c</sub> &nbsp;<span class="sw" style="background:#fbbf24"></span>绝对轨迹</div>
-<div id="hint">拖拽旋转 · 滚轮缩放</div>
-<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
+<div id="hint">拖拽旋转 · 滚轮缩放 · 右键平移</div>
+
+<script type="importmap">
+{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}
+</script>
 <script type="module">
-import * as T from "three";import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-var S=new T.Scene();S.background=new T.Color("#87CEEB");
-var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,0.1,25);C.position.set(0,0,10);C.lookAt(0,0,0);
-var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
-var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.minPolarAngle=0.3;O.maxPolarAngle=1.2;O.update();
-S.add(new T.AmbientLight("#c0d0e0",3.5));
-var dL=new T.DirectionalLight("#ffffff",4);dL.position.set(4,6,4);dL.castShadow=true;dL.shadow.mapSize.width=1024;dL.shadow.mapSize.height=1024;S.add(dL);
-S.add(new T.DirectionalLight("#8899cc",1.5).position.set(-2,2,-2));
-S.add(new T.GridHelper(10,20,"#bbb","#e0e0e0"));
-var mD=new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.3,metalness:0.4});
-var mR2=new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.6});
-var mS2=new T.MeshStandardMaterial({color:"#1e40af",roughness:0.5,metalness:0.3});
-var mB2=new T.MeshStandardMaterial({color:"#dc2626",roughness:0.25,metalness:0.55});
-var mBs=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:0.55,metalness:0.5});
-var mVe=new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.05,emissive:"#3b82f6",emissiveIntensity:0.6});
-var mVr=new T.MeshStandardMaterial({color:"#16a34a",roughness:0.05,emissive:"#16a34a",emissiveIntensity:0.6});
-var mAc=new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.6});
-var omega=1.5;
-var vr=0.8;
-var discR=2.8;
-var discG=new T.Group();S.add(discG);
-var bG2=new T.CylinderGeometry(2.8,2.8,0.08,64);
-var bM2=new T.Mesh(bG2,mD);bM2.position.z=-0.04;bM2.receiveShadow=true;discG.add(bM2);
-var rG2=new T.TorusGeometry(2.8,0.03,12,80);
-var rM2=new T.Mesh(rG2,mR2);rM2.rotation.x=Math.PI/2;rM2.position.z=-0.02;discG.add(rM2);
-var sG2=new T.BoxGeometry(5.32,0.06,0.04);
-var sM2=new T.Mesh(sG2,mS2);discG.add(sM2);
-var xl0=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl0.rotation.z=0;discG.add(xl0);
-var xl1=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl1.rotation.z=0.7853981633974483;discG.add(xl1);
-var xl2=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl2.rotation.z=1.5707963267948966;discG.add(xl2);
-var xl3=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl3.rotation.z=2.356194490192345;discG.add(xl3);
-var xl4=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl4.rotation.z=3.141592653589793;discG.add(xl4);
-var xl5=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl5.rotation.z=3.9269908169872414;discG.add(xl5);
-var xl6=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl6.rotation.z=4.71238898038469;discG.add(xl6);
-var xl7=new T.Mesh(new T.BoxGeometry(5.18,0.015,0.015),mR2);xl7.rotation.z=5.497787143782138;discG.add(xl7);
-var sliderG=new T.Group();discG.add(sliderG);
-var blG=new T.BoxGeometry(0.35,0.18,0.18);
-var blM2=new T.Mesh(blG,mB2);blM2.position.z=0.13;blM2.castShadow=true;sliderG.add(blM2);
-var arrG=new T.Group();S.add(arrG);
-var trailPts=[];
-var trailLine=new T.Line(new T.BufferGeometry(),new T.LineBasicMaterial({color:"#fbbf24",opacity:0.7}));S.add(trailLine);
-var trailG=new T.Group();S.add(trailG);
-var pG2=new T.CylinderGeometry(0.08,0.12,0.5,8);
-var pM2=new T.Mesh(pG2,mBs);pM2.position.z=-0.45;pM2.castShadow=true;S.add(pM2);
-function arrow(rr,h,mat){var g=new T.Group();
-var sG3=new T.CylinderGeometry(rr*0.55,rr*0.55,h*0.78,8);var sM3=new T.Mesh(sG3,mat);sM3.position.y=h*0.39;g.add(sM3);
-var hG3=new T.ConeGeometry(rr*2.8,h*0.22,8);var hM3=new T.Mesh(hG3,mat);hM3.position.y=h*0.89;g.add(hM3);return g;}
-var time=0;var rPos=0.3;var lastWrap=false;
-function anim(){requestAnimationFrame(anim);time+=0.016;
-var ang=omega*time;discG.rotation.z=ang;
-rPos=0.3+vr*time%2.2;
-if(rPos<0.35&&lastWrap){trailPts=[];}
-lastWrap=rPos<0.35;
-sliderG.position.set(rPos,0,0.08);
-var wx=rPos*Math.cos(ang);var wy=rPos*Math.sin(ang);
-trailPts.push(new T.Vector3(wx,wy,0.05));if(trailPts.length>150)trailPts.shift();
-var tg=new T.BufferGeometry().setFromPoints(trailPts);trailLine.geometry.dispose();trailLine.geometry=tg;
-while(trailG.children.length>0)trailG.remove(trailG.children[0]);
-for(var k=0;k<trailPts.length;k+=8){var tdG=new T.SphereGeometry(0.018,4,4);var tdM=new T.Mesh(tdG,new T.MeshBasicMaterial({color:"#fbbf24",opacity:0.6}));tdM.position.copy(trailPts[k]);trailG.add(tdM);}
-while(arrG.children.length>0)arrG.remove(arrG.children[0]);
-var veX=wy;var veY=-wx;var veMag=Math.sqrt(veX*veX+veY*veY);
-var aVe=arrow(0.03,veMag*0.4,mVe);aVe.position.set(wx,wy,0.14);aVe.rotation.z=Math.atan2(veY,veX)-Math.PI/2;arrG.add(aVe);
-var vrX=Math.cos(ang);var vrY=Math.sin(ang);
-var aVr=arrow(0.03,vr*0.5,mVr);aVr.position.set(wx,wy,0.14);aVr.rotation.z=Math.atan2(vrY,vrX)-Math.PI/2;arrG.add(aVr);
-var acPerpX=-Math.sin(ang);var acPerpY=Math.cos(ang);var acMag=2*omega*vr;
-var aAc=arrow(0.04,acMag*0.30,mAc);aAc.position.set(wx,wy,0.14);aAc.rotation.z=Math.atan2(acPerpY,acPerpX)-Math.PI/2;arrG.add(aAc);
-document.getElementById("vw").textContent=omega.toFixed(1);
-document.getElementById("vv").textContent=vr.toFixed(1);
-document.getElementById("va").textContent=acMag.toFixed(1);
-O.update();R.render(S,C);}anim();
-window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
-</script></body></html>
+import * as T from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+var S = new T.Scene();
+S.background = new T.Color("#87CEEB");
+
+// Camera looks down from above, seeing the XY plane
+var C = new T.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 25);
+C.position.set(0, 0, 10);
+C.lookAt(0, 0, 0);
+
+var R = new T.WebGLRenderer({ antialias: true });
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+R.setSize(innerWidth, innerHeight);
+document.body.appendChild(R.domElement);
+
+var O = new OrbitControls(C, R.domElement);
+O.enableDamping = true;
+O.target.set(0, 0, 0);
+O.update();
+
+S.add(new T.AmbientLight("#c0d0e0", 3.5));
+var dl = new T.DirectionalLight("#ffffff", 4);
+dl.position.set(4, 6, 5);
+dl.castShadow = true;
+dl.shadow.mapSize.width = 1024;
+dl.shadow.mapSize.height = 1024;
+S.add(dl);
+S.add(new T.DirectionalLight("#8899cc", 1.5).position.set(-3, 2, -2));
+S.add(new T.GridHelper(8, 16, "#bbb", "#e0e0e0"));
+
+var omega = 1.5, vr = 0.8;
+
+// ═══ ROTATING DISC (flat in XY plane, rotates around Z) ═══
+var discG = new T.Group();
+S.add(discG);
+
+// Disc body — flat circle in XY plane
+var dG = new T.CircleGeometry(2.8, 64);
+var mM = new T.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.3, metalness: 0.4, side: T.DoubleSide });
+var dM = new T.Mesh(dG, mM);
+dM.position.z = -0.02;
+dM.receiveShadow = true;
+discG.add(dM);
+
+// Disc rim
+var rG = new T.TorusGeometry(2.8, 0.03, 12, 80);
+var rMM = new T.MeshStandardMaterial({ color: "#2563eb", roughness: 0.2, metalness: 0.6 });
+var rM = new T.Mesh(rG, rMM);
+rM.rotation.x = Math.PI / 2;
+rM.position.z = -0.02;
+discG.add(rM);
+
+// Radial track (along X axis)
+var sG = new T.BoxGeometry(5.4, 0.06, 0.04);
+var sM2 = new T.MeshStandardMaterial({ color: "#1e40af", roughness: 0.5, metalness: 0.3 });
+var sM = new T.Mesh(sG, sM2);
+discG.add(sM);
+
+// Cross lines at 45° increments
+for (var j = 0; j < 8; j++) {
+  var a2 = j * Math.PI / 4;
+  var xlG = new T.BoxGeometry(5.3, 0.015, 0.015);
+  var xlM = new T.Mesh(xlG, rMM);
+  xlM.rotation.z = a2;
+  discG.add(xlM);
+}
+
+// ═══ Slider (red block, on disc along X axis) ═══
+var sliderG = new T.Group();
+discG.add(sliderG);
+var blG = new T.BoxGeometry(0.35, 0.18, 0.18);
+var blMM = new T.MeshStandardMaterial({ color: "#dc2626", roughness: 0.25, metalness: 0.55 });
+var blM = new T.Mesh(blG, blMM);
+blM.position.z = 0.13;
+blM.castShadow = true;
+sliderG.add(blM);
+
+// ═══ Arrow group (world space, on top) ═══
+var arrG = new T.Group();
+S.add(arrG);
+
+// ═══ Trail ═══
+var trailPts = [];
+var trailLine = new T.Line(new T.BufferGeometry(), new T.LineBasicMaterial({ color: "#fbbf24", opacity: 0.7 }));
+trailLine.position.z = 0.12;
+S.add(trailLine);
+
+// ═══ Center spindle ═══
+var pG = new T.CylinderGeometry(0.08, 0.12, 0.5, 8);
+var pMM = new T.MeshStandardMaterial({ color: "#4a4f5a", roughness: 0.55, metalness: 0.5 });
+var pM = new T.Mesh(pG, pMM);
+pM.position.z = -0.45;
+pM.castShadow = true;
+S.add(pM);
+
+// ═══ Arrow builder ═══
+function arrow(rr, h, mat) {
+  var g = new T.Group();
+  var sg = new T.CylinderGeometry(rr * 0.55, rr * 0.55, h * 0.78, 8);
+  g.add(new T.Mesh(sg, mat).translateY(h * 0.39));
+  var hg = new T.ConeGeometry(rr * 2.8, h * 0.22, 8);
+  g.add(new T.Mesh(hg, mat).translateY(h * 0.89));
+  return g;
+}
+
+// ═══ Materials ═══
+var mVe = new T.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.05, emissive: "#3b82f6", emissiveIntensity: 0.6 });
+var mVr = new T.MeshStandardMaterial({ color: "#16a34a", roughness: 0.05, emissive: "#16a34a", emissiveIntensity: 0.6 });
+var mAc = new T.MeshStandardMaterial({ color: "#dc2626", roughness: 0.05, emissive: "#dc2626", emissiveIntensity: 0.6 });
+
+// ═══ Animation ═══
+var time = 0;
+var rPos = 0.3;
+
+function anim() {
+  requestAnimationFrame(anim);
+  time += 0.016;
+  var ang = omega * time;
+
+  // Disc rotates around Z (its perpendicular axis) ✓
+  discG.rotation.z = ang;
+
+  // Slider moves radially outward, wraps at disc edge
+  rPos = 0.3 + vr * time % 2.2;
+
+  // Clear trail on wrap
+  if (rPos < 0.35 && trailPts.length > 50) trailPts = [];
+
+  sliderG.position.set(rPos, 0, 0.08);
+
+  // World position of slider (rotate slider position by disc angle)
+  var wx = rPos * Math.cos(ang);
+  var wy = rPos * Math.sin(ang);
+
+  // Trail
+  trailPts.push(new T.Vector3(wx, wy, 0.1));
+  if (trailPts.length > 150) trailPts.shift();
+  var tg = new T.BufferGeometry().setFromPoints(trailPts);
+  trailLine.geometry.dispose();
+  trailLine.geometry = tg;
+
+  // Clear arrows
+  while (arrG.children.length > 0) arrG.remove(arrG.children[0]);
+
+  // ═══ Transport velocity ve = ω × r ═══
+  // For CCW rotation (+Z), at position (x,y): ve = (-ωy, ωx)
+  var veX = -omega * wy;
+  var veY = omega * wx;
+  var veMag = Math.sqrt(veX * veX + veY * veY);
+  var aVe = arrow(0.03, veMag * 0.45, mVe);
+  aVe.position.set(wx, wy, 0.14);
+  aVe.rotation.z = Math.atan2(veY, veX) - Math.PI / 2;
+  arrG.add(aVe);
+
+  // ═══ Relative velocity vr (radial outward in disc frame) ═══
+  var vrX = Math.cos(ang);
+  var vrY = Math.sin(ang);
+  var aVr = arrow(0.03, vr * 0.55, mVr);
+  aVr.position.set(wx, wy, 0.14);
+  aVr.rotation.z = Math.atan2(vrY, vrX) - Math.PI / 2;
+  arrG.add(aVr);
+
+  // ═══ Coriolis ac = 2ω × vr ═══
+  // ω=(0,0,ω), vr=(vr*cosθ, vr*sinθ, 0)
+  // ac = 2*(0,0,ω) × (vr*cosθ, vr*sinθ, 0) = 2(-ω*vr*sinθ, ω*vr*cosθ, 0)
+  var acX = -2 * omega * vr * Math.sin(ang);
+  var acY = 2 * omega * vr * Math.cos(ang);
+  var acMag = 2 * omega * vr;
+  var aAc = arrow(0.04, acMag * 0.30, mAc);
+  aAc.position.set(wx, wy, 0.14);
+  aAc.rotation.z = Math.atan2(acY, acX) - Math.PI / 2;
+  arrG.add(aAc);
+
+  document.getElementById("vw").textContent = omega.toFixed(1);
+  document.getElementById("vv").textContent = vr.toFixed(1);
+  document.getElementById("va").textContent = acMag.toFixed(1);
+
+  O.update();
+  R.render(S, C);
+}
+anim();
+
+window.addEventListener("resize", function() {
+  C.aspect = innerWidth / innerHeight;
+  C.updateProjectionMatrix();
+  R.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -55,10 +55,11 @@ var omega = 1.5, vr = 0.8;
 var discG = new T.Group();
 S.add(discG);
 
-// Disc body — flat circle in XY plane
-var dG = new T.CircleGeometry(2.8, 64);
-var mM = new T.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.3, metalness: 0.4, side: T.DoubleSide });
+// Disc body — thin cylinder rotated to lie flat in XY plane
+var dG = new T.CylinderGeometry(2.8, 2.8, 0.04, 64);
+var mM = new T.MeshStandardMaterial({ color: "#3b82f6", roughness: 0.3, metalness: 0.4 });
 var dM = new T.Mesh(dG, mM);
+dM.rotation.x = -Math.PI / 2;
 dM.position.z = -0.02;
 dM.receiveShadow = true;
 discG.add(dM);

@@ -43,7 +43,7 @@ var rdG=new T.BoxGeometry(l,0.06,0.06);var rdM=new T.Mesh(rdG,mRod);rdM.position
 var cmG=new T.SphereGeometry(0.07,12,12);var cmM=new T.Mesh(cmG,mPin);rodG.add(cmM);
 var blG=new T.BoxGeometry(0.2,0.2,0.3);var blM=new T.Mesh(blG,mBlock);blM.position.set(0,-0.2,0);blM.castShadow=true;S.add(blM);
 var arrG2=new T.Group();S.add(arrG2);
-var trailG2=new T.Group();S.add(trailG2);
+var trailDots2=new T.Points(new T.BufferGeometry(),new T.PointsMaterial({color:"#fbbf24",size:0.06}));trailDots2.position.z=0.05;S.add(trailDots2);
 var trailPts2=[];
 function upd(an){
 var Ax=r*Math.cos(an);var Ay=r*Math.sin(an);
@@ -69,8 +69,7 @@ var aVe=arrow(0.035,veLen*0.3,mVe);aVe.position.set(Cwx,Cwy,0.12);aVe.rotation.z
 var aVr=arrow(0.035,vrLen*2,mVr);aVr.position.set(Cwx,Cwy,0.12);aVr.rotation.z=vrAng-Math.PI/2;arrG2.add(aVr);
 var aVa=arrow(0.04,vaLen*0.4,mVa);aVa.position.set(Cwx,Cwy,0.14);aVa.rotation.z=vaAng-Math.PI/2;arrG2.add(aVa);
 trailPts2.push(new T.Vector3(Cwx,Cwy,0.05));if(trailPts2.length>120)trailPts2.shift();
-while(trailG2.children.length>0)trailG2.remove(trailG2.children[0]);
-for(var k=0;k<trailPts2.length;k+=4){var ttG=new T.SphereGeometry(0.02,4,4);var ttM=new T.Mesh(ttG,new T.MeshBasicMaterial({color:"#fbbf24",opacity:0.5}));ttM.position.copy(trailPts2[k]);trailG2.add(ttM);}
+	var tBuf2=new T.BufferGeometry().setFromPoints(trailPts2);trailDots2.geometry.dispose();trailDots2.geometry=tBuf2;
 document.getElementById("vc").textContent=(tP*100).toFixed(0)+"%";
 document.getElementById("vsl").textContent=(tP*100).toFixed(0)+"%";
 }

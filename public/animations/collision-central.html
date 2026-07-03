@@ -1,18 +1,16 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>对心正碰撞 · 恢复系数</title>
 <style>body{margin:0;overflow:hidden;background:#87CEEB;font-family:sans-serif}
-#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.92);padding:12px 16px;border-radius:8px;font-size:12px;line-height:1.8;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
+#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.92);padding:12px 16px;border-radius:8px;font-size:11px;line-height:1.9;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
 #p{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.92);padding:10px 14px;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(6px)}
 #p input{width:100px;accent-color:#2563eb}#p span.v{color:#2563eb;font-weight:600}
 #p button{width:100%;margin-top:4px;padding:5px;border-radius:6px;border:1px solid #2563eb;background:rgba(37,99,235,.08);color:#2563eb;font-size:12px;cursor:pointer}
-#leg{position:absolute;bottom:16px;left:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
 #hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
 .sw{display:inline-block;width:10px;height:6px;border-radius:1px;margin-right:3px;border:1px solid rgba(0,0,0,.15)}
 .b{color:#2563eb}.r{color:#dc2626}.y{color:#ca8a04}
 </style></head><body>
 <div id="hud"><b>对心正碰撞 · 恢复系数</b><br><span class="sw" style="background:#2563eb"></span>m₁=<span id="vm1">1.0</span> v₁=<span id="vv1">--</span><br><span class="sw" style="background:#dc2626"></span>m₂=<span id="vm2">1.0</span> v₂=<span id="vv2">--</span><br>e=<span class="y" id="ve">0.50</span> &nbsp; v₁'=<span class="b" id="vv1p">--</span> v₂'=<span class="r" id="vv2p">--</span><br>动量:<span id="vp">--</span> 动能:<span id="vk">--</span></div>
 <div id="p"><div>恢复系数e <input type="range" id="se" min="0" max="100" value="50" step="1"> <span class="v" id="le">0.50</span></div><div>质量比m₁/m₂ <input type="range" id="sm" min="30" max="300" value="100" step="1"> <span class="v" id="lm">1.00</span></div><button onclick="rst()">⟳ 复位重播</button></div>
-<div id="leg"><span class="sw" style="background:#2563eb"></span>碰撞前 <span class="sw" style="background:#16a34a"></span>碰撞后</div>
-<div id="hint">调e和质量比→点复位看碰撞 · 拖拽旋转</div>
+<div id="hint">调节e和质量比→点复位看碰撞 · 拖拽旋转</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
 <script type="module">
 import * as T from "three";import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -22,23 +20,16 @@ var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixel
 var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
 S.add(new T.AmbientLight("#c0d0e0",3.5));S.add(new T.DirectionalLight("#ffffff",4).position.set(4,8,5));S.add(new T.DirectionalLight("#8899cc",1.5).position.set(-3,3,-2));
 S.add(new T.GridHelper(12,24,"#bbb","#e0e0e0"));
-var bg2=new T.PlaneGeometry(12,3);var bm2=new T.Mesh(bg2,new T.MeshStandardMaterial({color:"#e8e8ec",roughness:0.8}));bm2.rotation.x=-Math.PI/2;bm2.position.y=-0.6;bm2.receiveShadow=true;S.add(bm2);
-var rg2=new T.BoxGeometry(10,0.08,0.25);var rm2=new T.Mesh(rg2,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.6}));rm2.position.y=-0.4;rm2.castShadow=true;S.add(rm2);
-var ballR2=0.35;
-var b1g=new T.SphereGeometry(ballR2,32,32);var b1m=new T.Mesh(b1g,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.45}));b1m.castShadow=true;S.add(b1m);
-var b2g=new T.SphereGeometry(ballR2,32,32);var b2m=new T.Mesh(b2g,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.2,metalness:0.45}));b2m.castShadow=true;S.add(b2m);
-var arr1G=new T.Group();S.add(arr1G);var arr2G=new T.Group();S.add(arr2G);
-function mkArr2D(rr,h,mat){var g=new T.Group();var sg=new T.CylinderGeometry(rr*0.5,rr*0.5,h*0.78,8);g.add(new T.Mesh(sg,mat).rotateZ(Math.PI/2).translateX(h*0.39));var hg=new T.ConeGeometry(rr*2.7,h*0.22,8);g.add(new T.Mesh(hg,mat).rotateZ(-Math.PI/2).translateX(h*0.89));return g;}
-var mPre=new T.MeshStandardMaterial({color:"#2563eb",roughness:0.05,emissive:"#2563eb",emissiveIntensity:0.5});
-var mPost=new T.MeshStandardMaterial({color:"#16a34a",roughness:0.05,emissive:"#16a34a",emissiveIntensity:0.6});
+var bg=new T.PlaneGeometry(12,3);var bm=new T.Mesh(bg,new T.MeshStandardMaterial({color:"#e8e8ec",roughness:0.8}));bm.rotation.x=-Math.PI/2;bm.position.y=0;bm.receiveShadow=true;S.add(bm);
+var rg=new T.BoxGeometry(10,0.08,0.25);var rm=new T.Mesh(rg,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.6}));rm.position.y=0.04;rm.castShadow=true;S.add(rm);
+var ballR=0.35;var ballY=0.08+ballR;
+var b1g=new T.SphereGeometry(ballR,32,32);var b1m=new T.Mesh(b1g,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.45}));b1m.castShadow=true;S.add(b1m);
+var b2g=new T.SphereGeometry(ballR,32,32);var b2m=new T.Mesh(b2g,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.2,metalness:0.45}));b2m.castShadow=true;S.add(b2m);
 var v1=3.0;var x1=-3.5,x2=1.5,collided=false,v1p=0,v2p=0;
 function rst(){x1=-3.5;x2=1.5;collided=false;
 var e=parseInt(document.getElementById("se").value)/100;var mr=parseInt(document.getElementById("sm").value)/100;var m1=mr,m2=1.0;
 v1p=(m1-e*m2)*v1/(m1+m2);v2p=(1+e)*m1*v1/(m1+m2);
-b1m.position.set(x1,0,0);b2m.position.set(x2,0,0);
-while(arr1G.children.length>0)arr1G.remove(arr1G.children[0]);
-while(arr2G.children.length>0)arr2G.remove(arr2G.children[0]);
-var a1=mkArr2D(0.04,Math.abs(v1)*0.5,mPre);a1.position.set(x1+ballR2+0.1,0.45,0);arr1G.add(a1);
+b1m.position.set(x1,ballY,0);b2m.position.set(x2,ballY,0);
 document.getElementById("le").textContent=e.toFixed(2);document.getElementById("ve").textContent=e.toFixed(2);
 document.getElementById("lm").textContent=mr.toFixed(2);
 document.getElementById("vm1").textContent=m1.toFixed(1);document.getElementById("vm2").textContent=m2.toFixed(1);
@@ -47,17 +38,12 @@ var mom=m1*v1;document.getElementById("vp").textContent=mom.toFixed(2);document.
 window.rst=rst;
 document.getElementById("se").addEventListener("input",rst);document.getElementById("sm").addEventListener("input",rst);
 function anim(){requestAnimationFrame(anim);var dt=0.016;
-if(!collided){x1+=v1*dt;var d=x2-x1-2*ballR2;if(d<=0.001){collided=true;x1=x2-2*ballR2;
+if(!collided){x1+=v1*dt;var d=x2-x1-2*ballR;if(d<=0.001){collided=true;x1=x2-2*ballR;
 document.getElementById("vv1p").textContent=v1p.toFixed(2);document.getElementById("vv2p").textContent=v2p.toFixed(2);
 var m1c=parseInt(document.getElementById("sm").value)/100,m2c=1.0;
 document.getElementById("vp").textContent=(m1c*v1p+m2c*v2p).toFixed(2);document.getElementById("vk").textContent=(0.5*m1c*v1p*v1p+0.5*m2c*v2p*v2p).toFixed(2);
-while(arr1G.children.length>0)arr1G.remove(arr1G.children[0]);while(arr2G.children.length>0)arr2G.remove(arr2G.children[0]);
-var a1p=mkArr2D(0.04,Math.abs(v1p)*0.5,mPost);a1p.position.set(x1+ballR2+0.1,0.45,0);arr1G.add(a1p);
-var a2p=mkArr2D(0.04,Math.abs(v2p)*0.5,mPost);a2p.position.set(x2+ballR2+0.1,0.45,0);arr2G.add(a2p);
 }}else{x1+=v1p*dt;x2+=v2p*dt;if(x1>5&&x2>5)rst();}
-b1m.position.set(x1,0,0);b2m.position.set(x2,0,0);
-if(arr1G.children.length>0)arr1G.children[0].position.set(x1+ballR2+0.1,0.45,0);
-if(arr2G.children.length>0)arr2G.children[0].position.set(x2+ballR2+0.1,0.45,0);
+b1m.position.set(x1,ballY,0);b2m.position.set(x2,ballY,0);
 O.update();R.render(S,C);}anim();rst();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

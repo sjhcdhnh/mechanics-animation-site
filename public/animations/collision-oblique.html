@@ -1,6 +1,6 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>斜碰撞 · 小球撞壁</title>
 <style>body{margin:0;overflow:hidden;background:#87CEEB;font-family:sans-serif}
-#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.92);padding:12px 16px;border-radius:8px;font-size:12px;line-height:1.8;backdrop-filter:blur(6px);border-left:4px solid #dc2626;min-width:200px}
+#hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.92);padding:12px 16px;border-radius:8px;font-size:12px;line-height:1.8;backdrop-filter:blur(6px);border-left:4px solid #dc2626}
 #p{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.92);padding:10px 14px;border-radius:8px;font-size:11px;line-height:2.2;backdrop-filter:blur(6px)}
 #p input{width:100px;accent-color:#2563eb}#p span.v{color:#2563eb;font-weight:600}
 #p button{width:100%;margin-top:4px;padding:5px;border-radius:6px;border:1px solid #2563eb;background:rgba(37,99,235,.08);color:#2563eb;font-size:12px;cursor:pointer}
@@ -9,85 +9,51 @@
 .sw{display:inline-block;width:10px;height:6px;border-radius:1px;margin-right:3px;border:1px solid rgba(0,0,0,.15)}
 .b{color:#2563eb}.r{color:#dc2626}.y{color:#ca8a04}
 </style></head><body>
-<div id="hud"><b>斜碰撞 · 小球撞壁</b><br><span class="sw" style="background:#2563eb"></span>球体 v=<span id="vv">3.0</span><br>入射角 θ=<span class="y" id="vt">30°</span> &nbsp; e=<span class="r" id="ve">0.70</span><br>法向反射 ×(-e) 切向不变<br>反射角 = <span class="r" id="vr2">--</span></div>
-<div id="p"><div>入射角 θ <input type="range" id="sth" min="10" max="75" value="30" step="1"> <span class="v" id="lth">30°</span></div><div>恢复系数 e <input type="range" id="se2" min="0" max="100" value="70" step="1"> <span class="v" id="le2">0.70</span></div><div>球速 v <input type="range" id="sv2" min="1" max="50" value="25" step="1"> <span class="v" id="lv2">2.5</span></div><button onclick="rst2()">⟳ 复位重播</button></div>
+<div id="hud"><b>斜碰撞 · 小球撞壁</b><br>v=<span id="vv">2.5</span> &nbsp; θ=<span class="y" id="vt">30°</span> &nbsp; e=<span class="r" id="ve">0.70</span><br>法向vₓ×(-e) &nbsp; 切向vᵧ不变<br>反射角=<span class="r" id="vr2">--</span></div>
+<div id="p"><div>入射角θ <input type="range" id="sth" min="10" max="75" value="30" step="1"> <span class="v" id="lth">30°</span></div><div>恢复系数e <input type="range" id="se2" min="0" max="100" value="70" step="1"> <span class="v" id="le2">0.70</span></div><div>球速v <input type="range" id="sv2" min="5" max="50" value="25" step="1"> <span class="v" id="lv2">2.5</span></div><button onclick="rst2()">⟳ 复位重播</button></div>
 <div id="leg"><span class="sw" style="background:#fbbf24"></span>入射轨迹 <span class="sw" style="background:#16a34a"></span>反射轨迹 <span class="sw" style="background:#3b82f6"></span>法向 <span class="sw" style="background:#dc2626"></span>切向</div>
-<div id="hint">调θ和e→点复位看反射 · 拖拽旋转视角</div>
+<div id="hint">调θ/e→复位看反射 · 拖拽旋转</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
 <script type="module">
 import * as T from "three";import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 var S=new T.Scene();S.background=new T.Color("#87CEEB");S.fog=new T.Fog("#a4d3ee",8,25);
 var C=new T.PerspectiveCamera(42,innerWidth/innerHeight,0.1,30);C.position.set(0,3,12);C.lookAt(0,0,0);
-var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
 var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
-S.add(new T.AmbientLight("#c0d0e0",3.5));
-var dL=new T.DirectionalLight("#ffffff",4);dL.position.set(4,8,5);dL.castShadow=true;dL.shadow.mapSize.width=2048;dL.shadow.mapSize.height=2048;S.add(dL);
-S.add(new T.DirectionalLight("#8899cc",1.5).position.set(-3,3,-2));
+S.add(new T.AmbientLight("#c0d0e0",3.5));S.add(new T.DirectionalLight("#ffffff",4).position.set(4,8,5));S.add(new T.DirectionalLight("#8899cc",1.5).position.set(-3,3,-2));
 S.add(new T.GridHelper(10,20,"#bbb","#e0e0e0"));
-var baseG=new T.PlaneGeometry(10,8);var baseM=new T.Mesh(baseG,new T.MeshStandardMaterial({color:"#e8e8ec",roughness:0.8}));baseM.rotation.x=-Math.PI/2;baseM.position.y=-0.01;baseM.receiveShadow=true;S.add(baseM);
-var wallG=new T.BoxGeometry(0.1,4,8);
-var wallM=new T.Mesh(wallG,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.5}));wallM.position.set(3,2,0);wallM.castShadow=true;wallM.receiveShadow=true;S.add(wallM);
-var wlPlane=new T.PlaneGeometry(0.01,3.6,6);
-var wlM=new T.Mesh(wlPlane,new T.MeshStandardMaterial({color:"#9ca3af",roughness:0.2,metalness:0.6}));wlM.position.set(2.94,2,0);S.add(wlM);
-var ballG=new T.SphereGeometry(0.28,32,32);
-var ballM2=new T.Mesh(ballG,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.45}));ballM2.castShadow=true;S.add(ballM2);
-var trailInG=new T.Group();S.add(trailInG);
-var trailOutG=new T.Group();S.add(trailOutG);
-var bx=-3,by=1.5,bz=0;
-var vx=1,vy=1,vz=0;
-var speed=2.5;var theta=30;var e2=0.7;var collided2=false;
-function arr2D(rr,h,mat){var g=new T.Group();
-var sG=new T.CylinderGeometry(rr*0.55,rr*0.55,h*0.78,8);var sM=new T.Mesh(sG,mat);sM.position.y=h*0.39;g.add(sM);
-var hG=new T.ConeGeometry(rr*2.8,h*0.22,8);var hM=new T.Mesh(hG,mat);hM.position.y=h*0.89;g.add(hM);return g;}
-var normG=new T.Group();S.add(normG);
-var tangG=new T.Group();S.add(tangG);
-function rst2(){
-bx=-3;by=1.5;collided2=false;
-theta=parseInt(document.getElementById("sth").value);
-e2=parseInt(document.getElementById("se2").value)/100;
-speed=parseInt(document.getElementById("sv2").value)/10;
-var trad=theta*Math.PI/180;
-vx=speed*Math.cos(trad);vy=-speed*Math.sin(trad);
-ballM2.position.set(bx,by,0);
-while(trailInG.children.length>0)trailInG.remove(trailInG.children[0]);
-while(trailOutG.children.length>0)trailOutG.remove(trailOutG.children[0]);
-while(normG.children.length>0)normG.remove(normG.children[0]);
-while(tangG.children.length>0)tangG.remove(tangG.children[0]);
-var aN=arr2D(0.04,2.5,new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.05,emissive:"#3b82f6",emissiveIntensity:0.5}));aN.position.set(3.2,1.5,0);aN.rotation.z=Math.PI;normG.add(aN);
-var aT=arr2D(0.04,2.0,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.5}));aT.position.set(3.0,1.5,0);aT.rotation.z=-Math.PI/2;tangG.add(aT);
-document.getElementById("lth").textContent=theta+"°";
-document.getElementById("vt").textContent=theta+"°";
-document.getElementById("le2").textContent=e2.toFixed(2);
-document.getElementById("ve").textContent=e2.toFixed(2);
-document.getElementById("lv2").textContent=speed.toFixed(1);
-document.getElementById("vv").textContent=speed.toFixed(1);
-}
+var bg=new T.PlaneGeometry(10,8);var bm=new T.Mesh(bg,new T.MeshStandardMaterial({color:"#e8e8ec",roughness:0.8}));bm.rotation.x=-Math.PI/2;bm.position.y=-0.01;bm.receiveShadow=true;S.add(bm);
+var wg=new T.BoxGeometry(0.15,4,8);var wm=new T.Mesh(wg,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.5}));wm.position.set(3,2,0);wm.castShadow=true;S.add(wm);
+var wpg=new T.PlaneGeometry(0.01,3.6,6);var wpm=new T.Mesh(wpg,new T.MeshStandardMaterial({color:"#9ca3af",roughness:0.2,metalness:0.6}));wpm.position.set(2.92,2,0);S.add(wpm);
+var ballR=0.28;var ballG2=new T.SphereGeometry(ballR,32,32);var ballM3=new T.Mesh(ballG2,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.45}));ballM3.castShadow=true;S.add(ballM3);
+var normG3=new T.Group();S.add(normG3);var naG=new T.CylinderGeometry(0.03,0.03,2.0,8);var naM=new T.Mesh(naG,new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.05,emissive:"#3b82f6",emissiveIntensity:0.5}));naM.rotation.z=Math.PI/2;naM.position.set(3.3,0.5,0);normG3.add(naM);var nhG=new T.ConeGeometry(0.08,0.3,8);var nhM=new T.Mesh(nhG,new T.MeshStandardMaterial({color:"#3b82f6",roughness:0.05,emissive:"#3b82f6",emissiveIntensity:0.5}));nhM.rotation.z=-Math.PI/2;nhM.position.set(4.3,0.5,0);normG3.add(nhM);
+var tangG3=new T.Group();S.add(tangG3);var taG=new T.CylinderGeometry(0.03,0.03,1.5,8);var taM=new T.Mesh(taG,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.5}));taM.rotation.z=Math.PI/2;taM.position.set(3.2,0.75,0);tangG3.add(taM);var thG=new T.ConeGeometry(0.08,0.3,8);var thM=new T.Mesh(thG,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.5}));thM.rotation.z=Math.PI/2;thM.position.set(3.2,1.52,0);tangG3.add(thM);
+var trailInBufG=new T.BufferGeometry();var trailInPts=new T.Points(trailInBufG,new T.PointsMaterial({color:"#fbbf24",size:0.06,opacity:0.8}));trailInPts.position.z=0.05;S.add(trailInPts);
+var trailOutBufG=new T.BufferGeometry();var trailOutPts=new T.Points(trailOutBufG,new T.PointsMaterial({color:"#16a34a",size:0.06,opacity:0.8}));trailOutPts.position.z=0.05;S.add(trailOutPts);
+var inPts=[],outPts=[];
+var MAX_TRAIL=200;
+var bx,by,vx,vy,speed,theta,e2,collided2;
+function rst2(){bx=-3;by=1.5;collided2=false;
+theta=parseInt(document.getElementById("sth").value);e2=parseInt(document.getElementById("se2").value)/100;speed=parseInt(document.getElementById("sv2").value)/10;
+var tr=theta*Math.PI/180;vx=speed*Math.cos(tr);vy=-speed*Math.sin(tr);
+ballM3.position.set(bx,by,0);inPts=[];outPts=[];
+document.getElementById("lth").textContent=theta+"°";document.getElementById("vt").textContent=theta+"°";
+document.getElementById("le2").textContent=e2.toFixed(2);document.getElementById("ve").textContent=e2.toFixed(2);
+document.getElementById("lv2").textContent=speed.toFixed(1);document.getElementById("vv").textContent=speed.toFixed(1);
+document.getElementById("vr2").textContent="--";}
 window.rst2=rst2;
-document.getElementById("sth").addEventListener("input",rst2);
-document.getElementById("se2").addEventListener("input",rst2);
-document.getElementById("sv2").addEventListener("input",rst2);
-var inPts=[];var outPts=[];
-function anim(){requestAnimationFrame(anim);
-var dt=0.016;
-if(!collided2){
-  inPts.push(new T.Vector3(bx,by,0.02));
-  bx+=vx*dt;by+=vy*dt;
-  if(bx>=2.72){
-    collided2=true;
-    vx=-e2*vx;
-    var refAng=Math.atan2(Math.abs(vy),Math.abs(vx))*180/Math.PI;
-    document.getElementById("vr2").textContent=refAng.toFixed(1)+"°";
-  }
-}else{
-  outPts.push(new T.Vector3(bx,by,0.02));
-  bx+=vx*dt;by+=vy*dt;
-  if(bx<-4||bx>5||by<-2||by>5)rst2();
-}
-ballM2.position.set(bx,by,0);
-while(trailInG.children.length>0)trailInG.remove(trailInG.children[0]);
-for(var k=0;k<inPts.length;k+=4){var dG2=new T.SphereGeometry(0.04,4,4);var dM2=new T.Mesh(dG2,new T.MeshBasicMaterial({color:"#fbbf24",opacity:0.7}));dM2.position.copy(inPts[k]);trailInG.add(dM2);}
-while(trailOutG.children.length>0)trailOutG.remove(trailOutG.children[0]);
-for(var k=0;k<outPts.length;k+=4){var dG3=new T.SphereGeometry(0.04,4,4);var dM3=new T.Mesh(dG3,new T.MeshBasicMaterial({color:"#16a34a",opacity:0.7}));dM3.position.copy(outPts[k]);trailOutG.add(dM3);}
+document.getElementById("sth").addEventListener("input",rst2);document.getElementById("se2").addEventListener("input",rst2);document.getElementById("sv2").addEventListener("input",rst2);
+function anim(){requestAnimationFrame(anim);var dt=0.016;
+if(!collided2){inPts.push(new T.Vector3(bx,by,0.05));bx+=vx*dt;by+=vy*dt;
+if(bx+ballR>=2.93){collided2=true;bx=2.93-ballR;vx=-e2*vx;
+var ra=Math.atan2(Math.abs(vy),Math.abs(vx))*180/Math.PI;document.getElementById("vr2").textContent=ra.toFixed(1)+"°";}
+}else{outPts.push(new T.Vector3(bx,by,0.05));bx+=vx*dt;by+=vy*dt;
+if(bx<-4||bx>5)rst2();}
+ballM3.position.set(bx,by,0);
+if(inPts.length>MAX_TRAIL)inPts=inPts.slice(-MAX_TRAIL);
+var inBuf=new T.BufferGeometry().setFromPoints(inPts);trailInPts.geometry.dispose();trailInPts.geometry=inBuf;
+if(outPts.length>MAX_TRAIL)outPts=outPts.slice(-MAX_TRAIL);
+var outBuf=new T.BufferGeometry().setFromPoints(outPts);trailOutPts.geometry.dispose();trailOutPts.geometry=outBuf;
 O.update();R.render(S,C);}anim();rst2();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
 </script></body></html>

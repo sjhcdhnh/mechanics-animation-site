@@ -1,43 +1,39 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>纯滚动 · 均质圆盘</title>
 <style>body{margin:0;overflow:hidden;background:#87CEEB;font-family:sans-serif}
 #hud{position:absolute;top:16px;left:16px;background:rgba(255,255,255,.92);padding:12px 16px;border-radius:8px;font-size:11px;line-height:1.9;backdrop-filter:blur(6px);border-left:4px solid #2563eb}
-#leg{position:absolute;bottom:16px;left:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
-#hint{position:absolute;bottom:16px;right:16px;background:rgba(255,255,255,.6);padding:6px 12px;border-radius:6px;font-size:11px;color:#555}
+.b{color:#2563eb}.r{color:#dc2626}
 </style></head><body>
-<div id="hud"><b>纯滚动 · 均质圆盘·平面运动</b><br>斜面倾角 θ=20° &nbsp; v=ωR<br>平动v=<span style="color:#2563eb" id="vv">0.00</span> m/s &nbsp; ω=<span style="color:#dc2626" id="vw">0.00</span> rad/s<br>纯滚动a=2/3·g·sinθ</div>
-<div id="leg">盘边标线:纯滚动每转一周回到接触点 &nbsp; 拖拽旋转</div>
-<div id="hint">拖复位按钮⟳ &nbsp; 观察v=ωR</div>
+<div id="hud"><b>纯滚动 · 均质圆盘·平面运动</b><br>&theta;=20° &nbsp; v=&omega;R<br>v=<span class="b" id="vv">0.00</span> m/s &nbsp; &omega;=<span class="r" id="vw">0.00</span> rad/s<br>a=2/3·g·sin&theta;=<span style="color:#16a34a">2.24</span> m/s&sup2;</div>
+<button id="rb" style="position:absolute;top:16px;right:16px;padding:5px 12px;border-radius:6px;border:1px solid #2563eb;background:rgba(37,99,235,.08);color:#2563eb;font-size:12px;cursor:pointer">&orarr; 复位</button>
+<div style="position:absolute;bottom:16px;right:16px;padding:6px 12px;font-size:11px;color:#555">红线=盘边标记 · v=&omega;R · 拖拽旋转</div>
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
-<script type="module">import * as T from "three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";
+<script type="module">import*as T from "three";import{OrbitControls}from"three/addons/controls/OrbitControls.js";
 var S=new T.Scene();S.background=new T.Color("#87CEEB");S.fog=new T.Fog("#a4d3ee",6,22);
-var C=new T.PerspectiveCamera(42,innerWidth/innerHeight,0.1,20);C.position.set(0,2,8);C.lookAt(1,0,0);
+var C=new T.PerspectiveCamera(42,innerWidth/innerHeight,0.1,20);C.position.set(0,2,8);C.lookAt(1.5,0,0);
 var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
-var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(1,0,0);O.update();
+var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(1.5,0,0);O.update();
 S.add(new T.AmbientLight("#c0d0e0",3.5));S.add(new T.DirectionalLight("#ffffff",4).position.set(4,6,4));
 S.add(new T.GridHelper(8,16,"#bbb","#e0e0e0"));
-var theta=20*Math.PI/180;var sinT=Math.sin(theta);var cosT=Math.cos(theta);
-var incG=new T.Group();S.add(incG);
-var ipG2=new T.BoxGeometry(5,0.08,1.5);
-var ipM2=new T.Mesh(ipG2,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.5}));ipM2.position.set(2.5,0,0);ipM2.castShadow=true;incG.add(ipM2);
-incG.rotation.z=-theta;incG.position.set(0,-0.5,0);
+var th=20*Math.PI/180;var sT=Math.sin(th);var cT=Math.cos(th);
+var ig=new T.BoxGeometry(6,0.08,1.5);
+var im=new T.Mesh(ig,new T.MeshStandardMaterial({color:"#6b7280",roughness:0.4,metalness:0.5}));im.position.set(2.5,0,0);im.castShadow=true;
+var incG=new T.Group();incG.add(im);incG.rotation.z=-th;incG.position.set(-1,0,0);S.add(incG);
+var discR=0.3;
 var discG=new T.Group();S.add(discG);
-var dG3=new T.CylinderGeometry(0.4,0.4,0.15,48);
-var dM3=new T.Mesh(dG3,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.25,metalness:0.55}));dM3.rotation.x=Math.PI/2;dM3.castShadow=true;discG.add(dM3);
-var mkG2=new T.BoxGeometry(0.02,0.35,0.16);
-var mkM2=new T.Mesh(mkG2,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.15,emissive:"#dc2626",emissiveIntensity:0.4}));discG.add(mkM2);
-var huG2=new T.CylinderGeometry(0.06,0.06,0.18,12);
-var huM2=new T.Mesh(huG2,new T.MeshStandardMaterial({color:"#f4d03f",roughness:0.2,metalness:0.85}));huM2.rotation.x=Math.PI/2;discG.add(huM2);
-for(var i=1;i<=5;i++){var mx=i*cosT;var my=-0.5+i*sinT;var mmG=new T.Mesh(new T.BoxGeometry(0.015,0.015,1.2),new T.MeshStandardMaterial({color:"#9ca3af"}));mmG.position.set(mx,my,0);S.add(mmG);}
-var R2=0.4;var dist=0;var s=0;
-var aRoll=2/3*9.8*sinT;
-function anim(){requestAnimationFrame(anim);s+=0.008;
-var v=Math.sqrt(2*aRoll*s);if(s>4.5)s=0;
-var omega2=v/R2;
-var cx=s*cosT;var cy=-0.5+s*sinT+R2;
-var rotAng=s/R2;
-discG.position.set(cx,cy,0);discG.rotation.z=-rotAng;
+var dG=new T.CylinderGeometry(discR,discR,0.12,48);
+var dM=new T.Mesh(dG,new T.MeshStandardMaterial({color:"#2563eb",roughness:0.25,metalness:0.55}));dM.rotation.x=Math.PI/2;dM.castShadow=true;discG.add(dM);
+var mkG=new T.BoxGeometry(0.015,0.28,0.13);
+var mkM=new T.Mesh(mkG,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.15,emissive:"#dc2626",emissiveIntensity:0.4}));discG.add(mkM);
+var huG=new T.CylinderGeometry(0.05,0.05,0.15,12);
+var huM=new T.Mesh(huG,new T.MeshStandardMaterial({color:"#f4d03f",roughness:0.2,metalness:0.85}));huM.rotation.x=Math.PI/2;discG.add(huM);
+var s=0.8;var aRoll=2/3*9.8*sT;
+function anim(){requestAnimationFrame(anim);s+=0.01;if(s>5)s=0.8;
+var v=Math.sqrt(2*aRoll*(s-0.8));
+var omega2=v/discR;var rotAng=(s-0.8)/discR;
+var wx=-1+s*cT;var wy=s*sT+discR;
+discG.position.set(wx,wy,0);discG.rotation.z=-rotAng;
 document.getElementById("vv").textContent=v.toFixed(2);document.getElementById("vw").textContent=omega2.toFixed(2);
 O.update();R.render(S,C);}anim();
 window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
-var btn=document.createElement("button");btn.textContent="⟳ 复位";btn.style.cssText="position:absolute;top:16px;right:16px;padding:5px 12px;border-radius:6px;border:1px solid #2563eb;background:rgba(37,99,235,.08);color:#2563eb;font-size:12px;cursor:pointer;backdrop-filter:blur(6px)";btn.onclick=function(){s=0;};document.body.appendChild(btn);
+document.getElementById("rb").onclick=function(){s=0.8;};
 </script></body></html>

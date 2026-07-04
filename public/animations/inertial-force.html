@@ -29,10 +29,10 @@ var arG3=new T.CylinderGeometry(0.04,0.04,1.6,8);
 var arM3=new T.Mesh(arG3,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.6}));arM3.rotation.z=-Math.PI/2;arM3.position.x=0;arrG3.add(arM3);
 var ahG3=new T.ConeGeometry(0.10,0.35,8);
 var ahM3=new T.Mesh(ahG3,new T.MeshStandardMaterial({color:"#dc2626",roughness:0.05,emissive:"#dc2626",emissiveIntensity:0.6}));ahM3.rotation.z=-Math.PI/2;ahM3.position.x=1.0;arrG3.add(ahM3);
-var acc=2.0;var vel=0;var cartX=0;
+var accFix=2.0;var vel=0;var cartX=0;
 function rst(){acc=parseInt(document.getElementById("sa").value)/10;vel=0;cartX=0;
 document.getElementById("la").textContent=acc.toFixed(1);document.getElementById("va").textContent=acc.toFixed(1);
-pendG.rotation.z=Math.atan(acc/9.8);document.getElementById("vt").textContent=(Math.atan(acc/9.8)*180/Math.PI).toFixed(1)+"°";
+pendG.rotation.z=-Math.atan(acc/9.8);document.getElementById("vt").textContent=(Math.atan(acc/9.8)*180/Math.PI).toFixed(1)+"°";
 if(acc<0){arrG3.rotation.z=Math.PI;}else{arrG3.rotation.z=0;}
 }
 window.rst=rst;document.getElementById("sa").addEventListener("input",rst);

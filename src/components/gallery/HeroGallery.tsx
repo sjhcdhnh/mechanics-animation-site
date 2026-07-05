@@ -6,6 +6,8 @@ const SLIDES = [
   { src: '/images/hero/fast-feed-cabin.gif', alt: 'FAST馈源舱姿态模拟' },
   { src: '/images/hero/space-station-docking.gif', alt: '空间站交会对接' },
   { src: '/images/hero/mechanism-demo.gif', alt: '机构运动学演示' },
+  { src: '/images/hero/QQ2026630-16341-ezgif.com-video-to-gif-converter.gif', alt: '理论力学3D动画演示' },
+  { src: '/images/hero/QQ202671-134849-ezgif.com-video-to-gif-converter.gif', alt: '机构运动仿真' },
 ];
 
 const INTERVAL = 4000;

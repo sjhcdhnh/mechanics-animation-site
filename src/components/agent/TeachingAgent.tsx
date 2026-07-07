@@ -104,11 +104,11 @@ export function TeachingAgent() {
         <div className="flex items-center gap-2.5">
           <img src="/agent-logo.png" alt="" className="w-7 h-7 rounded-full object-cover border border-accent/20" />
           <div>
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-base font-semibold text-foreground">
               AI助手-力学搭子
             </span>
-            <span className="ml-2 text-[10px] text-muted bg-accent/8 px-1.5 py-0.5 rounded-full border border-accent/10">
-              同济版+资料库
+            <span className="ml-2 text-xs text-muted bg-accent/8 px-1.5 py-0.5 rounded-full border border-accent/10">
+              资料库
             </span>
           </div>
         </div>
@@ -117,7 +117,7 @@ export function TeachingAgent() {
           {messages.length > 0 && (
             <button
               onClick={clearChat}
-              className="text-[11px] text-muted hover:text-foreground transition-colors px-2.5 py-1 rounded-md hover:bg-foreground/5"
+              className="text-sm text-muted hover:text-foreground transition-colors px-2.5 py-1 rounded-md hover:bg-foreground/5"
             >
               清空对话
             </button>
@@ -132,7 +132,7 @@ export function TeachingAgent() {
       {/* ── Compact preset chips (horizontal scroll) ── */}
       <div className="px-5 py-3 border-b border-border/50 bg-foreground/[0.02]">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-muted/70 whitespace-nowrap flex-shrink-0">
+          <span className="text-xs text-muted/70 whitespace-nowrap flex-shrink-0">
             快捷提问:
           </span>
 
@@ -143,7 +143,7 @@ export function TeachingAgent() {
                 key={i}
                 onClick={() => sendQuestion(q.text)}
                 disabled={loading}
-                className="flex-shrink-0 text-[11px] px-2.5 py-1 rounded-full bg-foreground/[0.04] border border-border/50 text-muted hover:text-foreground hover:border-accent/20 hover:bg-accent/[0.06] transition-all disabled:opacity-40 truncate max-w-[200px]"
+                className="flex-shrink-0 text-sm px-2.5 py-1 rounded-full bg-foreground/[0.04] border border-border/50 text-muted hover:text-foreground hover:border-accent/20 hover:bg-accent/[0.06] transition-all disabled:opacity-40 truncate max-w-[200px]"
                 title={q.text}
               >
                 {q.text.length > 22
@@ -155,7 +155,7 @@ export function TeachingAgent() {
             {/* "More" dropdown trigger */}
             <button
               onClick={() => setShowAllQuestions(!showAllQuestions)}
-              className={`flex-shrink-0 text-[11px] px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
+              className={`flex-shrink-0 text-sm px-2.5 py-1 rounded-full border transition-all flex items-center gap-1 ${
                 showAllQuestions
                   ? 'bg-accent/10 border-accent/30 text-accent'
                   : 'bg-foreground/[0.04] border-border/50 text-muted hover:text-foreground hover:border-accent/20'
@@ -186,7 +186,7 @@ export function TeachingAgent() {
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-border/30">
             {TEACHING_PRESET_QUESTIONS.map((chapter) => (
               <div key={chapter.chapter}>
-                <p className="text-[10px] font-semibold text-muted uppercase tracking-wider mb-2">
+                <p className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
                   {chapter.label}
                 </p>
                 <div className="space-y-1">
@@ -195,7 +195,7 @@ export function TeachingAgent() {
                       key={i}
                       onClick={() => sendQuestion(q)}
                       disabled={loading}
-                      className="w-full text-left text-[11px] px-2.5 py-1.5 rounded-lg hover:bg-accent/[0.06] hover:text-foreground text-muted transition-colors disabled:opacity-40 leading-relaxed"
+                      className="w-full text-left text-sm px-2.5 py-1.5 rounded-lg hover:bg-accent/[0.06] hover:text-foreground text-muted transition-colors disabled:opacity-40 leading-relaxed"
                     >
                       {q}
                     </button>
@@ -216,9 +216,9 @@ export function TeachingAgent() {
             </div>
             <div>
               <p className="text-sm text-muted font-medium">
-                我是你的力学搭子，基于同济版《理论力学》教材+练习册+课件
+                我是你的力学搭子，基于《理论力学》教材+练习册+课件
               </p>
-              <p className="text-[11px] text-muted/60 mt-1.5 max-w-sm">
+              <p className="text-sm text-muted/60 mt-1.5 max-w-sm">
                 点击上方快捷提问或在输入框输入你的问题，我将为你解答
                 静力学、运动学、动力学、分析力学等方面的疑问。
               </p>
@@ -275,7 +275,7 @@ export function TeachingAgent() {
               {error}
             </p>
             {error.includes('未配置') && (
-              <p className="text-[11px] text-muted mt-2">
+              <p className="text-sm text-muted mt-2">
                 请在环境变量中设置{' '}
                 <code className="text-accent bg-accent/10 px-1 rounded">
                   AI_API_KEY
@@ -314,8 +314,8 @@ export function TeachingAgent() {
             )}
           </button>
         </div>
-        <p className="text-[10px] text-muted/60 mt-2.5 text-center">
-          AI 回答仅供参考，请以教材和教师授课为准 · 基于同济版《理论力学》
+        <p className="text-xs text-muted/60 mt-2.5 text-center">
+          AI 回答仅供参考，请以教材和教师授课为准 · 基于《理论力学》
         </p>
       </div>
     </div>

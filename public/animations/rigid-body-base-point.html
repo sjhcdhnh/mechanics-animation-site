@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>刚体平面运动 · 基点法速度场</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
+    #hud{position:absolute;left:16px;top:16px;max-width:420px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
+    .a{color:#89b4fa}.p{color:#f38ba8}.y{color:#f9e2af}
+  </style>
+</head>
+<body>
+  <div id="hud"><b>刚体平面运动：v<sub>P</sub>=v<sub>A</sub>+ω×r<sub>AP</sub></b><br>
+    选 A 为基点。蓝色为 v<sub>A</sub>，粉色为相对转动速度，黄色为 P 点绝对速度。<br>
+    瞬心 I 满足 v<sub>I</sub>=0，位置由 r<sub>AI</sub> = (k × v<sub>A</sub>)/ω 确定。
+  </div>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
+    const { scene, camera, controls, composer } = quickSetup({ cameraPos:[0,-5.6,5.2], target:[0,0,0], fov:40, near:.1, far:70, exposure:1.1 });
+    scene.add(new THREE.GridHelper(5,20,0x39415f,0x20263a));
+    const body=new THREE.Group(); scene.add(body);
+    const plate=new THREE.Mesh(GeometryHelpers.createRoundedLink(2.4,.62,.08,.14,4), MaterialPresets.anodizedAluminum(0x74c7ec)); plate.rotation.z=.16; body.add(plate);
+    const A=new THREE.Mesh(GeometryHelpers.createPinSphere(.07,64), MaterialPresets.brassPin()); A.position.set(-.9,0,0.11); body.add(A);
+    const P=new THREE.Mesh(GeometryHelpers.createPinSphere(.07,64), MaterialPresets.polishedSteel()); P.position.set(.85,.18,0.11); body.add(P);
+    const Ipt=new THREE.Mesh(GeometryHelpers.createPinSphere(.06,64), new THREE.MeshStandardMaterial({color:0xf9e2af,emissive:0xf9e2af,emissiveIntensity:.3})); scene.add(Ipt);
+    const arrows=[makeArrow(0x89b4fa),makeArrow(0xf38ba8),makeArrow(0xf9e2af)]; arrows.forEach(a=>scene.add(a));
+    function makeArrow(color){const g=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.25});const sh=new THREE.Mesh(GeometryHelpers.createCylinder(.012,.012,.5,48),mat);sh.position.y=.25;g.add(sh);const hd=new THREE.Mesh(new THREE.ConeGeometry(.05,.13,48),mat);hd.position.y=.56;g.add(hd);return g;}
+    function place(g,o,v){const len=Math.max(v.length()*.45,.001);g.position.copy(o);g.scale.setScalar(len/.63);g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize());}
+    const w=1.05, vA=new THREE.Vector3(.55,.25,0);
+    createAnimationLoop(null, scene, camera, { composer, controls }, (delta, elapsed)=>{
+      body.position.set(-.6+Math.sin(elapsed*.45)*.35, Math.cos(elapsed*.35)*.18, .1);
+      body.rotation.z = .35 + w*elapsed;
+      body.updateMatrixWorld(true);
+      const Aw=new THREE.Vector3(), Pw=new THREE.Vector3(); A.getWorldPosition(Aw); P.getWorldPosition(Pw);
+      const rAP=Pw.clone().sub(Aw); const rel=new THREE.Vector3(-w*rAP.y,w*rAP.x,0); const vP=vA.clone().add(rel);
+      const rAI=new THREE.Vector3(-vA.y/w, vA.x/w, 0); Ipt.position.copy(Aw.clone().add(rAI));
+      place(arrows[0],Aw,vA); place(arrows[1],Pw,rel); place(arrows[2],Pw,vP);
+    }).start();
+  </script>
+</body>
+</html>

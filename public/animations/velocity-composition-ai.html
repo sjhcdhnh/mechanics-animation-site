@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>点的速度合成 · 牵连速度与相对速度</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
+    #hud{position:absolute;left:16px;top:16px;max-width:410px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
+    .b{color:#89b4fa}.g{color:#a6e3a1}.r{color:#f38ba8}
+  </style>
+</head>
+<body>
+  <div id="hud"><b>点的速度合成：v = v<sub>e</sub> + v<sub>r</sub></b><br>
+    转盘角速度 ω=<span id="omega" class="b">--</span> rad/s，相对速度 v<sub>r</sub>=<span id="vr" class="g">--</span> m/s<br>
+    蓝色：牵连速度 ω×r；绿色：沿槽相对速度；红色：绝对速度矢量和。
+  </div>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
+    const { scene, camera, controls, composer } = quickSetup({ cameraPos:[0,-5.2,5.8], target:[0,0,0], fov:42, near:.1, far:80, exposure:1.08 });
+    const disc = new THREE.Group(); scene.add(disc);
+    const matDisc = MaterialPresets.anodizedAluminum(0x3b82f6), matSlot=MaterialPresets.castIron();
+    const plate = new THREE.Mesh(GeometryHelpers.createCylinder(1.85,1.85,0.045,96), matDisc); plate.rotation.x=Math.PI/2; disc.add(plate);
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(3.35,0.08,0.08), matSlot); slot.position.z=0.06; disc.add(slot);
+    const bead = new THREE.Mesh(GeometryHelpers.createPinSphere(.095,64), MaterialPresets.brassPin()); bead.castShadow=true; disc.add(bead);
+    const trail = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({color:0xf9e2af,transparent:true,opacity:.8})); scene.add(trail);
+    const arrows = { ve:makeArrow(0x89b4fa), vr:makeArrow(0xa6e3a1), v:makeArrow(0xf38ba8) }; Object.values(arrows).forEach(a=>scene.add(a));
+    const omega=1.15, vr=0.42, pts=[];
+    function makeArrow(color){ const g=new THREE.Group(), mat=new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.35,roughness:.25}); const sh=new THREE.Mesh(GeometryHelpers.createCylinder(.012,.012,.6,48),mat); sh.position.y=.3; g.add(sh); const hd=new THREE.Mesh(new THREE.ConeGeometry(.05,.14,48),mat); hd.position.y=.67; g.add(hd); return g; }
+    function placeArrow(g, origin, vec, scale){ const len=Math.max(vec.length()*scale,.001); g.position.copy(origin); g.scale.setScalar(len/.74); g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), vec.clone().normalize()); }
+    createAnimationLoop(null, scene, camera, { composer, controls }, (delta, elapsed)=>{
+      const th=omega*elapsed, s=0.25+((elapsed*vr)%1.35);
+      disc.rotation.z=th; bead.position.set(s,0,0.12);
+      const er=new THREE.Vector3(Math.cos(th),Math.sin(th),0), et=new THREE.Vector3(-Math.sin(th),Math.cos(th),0);
+      const pos=er.clone().multiplyScalar(s).setZ(.18), ve=et.clone().multiplyScalar(omega*s), rel=er.clone().multiplyScalar(vr), va=ve.clone().add(rel);
+      pts.push(pos.clone()); if(pts.length>180)pts.shift(); trail.geometry.dispose(); trail.geometry=new THREE.BufferGeometry().setFromPoints(pts);
+      placeArrow(arrows.ve,pos,ve,.42); placeArrow(arrows.vr,pos,rel,.42); placeArrow(arrows.v,pos,va,.42);
+      document.getElementById('omega').textContent=omega.toFixed(2); document.getElementById('vr').textContent=vr.toFixed(2);
+    }).start();
+  </script>
+</body>
+</html>

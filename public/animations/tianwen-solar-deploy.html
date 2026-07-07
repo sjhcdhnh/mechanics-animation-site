@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>天问一号 · 太阳能帆板展开机构运动学演示</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #000008;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #cdd6f4;
+  }
+  canvas { display: block; }
+  #title {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    font-size: 16px; letter-spacing: 2px;
+    color: #e0e6f8; pointer-events: none;
+    text-shadow: 0 2px 8px #000, 0 0 20px rgba(180,140,100,0.4);
+  }
+  #subtitle {
+    position: absolute; top: 40px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: #8b95b8; pointer-events: none; letter-spacing: 1px;
+  }
+  #hud {
+    position: absolute; top: 12px; left: 12px;
+    padding: 12px 16px; min-width: 260px;
+    background: rgba(10, 12, 24, 0.75);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 13px; line-height: 1.85; backdrop-filter: blur(4px);
+  }
+  #hud b { color: #f5e0dc; font-weight: 600; }
+  #hud .v { color: #a6e3a1; font-family: "Consolas", monospace; }
+  #legend {
+    position: absolute; bottom: 14px; left: 12px;
+    padding: 10px 14px; background: rgba(10, 12, 24, 0.75);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.8;
+  }
+  #legend .sw {
+    display: inline-block; width: 14px; height: 10px; margin-right: 6px;
+    border-radius: 2px; vertical-align: middle;
+    border: 1px solid rgba(255,255,255,0.15);
+  }
+  #params {
+    position: absolute; top: 12px; right: 12px;
+    padding: 10px 14px; background: rgba(10, 12, 24, 0.75);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 12px; line-height: 1.7;
+  }
+  #hint {
+    position: absolute; bottom: 14px; right: 12px;
+    padding: 8px 12px; background: rgba(10, 12, 24, 0.5);
+    border: 1px solid #2a2f4a; border-radius: 6px;
+    font-size: 11px; color: #8b95b8;
+  }
+  #sequence {
+    position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px;
+  }
+  #sequence .step {
+    padding: 4px 12px; border-radius: 12px; font-size: 11px;
+    background: rgba(20, 22, 38, 0.6); border: 1px solid #3a3f5a; color: #8b95b8;
+    transition: all 0.3s;
+  }
+  #sequence .step.active {
+    background: rgba(255, 107, 53, 0.25); border-color: #ff6b35;
+    color: #ffaa7a; box-shadow: 0 0 8px rgba(255,107,53,0.2);
+  }
+  /* 防止 UI 遮挡画布交互 */
+  #hud, #legend, #params, #hint, #sequence, #title, #subtitle { pointer-events: none; }
+  #btnReplay { pointer-events: auto; }
+</style>
+</head>
+<body>
+
+<div id="title">天问一号 · 火星环绕器太阳翼展开机构</div>
+<div id="subtitle">Tianwen-1 Orbiter — Solar Array Z-Fold Deployment Kinematics</div>
+
+<div id="hud">
+  <div><b>实时展开状态</b></div>
+  <div>展开历时 t : <span id="v_t" class="v">—</span></div>
+  <div>连接架转角 θ₀ : <span id="v_theta0" class="v">—</span></div>
+  <div>板间铰链转角 θₚ : <span id="v_thetap" class="v">—</span></div>
+  <div>板间角速度 ωₚ : <span id="v_omega" class="v">—</span></div>
+  <div>翼尖距本体 R<sub>tip</sub> : <span id="v_rtip" class="v">—</span></div>
+  <div>阶段 : <span id="v_phase" class="v">—</span></div>
+</div>
+
+<div id="params">
+  <div><b>机构设定参数</b></div>
+  <div>每侧面板 N = 3（Z 型折叠）</div>
+  <div>面板 L<sub>p</sub> = 2.0 m, W = 1.5 m</div>
+  <div>连接架 L<sub>y</sub> = 0.5 m</div>
+  <div>卷簧刚度 k<sub>θ</sub> = 0.8 N·m/rad</div>
+  <div>同步缆绳传动比 = 1:1</div>
+  <div>全展翼展 ≈ 14 m</div>
+</div>
+
+<div id="legend">
+  <div><b>构件图例</b></div>
+  <div><span class="sw" style="background:#c9a84c"></span>环绕器本体（六棱柱 + 承力锥筒）</div>
+  <div><span class="sw" style="background:#0d2240"></span>太阳电池阵（三结砷化镓）</div>
+  <div><span class="sw" style="background:#d4a574"></span>展开铰链 / 同步绳轮</div>
+  <div><span class="sw" style="background:#4ecdc4"></span>连接架 Yoke</div>
+  <div><span class="sw" style="background:#cc5533"></span>火星（真实纹理）</div>
+</div>
+
+<div id="hint">
+  左键旋转　|　滚轮缩放　|　右键平移　|　<button id="btnReplay" style="margin-left:8px;padding:2px 10px;cursor:pointer;background:rgba(255,107,53,0.2);border:1px solid #ff6b35;color:#ffaa7a;border-radius:4px;font-size:11px;">↻ 重新展开</button>
+</div>
+
+<div id="sequence">
+  <span class="step" id="step0">① 收拢锁止</span>
+  <span class="step" id="step1">② 解锁释放</span>
+  <span class="step" id="step2">③ 连接架外翻</span>
+  <span class="step" id="step3">④ Z 型逐级展开</span>
+  <span class="step" id="step4">⑤ 到位锁定</span>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+/* ============================================================
+ *  天问一号环绕器 太阳翼展开 — 运动学参数
+ *
+ *  参考：
+ *  - 朱新波等.《"天问一号"火星环绕器总体设计综述》. 航天返回与遥感, 2021, 42(3).
+ *  - 812所太阳翼展开试验技术报告
+ *  - 张炳健等.《基于擒纵控速的低冲击展开太阳翼机构研究》
+ *
+ *  展开时序（防穿模）：
+ *   ① 连接架先外翻 90° → 折叠帆板组整体推离本体
+ *   ② 板间铰链再同步展开 180°（Z 型折叠：相邻板反向折叠）
+ * ============================================================ */
+
+const N_PANELS    = 3;
+const L_PANEL     = 2.0;
+const W_PANEL     = 1.5;
+const T_PANEL     = 0.035;
+const L_YOKE      = 0.5;
+const R_BODY      = 1.6;
+const H_BODY      = 2.0;
+
+const T_YOKE      = 2.0;
+const T_PANELS    = 3.5;
+const T_TOTAL     = T_YOKE + T_PANELS;
+
+function smoothstep01(s) {
+  if (s <= 0) return 0; if (s >= 1) return 1;
+  return s * s * s * (10 - 15 * s + 6 * s * s);
+}
+function smoothstepDeriv(s) {
+  if (s <= 0 || s >= 1) return 0;
+  return 30 * s * s * (1 - s) * (1 - s);
+}
+
+/* ============================================================
+ *  太阳能电池阵贴图（高精度 Canvas 程序化生成）
+ *  — 基于真实三结砷化镓电池片外观
+ * ============================================================ */
+function createPanelTexture() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 768;
+  const ctx = c.getContext('2d');
+
+  // 基底：深空黑蓝（真实航天级三结砷化镓电池颜色）
+  const bg = ctx.createLinearGradient(0, 0, 1024, 768);
+  bg.addColorStop(0, '#080e1a');
+  bg.addColorStop(1, '#0a1220');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, 1024, 768);
+
+  const cellW = 96, cellH = 96;
+
+  // 金线互联网格（极细，0.6px — 真实航天面板的镀金互联）
+  ctx.strokeStyle = '#b8903a';
+  ctx.lineWidth = 0.6;
+  for (let x = 0; x <= 1024; x += cellW) {
+    ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, 768); ctx.stroke();
+  }
+  for (let y = 0; y <= 768; y += cellH) {
+    ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(1024, y + 0.5); ctx.stroke();
+  }
+  // 次级细线（面板内部互联）
+  ctx.strokeStyle = '#8a6a28';
+  ctx.lineWidth = 0.3;
+  for (let x = cellW / 3; x <= 1024; x += cellW) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 768); ctx.stroke();
+  }
+  for (let y = cellH / 3; y <= 768; y += cellH) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1024, y); ctx.stroke();
+  }
+
+  // 每片电池：深色中心渐变 + 表面微观纹理
+  for (let cx = cellW / 2; cx < 1024; cx += cellW) {
+    for (let cy = cellH / 2; cy < 768; cy += cellH) {
+      // 电池主体：从中心深蓝渐变到边缘暗黑
+      const g = ctx.createRadialGradient(cx, cy, cellW * 0.02, cx, cy, cellW * 0.46);
+      g.addColorStop(0, 'rgba(30,55,100,0.7)');
+      g.addColorStop(0.5, 'rgba(15,30,60,0.5)');
+      g.addColorStop(1, 'rgba(5,12,25,0.4)');
+      ctx.fillStyle = g;
+      ctx.fillRect(cx - cellW / 2 + 1, cy - cellH / 2 + 1, cellW - 2, cellH - 2);
+
+      // 电池片微观晶体纹理（砷化镓镀层反光斑点）
+      for (let j = 0; j < 5; j++) {
+        const sx = cx - cellW / 2 + 4 + Math.random() * (cellW - 10);
+        const sy = cy - cellH / 2 + 4 + Math.random() * (cellH - 10);
+        const sr = 1.5 + Math.random() * 4;
+        const spotG = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+        spotG.addColorStop(0, 'rgba(80,130,190,0.15)');
+        spotG.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = spotG;
+        ctx.fillRect(sx - sr, sy - sr, sr * 2, sr * 2);
+      }
+    }
+  }
+
+  // 面板边框阴影
+  ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+  ctx.lineWidth = 5;
+  ctx.strokeRect(2, 2, 1020, 764);
+
+  // 面板表面细微划痕/使用痕迹
+  ctx.globalAlpha = 0.06;
+  for (let i = 0; i < 30; i++) {
+    ctx.strokeStyle = '#aaaacc';
+    ctx.lineWidth = 0.3;
+    ctx.beginPath();
+    const sx = Math.random() * 1024, sy = Math.random() * 768;
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (Math.random() - 0.5) * 200, sy + (Math.random() - 0.5) * 100);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  return tex;
+}
+
+/* ============================================================
+ *  色彩
+ * ============================================================ */
+const C_PANEL_BACK = 0x8899aa;
+const C_YOKE       = 0x4ecdc4;
+const C_HINGE      = 0xd4a574;
+
+/* ============================================================
+ *  场景 / 相机 / 渲染器
+ * ============================================================ */
+const scene = new THREE.Scene();
+
+// 星空 — 多层：背景银河带 + 亮星 + 暗星 + 彩色星
+const starGroup = new THREE.Group(); scene.add(starGroup);
+
+// 银河带（扁球形分布，模拟银盘）
+const milkyGeom = new THREE.BufferGeometry();
+const milkyPos = new Float32Array(3000 * 3);
+for (let i = 0; i < 3000; i++) {
+  const r = 500 + Math.random() * 700;
+  const th = Math.random() * Math.PI * 2;
+  const ph = (Math.random() - 0.5) * 0.3; // 集中在赤道面
+  milkyPos[i * 3]     = r * Math.cos(ph) * Math.cos(th);
+  milkyPos[i * 3 + 1] = r * Math.sin(ph);
+  milkyPos[i * 3 + 2] = r * Math.cos(ph) * Math.sin(th);
+}
+milkyGeom.setAttribute('position', new THREE.BufferAttribute(milkyPos, 3));
+starGroup.add(new THREE.Points(milkyGeom, new THREE.PointsMaterial({
+  color: 0x8899cc, size: 0.35, sizeAttenuation: true, transparent: true, opacity: 0.5,
+})));
+
+// 亮星（2000 颗，均匀分布全天空）
+const brightG = new THREE.BufferGeometry();
+const brightPos = new Float32Array(2000 * 3);
+for (let i = 0; i < 2000; i++) {
+  const r = 400 + Math.random() * 700;
+  const th = Math.random() * Math.PI * 2;
+  const ph = Math.acos(2 * Math.random() - 1);
+  brightPos[i * 3]     = r * Math.sin(ph) * Math.cos(th);
+  brightPos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+  brightPos[i * 3 + 2] = r * Math.cos(ph);
+}
+brightG.setAttribute('position', new THREE.BufferAttribute(brightPos, 3));
+starGroup.add(new THREE.Points(brightG, new THREE.PointsMaterial({
+  color: 0xffffff, size: 0.55, sizeAttenuation: true, transparent: true, opacity: 0.92,
+})));
+
+// 彩色亮星（~200 颗蓝白 / 黄白 / 红橙色）
+const colors = [0xaaccff, 0xffffff, 0xffeedd, 0xffccaa, 0xccddff, 0xfff8e8];
+const colorG = new THREE.BufferGeometry();
+const colorPos = new Float32Array(200 * 3);
+const colorCol = new Float32Array(200 * 3);
+for (let i = 0; i < 200; i++) {
+  const r = 380 + Math.random() * 750;
+  const th = Math.random() * Math.PI * 2;
+  const ph = Math.acos(2 * Math.random() - 1);
+  colorPos[i * 3]     = r * Math.sin(ph) * Math.cos(th);
+  colorPos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+  colorPos[i * 3 + 2] = r * Math.cos(ph);
+  const col = new THREE.Color(colors[Math.floor(Math.random() * colors.length)]);
+  colorCol[i * 3] = col.r; colorCol[i * 3 + 1] = col.g; colorCol[i * 3 + 2] = col.b;
+}
+colorG.setAttribute('position', new THREE.BufferAttribute(colorPos, 3));
+colorG.setAttribute('color', new THREE.BufferAttribute(colorCol, 3));
+starGroup.add(new THREE.Points(colorG, new THREE.PointsMaterial({
+  size: 0.9, sizeAttenuation: true, transparent: true, opacity: 0.95,
+  vertexColors: true,
+})));
+
+// 火星模型：使用项目本地 mars.glb；加载时保留低调占位球，避免网络/路径问题导致背景消失。
+const mars = new THREE.Group();
+mars.position.set(-100, -50, -360);
+scene.add(mars);
+const marsFallback = new THREE.Mesh(
+  new THREE.SphereGeometry(38, 64, 40),
+  new THREE.MeshStandardMaterial({ color: 0xb66f47, roughness: 0.9, metalness: 0.0 })
+);
+mars.add(marsFallback);
+new GLTFLoader().load('/animations/mars.glb', (gltf) => {
+  mars.clear();
+  const model = gltf.scene;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const s = 76 / Math.max(size.x, size.y, size.z);
+  model.scale.setScalar(s);
+  model.position.set(-center.x * s, -center.y * s, -center.z * s);
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      if (obj.material) {
+        obj.material.roughness = Math.max(obj.material.roughness ?? 0.8, 0.72);
+        obj.material.metalness = 0.0;
+      }
+    }
+  });
+  mars.add(model);
+});
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.5, 3000);
+camera.position.set(8, 5, 14);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, -0.2, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.15;
+controls.minDistance = 3; controls.maxDistance = 80;
+controls.update();
+
+/* ============================================================
+ *  灯光
+ * ============================================================ */
+scene.add(new THREE.AmbientLight(0x1a2a44, 0.55));
+const sun = new THREE.DirectionalLight(0xfff8e8, 3.8);
+sun.position.set(80, 30, 50);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 0.5; sun.shadow.camera.far = 200;
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 20; sun.shadow.camera.bottom = -20;
+sun.shadow.bias = -0.0001; sun.shadow.normalBias = 0.02;
+scene.add(sun);
+const rimL = new THREE.DirectionalLight(0x8899cc, 0.9);
+rimL.position.set(-30, -5, -20);
+scene.add(rimL);
+
+/* ============================================================
+ *  环境贴图
+ * ============================================================ */
+const pmremGen = new THREE.PMREMGenerator(renderer);
+pmremGen.compileEquirectangularShader();
+const envC = document.createElement('canvas'); envC.width = 512; envC.height = 256;
+const ectx = envC.getContext('2d');
+
+// Bright studio ground + 4 large softbox light sources for metallic PBR reflections
+ectx.fillStyle = '#554433'; ectx.fillRect(0, 0, 512, 256);
+
+function drawSoftbox(cx, cy, rx, ry, bright, warm) {
+  const g = ectx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(rx, ry));
+  const r = warm ? 255 : 220, gv = warm ? 240 : 230, b = warm ? 220 : 255;
+  g.addColorStop(0, 'rgba(' + r + ',' + gv + ',' + b + ',' + bright + ')');
+  g.addColorStop(0.3, 'rgba(' + r + ',' + gv + ',' + b + ',' + (bright * 0.5) + ')');
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ectx.fillStyle = g;
+  ectx.beginPath(); ectx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ectx.fill();
+}
+
+drawSoftbox(380, 40,  160, 90, 1.0, true);
+drawSoftbox(60,  50,  140, 80, 0.7, false);
+drawSoftbox(250, 30,  200, 70, 0.5, true);
+drawSoftbox(400, 180, 120, 40, 0.3, false);
+
+const envTex = new THREE.CanvasTexture(envC);
+envTex.colorSpace = THREE.SRGBColorSpace;
+envTex.mapping = THREE.EquirectangularReflectionMapping;
+scene.environment = pmremGen.fromEquirectangular(envTex).texture;
+scene.background = new THREE.Color(0x000008);
+pmremGen.dispose();
+envTex.dispose();
+
+/* ============================================================
+ *  环绕器本体 — 六棱柱 + 设备舱 + 天线 + 传感器 + 推进器
+ * ============================================================ */
+const body = new THREE.Group(); scene.add(body);
+
+// 主结构 — MLI 金色六棱柱
+const bodyMat1 = new THREE.MeshStandardMaterial({ color: 0xc9a84c, metalness: 0.5, roughness: 0.5 });
+const bodyMat2 = new THREE.MeshStandardMaterial({ color: 0xb8942e, metalness: 0.55, roughness: 0.45 }); // 暗面交替
+
+const bodyG = new THREE.CylinderGeometry(R_BODY, R_BODY, H_BODY, 6);
+const bodyMsh = new THREE.Mesh(bodyG, bodyMat1);
+bodyMsh.castShadow = true; bodyMsh.receiveShadow = true;
+body.add(bodyMsh);
+
+// 顶部设备平台（略突出六棱柱）
+const topPlatG = new THREE.CylinderGeometry(R_BODY + 0.08, R_BODY + 0.08, 0.15, 6);
+const topPlat = new THREE.Mesh(topPlatG, new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.7, roughness: 0.3 }));
+topPlat.position.y = H_BODY / 2 + 0.07;
+body.add(topPlat);
+
+// 底部平台
+const botPlatG = new THREE.CylinderGeometry(R_BODY + 0.08, R_BODY + 0.08, 0.12, 6);
+const botPlat = new THREE.Mesh(botPlatG, new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.7, roughness: 0.3 }));
+botPlat.position.y = -H_BODY / 2 - 0.06;
+body.add(botPlat);
+
+// 顶部锥筒（承力锥筒上部）
+const coneG = new THREE.CylinderGeometry(0.5, R_BODY * 0.8, 0.7, 12);
+const coneM = new THREE.Mesh(coneG, bodyMat1);
+coneM.position.y = H_BODY / 2 + 0.5; coneM.castShadow = true;
+body.add(coneM);
+
+// 对地遥感相机（顶部圆筒）
+const camG = new THREE.CylinderGeometry(0.25, 0.28, 0.5, 24);
+const camM = new THREE.Mesh(camG, new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.6, roughness: 0.3 }));
+camM.position.set(0, H_BODY / 2 + 0.95, 0);
+body.add(camM);
+const camLensG = new THREE.CylinderGeometry(0.2, 0.22, 0.08, 24);
+body.add(new THREE.Mesh(camLensG, new THREE.MeshStandardMaterial({ color: 0x111122, metalness: 0.9, roughness: 0.05 })).translateY(H_BODY / 2 + 1.22));
+
+// 星敏感器（×2，顶部两侧小方盒）
+const starSenG = new THREE.BoxGeometry(0.2, 0.12, 0.15);
+const starSenM = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.5, roughness: 0.4 });
+for (let s = -1; s <= 1; s += 2) {
+  const ss = new THREE.Mesh(starSenG, starSenM);
+  ss.position.set(s * R_BODY * 0.55, H_BODY / 2 + 0.48, 0);
+  ss.rotation.z = s * 0.3;
+  body.add(ss);
+}
+
+// 高增益天线（2.5m 碟形，折叠 6 次安装 — 这里展开姿态）
+const antGrp = new THREE.Group();
+antGrp.position.set(0, H_BODY / 2 + 0.7, -R_BODY - 0.3);
+// 碟面
+const dishG = new THREE.SphereGeometry(0.75, 40, 20, 0, Math.PI * 2, 0, Math.PI / 3);
+const dishMsh = new THREE.Mesh(dishG, new THREE.MeshStandardMaterial({ color: 0xe8e0d0, metalness: 0.85, roughness: 0.12, side: THREE.DoubleSide }));
+dishMsh.rotation.x = Math.PI; dishMsh.castShadow = true;
+antGrp.add(dishMsh);
+// 支撑臂
+const armG = new THREE.CylinderGeometry(0.04, 0.04, 0.9, 16);
+const armMsh = new THREE.Mesh(armG, new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.7, roughness: 0.3 }));
+armMsh.position.set(0, 0.6, 0); antGrp.add(armMsh);
+// 馈源
+const feedHornG = new THREE.CylinderGeometry(0.04, 0.07, 0.35, 16);
+antGrp.add(new THREE.Mesh(feedHornG, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8, roughness: 0.15 })).translateY(1.1));
+body.add(antGrp);
+
+// 推进系统 — 490N 主发动机喷管（底部中央）
+const mainNozG = new THREE.CylinderGeometry(0.2, 0.45, 0.9, 24);
+const mainNoz = new THREE.Mesh(mainNozG, new THREE.MeshStandardMaterial({ color: 0x3a3a3a, metalness: 0.9, roughness: 0.15 }));
+mainNoz.position.y = -H_BODY / 2 - 0.5; mainNoz.castShadow = true;
+body.add(mainNoz);
+// 喷管内壁
+const nozInnerG = new THREE.CylinderGeometry(0.2, 0.22, 0.85, 24);
+body.add(new THREE.Mesh(nozInnerG, new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.95, roughness: 0.05 })).translateY(-H_BODY / 2 - 0.48));
+
+// 姿控推力器（×8，分布在六棱柱各个面）
+const thrG = new THREE.CylinderGeometry(0.04, 0.08, 0.2, 12);
+const thrM = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.85, roughness: 0.2 });
+for (let i = 0; i < 6; i++) {
+  const a = (i / 6) * Math.PI * 2;
+  for (let yOff of [-0.6, 0.6]) {
+    const thr = new THREE.Mesh(thrG, thrM);
+    thr.position.set(R_BODY * 1.05 * Math.cos(a), yOff, R_BODY * 1.05 * Math.sin(a));
+    thr.rotation.z = -a + Math.PI / 2;
+    thr.rotation.x = Math.PI / 2;
+    body.add(thr);
+  }
+}
+
+// MLI 棱边接缝线
+for (let i = 0; i < 6; i++) {
+  const a = (i / 6) * Math.PI * 2;
+  const x = R_BODY * 1.003 * Math.cos(a), z = R_BODY * 1.003 * Math.sin(a);
+  body.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, -H_BODY / 2, z), new THREE.Vector3(x, H_BODY / 2, z)]),
+    new THREE.LineBasicMaterial({ color: 0x7a6020, transparent: true, opacity: 0.4 }),
+  ));
+}
+
+/* ============================================================
+ *  太阳翼构建 — 单侧 Z 型折叠
+ *
+ *  层次：
+ *  wingGroup (定位于本体侧面)
+ *   └ yokeHingeG   (连接架铰链，绕 Z 旋转 θ_yoke)
+ *        ├ yokeMesh
+ *        └ panel1HG (板1铰链，绕 Z 旋转 +θ_panel)  ← Z-fold 正向
+ *             ├ panel1Mesh
+ *             └ panel2HG (板2铰链，绕 Z 旋转 -θ_panel) ← Z-fold 反向
+ *                  ├ panel2Mesh
+ *                  └ panel3HG (板3铰链，绕 Z 旋转 +θ_panel) ← Z-fold 正向
+ *                       └ panel3Mesh
+ * ============================================================ */
+const panelTex  = createPanelTexture();
+// ★ 面板 X=长, Z=宽, Y=厚 → 宽面水平（像机翼平铺），非"竖墙"
+const panelGF   = new THREE.BoxGeometry(L_PANEL, T_PANEL, W_PANEL);
+const panelMatF = new THREE.MeshStandardMaterial({
+  map: panelTex, color: 0xbbbbbb,
+  metalness: 0.45, roughness: 0.35,  // 砷化镓有金属光泽
+  side: THREE.FrontSide,
+});
+const panelMatB = new THREE.MeshStandardMaterial({
+  color: 0x667788, metalness: 0.3, roughness: 0.55,  // 碳纤维基板背面
+  side: THREE.FrontSide,
+});
+
+const yokeG  = new THREE.BoxGeometry(L_YOKE, 0.06, 0.15);
+const yokeM  = new THREE.MeshStandardMaterial({ color: C_YOKE, metalness: 0.55, roughness: 0.35 });
+const hingeG = new THREE.CylinderGeometry(0.06, 0.06, W_PANEL * 0.65, 36);
+const hingeM = new THREE.MeshStandardMaterial({ color: C_HINGE, metalness: 0.8, roughness: 0.22, emissive: 0x110800, emissiveIntensity: 0.2 });
+
+function createPanel() {
+  const g = new THREE.Group();
+  const f = new THREE.Mesh(panelGF, panelMatF); f.castShadow = true;
+  const b = new THREE.Mesh(panelGF, panelMatB); b.castShadow = true;
+  g.add(f); g.add(b);
+  g.position.set(0, 0, 0);
+  return g;
+}
+
+function createWing(side) {
+  const wing = new THREE.Group();
+  wing.position.set(R_BODY * side, -H_BODY * 0.1, 0);
+  wing.scale.x = side;
+
+  // 根部铰链组（绕 Z 旋转）
+  const yokeHG = new THREE.Group(); wing.add(yokeHG);
+
+  const yokeMsh = new THREE.Mesh(yokeG, yokeM);
+  yokeMsh.position.set(L_YOKE / 2, 0, 0); yokeMsh.castShadow = true;
+  yokeHG.add(yokeMsh);
+
+  const yHinge = new THREE.Mesh(hingeG, hingeM);
+  yHinge.rotation.x = Math.PI / 2; yHinge.castShadow = true;
+  yokeHG.add(yHinge);
+
+  // 绳轮（小圆环，示意同步缆绳机构）
+  const pulleyG = new THREE.TorusGeometry(0.08, 0.025, 12, 20);
+  const pulleyM = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.85, roughness: 0.2 });
+  [-0.35, 0.35].forEach(zOff => {
+    const p = new THREE.Mesh(pulleyG, pulleyM);
+    p.position.set(0, 0, zOff); p.rotation.y = Math.PI / 2;
+    yokeHG.add(p);
+  });
+
+  let parentG = yokeHG;
+  let parentX  = L_YOKE;
+  const hgs = [];
+  const sign = [1, -1, 1]; // Z-fold: 相邻板反向折叠
+
+  for (let i = 0; i < N_PANELS; i++) {
+    const hg = new THREE.Group();
+    hg.position.set(parentX, 0, 0);
+    parentG.add(hg);
+
+    const pnl = createPanel();
+    pnl.position.set(L_PANEL / 2, 0, 0);
+    hg.add(pnl);
+
+    const h = new THREE.Mesh(hingeG, hingeM);
+    h.rotation.x = Math.PI / 2; h.castShadow = true;
+    hg.add(h);
+
+    // 板间绳轮
+    [-0.35, 0.35].forEach(zOff => {
+      const p = new THREE.Mesh(pulleyG, pulleyM);
+      p.position.set(0, 0, zOff); p.rotation.y = Math.PI / 2;
+      hg.add(p);
+    });
+
+    hgs.push({ group: hg, sign: sign[i] });
+    parentG = hg;
+    parentX  = L_PANEL;
+  }
+
+  return { wing, yokeHG, panelHGs: hgs };
+}
+
+const rightW = createWing(1);
+const leftW  = createWing(-1);
+scene.add(rightW.wing);
+scene.add(leftW.wing);
+
+// 最终展开包络：帮助观察折叠状态如何过渡到全展翼展。
+const guideMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false });
+[-1, 1].forEach(side => {
+  const span = L_YOKE + N_PANELS * L_PANEL;
+  const guide = new THREE.Mesh(new THREE.BoxGeometry(span, 0.012, W_PANEL), guideMat);
+  guide.position.set(side * (R_BODY + span / 2), -H_BODY * 0.1, 0);
+  scene.add(guide);
+});
+
+/* ============================================================
+ *  轨道参考虚线
+ * ============================================================ */
+const orbPts = [];
+for (let i = 0; i <= 128; i++) {
+  const a = (i / 128) * Math.PI * 2;
+  orbPts.push(new THREE.Vector3(42 * Math.cos(a), 0, 42 * Math.sin(a)));
+}
+const orbLine = new THREE.Line(
+  new THREE.BufferGeometry().setFromPoints(orbPts),
+  new THREE.LineDashedMaterial({ color: 0x334466, dashSize: 3, gapSize: 1.5 }),
+);
+orbLine.computeLineDistances();
+orbLine.position.set(0, -3, 0); orbLine.rotation.x = Math.PI * 0.15;
+scene.add(orbLine);
+
+function cylinderBetween(pA, pB, radius, material) {
+  const dir = new THREE.Vector3().subVectors(pB, pA);
+  const len = dir.length();
+  const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, len, 16), material);
+  mesh.position.copy(mid);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+  return mesh;
+}
+
+// 太阳方向标识，替代调试坐标轴，让场景信息更贴合航天器工作状态。
+const sunGuide = new THREE.Group();
+const sunMat = new THREE.MeshBasicMaterial({ color: 0xffd166 });
+const sunStart = new THREE.Vector3(8.8, 5.2, 7.2);
+const sunEnd = new THREE.Vector3(5.3, 2.8, 4.2);
+sunGuide.add(cylinderBetween(sunStart, sunEnd, 0.025, sunMat));
+const sunHead = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.38, 24), sunMat);
+sunHead.position.copy(sunEnd);
+sunHead.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(sunEnd, sunStart).normalize());
+sunGuide.add(sunHead);
+const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 16), new THREE.MeshBasicMaterial({ color: 0xfff0b0 }));
+sunDisc.position.copy(sunStart);
+sunGuide.add(sunDisc);
+scene.add(sunGuide);
+
+/* ============================================================
+ *  展开状态机
+ * ============================================================ */
+function getDeploymentState(t) {
+  // ★ 连接架：π/2(竖直贴体) → 0(水平外展)
+  const sY = Math.min(Math.max(t / T_YOKE, 0), 1);
+  const thetaYoke = (Math.PI / 2) * (1 - smoothstep01(sY));
+  let omegaYoke = 0;
+  if (t > 0 && t < T_YOKE) omegaYoke = -(Math.PI / 2) * smoothstepDeriv(sY) / T_YOKE;
+
+  // ★ 板间铰链：π(折叠) → 0(全展) — Z 折叠释放
+  let thetaPanel = Math.PI, omegaPanel = 0, phase = '收拢锁止', pi = 0;
+
+  if (t <= 0.01) { phase = '收拢锁止'; pi = 0; }
+  else if (t < T_YOKE) { phase = '连接架外翻'; pi = 2; }
+  else if (t < T_TOTAL) {
+    const tRel = t - T_YOKE;
+    const sP = Math.min(tRel / T_PANELS, 1);
+    thetaPanel = Math.PI * (1 - smoothstep01(sP));
+    omegaPanel = -Math.PI * smoothstepDeriv(sP) / T_PANELS;
+    phase = 'Z型展开'; pi = 3;
+  } else { thetaPanel = 0; thetaYoke = 0; phase = '到位锁定'; pi = 4; }
+
+  return { thetaYoke, thetaPanel, omegaYoke, omegaPanel, phase, pi };
+}
+
+function applyState(s) {
+  // 在 X-Z 平面内展开：最终姿态是两翼从本体侧向水平伸出。
+  rightW.yokeHG.rotation.y =  s.thetaYoke;
+  leftW.yokeHG.rotation.y  =  s.thetaYoke;
+  rightW.panelHGs.forEach(h => { h.group.rotation.y =  h.sign * s.thetaPanel; });
+  leftW.panelHGs.forEach(h  => { h.group.rotation.y =  h.sign * s.thetaPanel; });
+}
+
+function tipPos(yokeA, panelA, side) {
+  const rx = R_BODY * side, ry = -H_BODY * 0.1;
+  let x = rx + L_YOKE * Math.cos(yokeA) * side;
+  let z = L_YOKE * Math.sin(yokeA) * side;
+  let cum = yokeA;
+  const signs = [1, -1, 1];
+  for (let i = 0; i < N_PANELS; i++) {
+    cum += signs[i] * panelA;
+    x += L_PANEL * Math.cos(cum) * side;
+    z += L_PANEL * Math.sin(cum) * side;
+  }
+  return new THREE.Vector3(x, ry, z);
+}
+
+/* ============================================================
+ *  动画（展开到位即停）
+ * ============================================================ */
+const clock = new THREE.Clock();
+let animT = 0, done = false;
+
+function updUI(pi) {
+  for (let i = 0; i < 5; i++) {
+    const el = document.getElementById('step' + i);
+    if (el) el.classList.toggle('active', i === pi);
+  }
+}
+
+applyState(getDeploymentState(0));
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  if (!done) {
+    animT += dt;
+    if (animT >= T_TOTAL) { animT = T_TOTAL; done = true; }
+  }
+
+  // ★ 强制捕获 done 状态以更新 UI
+  const s = done
+    ? { thetaYoke: 0, thetaPanel: 0, omegaYoke: 0, omegaPanel: 0, phase: '到位锁定', pi: 4 }
+    : getDeploymentState(animT);
+
+  applyState(s);
+  const tp = tipPos(s.thetaYoke, s.thetaPanel, 1);
+
+  document.getElementById('v_t').textContent      = animT.toFixed(2) + (done ? ' (完成)' : '');
+  document.getElementById('v_theta0').textContent = (s.thetaYoke * 180 / Math.PI).toFixed(1) + '°';
+  document.getElementById('v_thetap').textContent = (s.thetaPanel * 180 / Math.PI).toFixed(1) + '°';
+  document.getElementById('v_omega').textContent  = (s.omegaPanel * 180 / Math.PI).toFixed(2) + ' °/s';
+  document.getElementById('v_rtip').textContent   = tp.length().toFixed(2) + ' m';
+  document.getElementById('v_phase').textContent  = s.phase;
+  updUI(s.pi);
+
+  // 到位后微动提示：火星缓慢自转（证明场景活跃，相机正常）
+  mars.rotation.y += dt * 0.03;
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+document.getElementById('btnReplay').addEventListener('click', () => {
+  animT = 0; done = false; clock.getDelta();
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

@@ -94,7 +94,29 @@ const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth,innerHeight);
 renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.2;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
+
+function createEDLEnvTexture(){
+  const c=document.createElement('canvas');c.width=512;c.height=256;
+  const ctx=c.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,'#020614');g.addColorStop(0.42,'#25150d');
+  g.addColorStop(0.55,'#a8663d');g.addColorStop(1,'#080405');
+  ctx.fillStyle=g;ctx.fillRect(0,0,512,256);
+  const sg=ctx.createRadialGradient(382,52,0,382,52,128);
+  sg.addColorStop(0,'rgba(255,245,220,1)');
+  sg.addColorStop(0.25,'rgba(255,198,120,0.55)');
+  sg.addColorStop(1,'rgba(255,130,40,0)');
+  ctx.fillStyle=sg;ctx.fillRect(220,0,292,180);
+  const tex=new THREE.CanvasTexture(c);
+  tex.colorSpace=THREE.SRGBColorSpace;
+  tex.mapping=THREE.EquirectangularReflectionMapping;
+  return tex;
+}
+scene.environment=createEDLEnvTexture();
 
 const controls=new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,500,0);controls.enableDamping=true;controls.dampingFactor=0.08;
@@ -157,19 +179,44 @@ const starSph=new THREE.Mesh(new THREE.SphereGeometry(120000,64,32),
 scene.add(starSph);
 
 /* ---- 火星模型 ---- */
-  const marsGlobe = new THREE.Group(); marsGlobe.visible = false; scene.add(marsGlobe);
-  new GLTFLoader().load('mars.glb', (gltf) => {
-    const model = gltf.scene;
-    const box = new THREE.Box3().setFromObject(model);
-    const center = new THREE.Vector3(); box.getCenter(center);
-    const size = new THREE.Vector3(); box.getSize(size);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const s = 500 / maxDim;
-    model.scale.setScalar(s);
-    model.position.set(-center.x * s, -center.y * s, -center.z * s);
-    marsGlobe.add(model);
-    marsGlobe.visible = true;
+function createMarsFallbackTexture(size){
+  const c=document.createElement('canvas');c.width=size;c.height=size/2;
+  const ctx=c.getContext('2d');
+  const g=ctx.createLinearGradient(0,0,size,size/2);
+  g.addColorStop(0,'#d2a077');g.addColorStop(0.5,'#a86542');g.addColorStop(1,'#6c3e2a');
+  ctx.fillStyle=g;ctx.fillRect(0,0,size,size/2);
+  for(let i=0;i<900;i++){
+    const x=Math.random()*size,y=Math.random()*size/2,r=1+Math.random()*28;
+    const grd=ctx.createRadialGradient(x,y,0,x,y,r);
+    grd.addColorStop(0,`rgba(55,24,12,${0.08+Math.random()*0.18})`);
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
+  const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+  return tex;
+}
+const marsGlobe = new THREE.Group(); scene.add(marsGlobe);
+const marsFallback = new THREE.Mesh(new THREE.SphereGeometry(500,96,64),
+  new THREE.MeshStandardMaterial({map:createMarsFallbackTexture(1536),roughness:0.9,metalness:0.0,color:0xffffff}));
+marsFallback.receiveShadow=true; marsGlobe.add(marsFallback);
+new GLTFLoader().load('/animations/mars.glb', (gltf) => {
+  marsGlobe.clear();
+  const model = gltf.scene;
+  const box = new THREE.Box3().setFromObject(model);
+  const center = new THREE.Vector3(); box.getCenter(center);
+  const size = new THREE.Vector3(); box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const s = 1000 / maxDim;
+  model.scale.setScalar(s);
+  model.position.set(-center.x * s, -center.y * s, -center.z * s);
+  model.traverse((obj)=>{
+    if(obj.isMesh){
+      obj.castShadow=true;obj.receiveShadow=true;
+      if(obj.material){obj.material.metalness=0;obj.material.roughness=Math.max(obj.material.roughness ?? 0.8,0.72);}
+    }
   });
+  marsGlobe.add(model);
+});
 
 // 大气光晕
 const atmoG=new THREE.SphereGeometry(512,64,32);
@@ -199,19 +246,35 @@ lander.add(new THREE.Mesh(new THREE.TorusGeometry(13.5,0.5,16,64),
 
 // 背罩
 const bs=new THREE.Group();bs.position.y=5;lander.add(bs);
-bs.add(new THREE.Mesh(new THREE.CylinderGeometry(12,14,8,32),
-  new THREE.MeshStandardMaterial({color:0x8b7355,roughness:0.5,metalness:0.4})).position.set(0,4,0));
-bs.add(new THREE.Mesh(new THREE.ConeGeometry(6,3,24),
-  new THREE.MeshStandardMaterial({color:0xa08860,roughness:0.45,metalness:0.5})).position.set(0,9.5,0));
+const backShell = new THREE.Mesh(new THREE.CylinderGeometry(12,14,8,32),
+  new THREE.MeshStandardMaterial({color:0x8b7355,roughness:0.5,metalness:0.4}));
+backShell.position.set(0,4,0); bs.add(backShell);
+const backCone = new THREE.Mesh(new THREE.ConeGeometry(6,3,24),
+  new THREE.MeshStandardMaterial({color:0xa08860,roughness:0.45,metalness:0.5}));
+backCone.position.set(0,9.5,0); bs.add(backCone);
 
 // 着陆平台
 const plat=new THREE.Group();plat.position.y=6;lander.add(plat);
 plat.add(new THREE.Mesh(new THREE.CylinderGeometry(7,8.5,4,32),
   new THREE.MeshStandardMaterial({color:0xd4a574,roughness:0.4,metalness:0.5})));
-plat.add(new THREE.Mesh(new THREE.CylinderGeometry(6,7,1,32),
-  new THREE.MeshStandardMaterial({color:0xc49464,roughness:0.35,metalness:0.55})).position.set(0,2.5,0));
-plat.add(new THREE.Mesh(new THREE.BoxGeometry(4,0.2,2.5),
-  new THREE.MeshStandardMaterial({color:0xe0c090,roughness:0.3,metalness:0.6})).position.set(0,3.1,0));
+const platformTop = new THREE.Mesh(new THREE.CylinderGeometry(6,7,1,32),
+  new THREE.MeshStandardMaterial({color:0xc49464,roughness:0.35,metalness:0.55}));
+platformTop.position.set(0,2.5,0); plat.add(platformTop);
+const platformDeck = new THREE.Mesh(new THREE.BoxGeometry(4,0.2,2.5),
+  new THREE.MeshStandardMaterial({color:0xe0c090,roughness:0.3,metalness:0.6}));
+platformDeck.position.set(0,3.1,0); plat.add(platformDeck);
+// 下降坡道与测距雷达舱，增强着陆平台辨识度
+[-1,1].forEach(s=>{
+  const ramp=new THREE.Mesh(new THREE.BoxGeometry(0.45,0.12,4.8),
+    new THREE.MeshStandardMaterial({color:0xb88a5a,roughness:0.48,metalness:0.35}));
+  ramp.position.set(s*3.1,1.2,0);ramp.rotation.z=s*0.42;ramp.castShadow=true;plat.add(ramp);
+});
+const radarBox=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.45,1.25),
+  new THREE.MeshStandardMaterial({color:0x6f6250,roughness:0.55,metalness:0.28}));
+radarBox.position.set(0,3.65,0);radarBox.castShadow=true;plat.add(radarBox);
+const topRover=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.35,1.25),
+  new THREE.MeshStandardMaterial({color:0xcaa26a,roughness:0.45,metalness:0.35}));
+topRover.position.set(0,4.15,0);topRover.castShadow=true;plat.add(topRover);
 
 // 反推喷口(4)
 const tg=new THREE.CylinderGeometry(0.8,1.3,4,16,1,true);
@@ -229,7 +292,9 @@ const lm2=new THREE.MeshStandardMaterial({color:0x999999,roughness:0.3,metalness
 for(let i=0;i<4;i++){
   const a=i/4*Math.PI*2;
   const lr=new THREE.Group();
-  lr.add(new THREE.Mesh(new THREE.BoxGeometry(0.6,0.6,5),lm2).rotation.set(0,0,Math.PI/2));
+  const legBrace = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 5), lm2);
+  legBrace.rotation.set(0, 0, Math.PI / 2);
+  lr.add(legBrace);
   const arm2=new THREE.Mesh(lg2,lm2);arm2.position.y=-4.5;arm2.rotation.z=0.35;lr.add(arm2);
   const ft=new THREE.Mesh(fg2,lm2);ft.position.set(Math.cos(0.35)*9,-9,0);lr.add(ft);
   lr.rotation.y=a;lr.position.y=-1.5;plat.add(lr);
@@ -251,13 +316,21 @@ const cTex=new THREE.CanvasTexture(ccCanvas);
 const canopy=new THREE.Mesh(new THREE.SphereGeometry(22,56,28,0,Math.PI*2,0,Math.PI/2.2),
   new THREE.MeshStandardMaterial({map:cTex,roughness:0.85,side:THREE.DoubleSide,metalness:0.05}));
 chute.add(canopy);
-const lm3=new THREE.LineBasicMaterial({color:0xcccccc});
-// 伞绳从伞缘 (r=21, y=1.5) 汇聚到背罩连接点 (r=2, y=-45)
+function tubeBetween(p0,p1,r,mat){
+  const curve=new THREE.CatmullRomCurve3([p0,p1]);
+  return new THREE.Mesh(new THREE.TubeGeometry(curve,16,r,8,false),mat);
+}
+const cordMat=new THREE.MeshStandardMaterial({color:0xd8d5ca,roughness:0.65,metalness:0.02});
+const ribMat=new THREE.MeshStandardMaterial({color:0xf7f0df,roughness:0.75,metalness:0.02});
+const skirt=new THREE.Mesh(new THREE.TorusGeometry(21.2,0.18,12,96),ribMat);
+skirt.rotation.x=Math.PI/2;skirt.position.y=1.2;chute.add(skirt);
+// 伞绳从伞缘 (r=21, y=1.5) 汇聚到背罩连接点 (r=2, y=-45)，使用有厚度的绳索
 for(let i=0;i<16;i++){
   const ang=i/16*Math.PI*2;
-  chute.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(Math.cos(ang)*21,1.5,Math.sin(ang)*21),
-    new THREE.Vector3(Math.cos(ang)*2,-45,Math.sin(ang)*2)]),lm3));
+  const rim=new THREE.Vector3(Math.cos(ang)*21,1.5,Math.sin(ang)*21);
+  const attach=new THREE.Vector3(Math.cos(ang)*2,-45,Math.sin(ang)*2);
+  chute.add(tubeBetween(rim,attach,0.045,cordMat));
+  chute.add(tubeBetween(new THREE.Vector3(0,20,0),rim,0.055,ribMat));
 }
 chute.visible=false;
 
@@ -413,13 +486,30 @@ lzTex.colorSpace = THREE.SRGBColorSpace;
 
 const lzTerrain = new THREE.Mesh(lzGeom, new THREE.MeshStandardMaterial({
   map: lzTex,
-  roughness: 0.78, metalness: 0.02,
-  color: new THREE.Color('#c08060'),
+  roughness: 0.92, metalness: 0.0,
+  color: new THREE.Color('#a96f4d'),
 }));
 lzTerrain.position.y = 500;
 lzTerrain.receiveShadow = true;
 lzTerrain.visible = false;
 scene.add(lzTerrain);
+
+// 近地避障扫描投影：悬停段显示多圈测距/避障扫描，而不是装饰光柱。
+const scanGroup = new THREE.Group(); scanGroup.visible = false; scene.add(scanGroup);
+const scanMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.23, side: THREE.DoubleSide, depthWrite: false });
+[18, 36, 58].forEach(r => {
+  const ring = new THREE.Mesh(new THREE.RingGeometry(r - 0.45, r + 0.45, 96), scanMat);
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 500.35; scanGroup.add(ring);
+});
+const hazardMat = new THREE.MeshBasicMaterial({ color: 0xffcc33, transparent: true, opacity: 0.70, side: THREE.DoubleSide, depthWrite: false });
+for (let i = 0; i < 16; i++) {
+  const a = Math.random() * Math.PI * 2, r = 12 + Math.random() * 52;
+  const x = Math.cos(a) * r, z = Math.sin(a) * r;
+  const dot = new THREE.Mesh(new THREE.CircleGeometry(1.0 + Math.random() * 1.3, 24), hazardMat);
+  dot.rotation.x = -Math.PI / 2;
+  dot.position.set(x, 500 + lzH(x, z) + 0.08, z);
+  scanGroup.add(dot);
+}
 
 // 石块 — 均匀随机分布，不在中心 8 单位内
 const lzdRocks = [];
@@ -463,6 +553,26 @@ for (let i = 0; i < 200; i++) {
   scene.add(rock);
   lzdRocks.push(rock);
 }
+
+// 抛离后的 EDL 残骸：防热大底、背罩、降落伞，近地阶段作为真实场景参照。
+const debrisGroup = new THREE.Group(); debrisGroup.visible = false; scene.add(debrisGroup);
+function putDebris(obj, x, z, lift=0) {
+  obj.position.set(x, 500 + lzH(x, z) + lift, z);
+  debrisGroup.add(obj);
+}
+const heatShieldDebris = new THREE.Mesh(new THREE.SphereGeometry(9, 48, 22, 0, Math.PI * 2, 0, Math.PI / 3),
+  new THREE.MeshStandardMaterial({ color: 0x2c1a0c, roughness: 0.82, metalness: 0.18, side: THREE.DoubleSide }));
+heatShieldDebris.rotation.set(Math.PI, 0.2, -0.35); heatShieldDebris.castShadow = true;
+putDebris(heatShieldDebris, 110, -130, 2.5);
+const backShellDebris = new THREE.Mesh(new THREE.SphereGeometry(8, 42, 20, 0, Math.PI * 2, 0, Math.PI / 2.15),
+  new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.62, metalness: 0.28, side: THREE.DoubleSide }));
+backShellDebris.rotation.set(Math.PI, 0.6, 0.24); backShellDebris.castShadow = true;
+putDebris(backShellDebris, -120, 86, 2.0);
+const flatChute = new THREE.Mesh(new THREE.CircleGeometry(24, 96), new THREE.MeshStandardMaterial({
+  map: cTex, roughness: 0.88, metalness: 0.02, side: THREE.DoubleSide,
+}));
+flatChute.rotation.x = -Math.PI / 2; flatChute.rotation.z = 0.45;
+putDebris(flatChute, -150, 116, 0.08);
 
 /* ---- 状态 ---- */
 let state={phase:0,altitude:125000,velocity:4800,simTime:0};
@@ -528,7 +638,10 @@ function updateLander(){
   const showLZ = (state.phase >= 2 && state.altitude < 2000) || state.phase >= 3;
   lzTerrain.visible = showLZ;
   lzdRocks.forEach(r => r.visible = showLZ);
-  marsGlobe.visible = !showLZ || state.altitude > 500;
+  debrisGroup.visible = showLZ;
+  scanGroup.visible = state.phase === 3;
+  if (scanGroup.visible) scanGroup.rotation.y += 0.018;
+  marsGlobe.visible = true;
   atmo.visible = !showLZ;
   // 近地启用雾来隐藏远处地形边缘
   scene.fog = showLZ ? new THREE.Fog(0xc49060, 300, 700) : new THREE.FogExp2(0x000010, 0.00000012);
@@ -571,6 +684,7 @@ window.restartEDL=function(){
   plasmaPool.forEach(p=>{p.visible=false;p.userData.age=0;});
   flamePool.forEach(p=>{p.visible=false;p.userData.age=0;});
   lzTerrain.visible=false;marsGlobe.visible=true;atmo.visible=true;
+  debrisGroup.visible=false;scanGroup.visible=false;
   scene.fog=new THREE.FogExp2(0x000010,0.00000012);
   lzdRocks.forEach(r=>r.visible=false);
 };

@@ -1,56 +1,63 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><title>日内瓦机构</title>
-<style>body{margin:0;overflow:hidden;background:#1a1d24;font-family:sans-serif}
-#info{position:absolute;top:20px;left:20px;background:rgba(0,0,0,.6);color:#eee;padding:8px 15px;border-radius:8px;z-index:10;font-size:14px;border-left:4px solid #ffaa33}
-.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
-</style></head><body>
-<div id="info"><span class="dot" style="background:#3a7bd5"></span>主动盘 <span class="dot" style="background:#e63946"></span>从动槽轮 <span class="dot" style="background:#f4d03f"></span>驱动销</div>
-<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.128.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.128.0/examples/jsm/"}}</script>
-<script type="module">
-import * as T from "three";
-import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-var S=new T.Scene();S.background=new T.Color("#1a1d24");
-var C=new T.PerspectiveCamera(45,innerWidth/innerHeight,0.1,30);C.position.set(0,0,10);C.lookAt(0,0,0);
-var R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.appendChild(R.domElement);
-var O=new OrbitControls(C,R.domElement);O.enableDamping=true;O.target.set(0,0,0);O.update();
-S.add(new T.AmbientLight("#3a4050",2.5));
-var dL=new T.DirectionalLight("#ffffff",5);dL.position.set(6,8,5);dL.castShadow=true;dL.shadow.mapSize.width=2048;dL.shadow.mapSize.height=2048;S.add(dL);
-var fL=new T.DirectionalLight("#8a9bb5",2);fL.position.set(-3,2,-3);S.add(fL);
-var gH=new T.GridHelper(14,22,"#3a3f4a","#252830");gH.position.y=-4;S.add(gH);
-var gP=new T.PlaneGeometry(18,18);var gM=new T.MeshStandardMaterial({color:"#1e2128",roughness:0.9,metalness:0.15});var gO=new T.Mesh(gP,gM);gO.rotation.x=-Math.PI/2;gO.position.y=-4.1;gO.receiveShadow=true;S.add(gO);
-var mB=new T.MeshStandardMaterial({color:"#3a7bd5",roughness:0.25,metalness:0.55});
-var mP=new T.MeshStandardMaterial({color:"#e63946",roughness:0.25,metalness:0.55});
-var mG=new T.MeshStandardMaterial({color:"#f4d03f",roughness:0.2,metalness:0.85});
-var mD=new T.MeshStandardMaterial({color:"#4a4f5a",roughness:0.55,metalness:0.5});
-var mL=new T.MeshStandardMaterial({color:"#2563eb",roughness:0.2,metalness:0.6});
-var Cd=1.8;var crankR=1.4;var dR=0.6;var lockR=1.7;var gR=3.2;var sL=2.2;var sW=0.22;var pinR=0.09;var slots=4;
-var dG=new T.Group();dG.position.set(Cd,0,0);S.add(dG);
-var bG=new T.CylinderGeometry(dR,dR,0.06,48);
-var bM=new T.Mesh(bG,mB);bM.position.z=-0.03;bM.castShadow=true;dG.add(bM);
-var cG=new T.TorusGeometry((dR+lockR)/2,(lockR-dR)/2,8,48,4.9);
-var cM=new T.Mesh(cG,mL);cM.position.z=0.06;cM.rotation.z=0.69;cM.castShadow=true;dG.add(cM);
-var aG=new T.BoxGeometry(crankR,0.06,0.05);
-var aM=new T.Mesh(aG,mB);aM.position.set(-crankR/2,0,0);dG.add(aM);
-var pG=new T.CylinderGeometry(pinR,pinR,0.22,24);
-var pM=new T.Mesh(pG,mG);pM.rotation.x=Math.PI/2;pM.position.set(-crankR,0,0);dG.add(pM);
-var hG=new T.CylinderGeometry(0.28,0.28,0.15,24);
-var hM=new T.Mesh(hG,mG);hM.position.z=0.12;dG.add(hM);
-var sG=new T.CylinderGeometry(0.05,0.05,0.50,10);
-var sM=new T.Mesh(sG,mD);sM.position.z=0.22;dG.add(sM);
-var gG2=new T.Group();gG2.position.set(-Cd,0,0);S.add(gG2);
-var dG2=new T.CylinderGeometry(gR,gR,0.08,48);
-var dM=new T.Mesh(dG2,mP);dM.position.z=-0.04;dM.castShadow=true;gG2.add(dM);
-var so3=gR-0.04;
-for(var i=0;i<slots;i++){var a=i*Math.PI*2/slots;var slG=new T.BoxGeometry(sW,0.10,sL);var slM=new T.Mesh(slG,mD);slM.position.set(Math.cos(a)*(so3-sL/2),Math.sin(a)*(so3-sL/2),0);slM.rotation.z=a;gG2.add(slM);}
-var h2G=new T.CylinderGeometry(0.38,0.38,0.15,24);
-var h2M=new T.Mesh(h2G,mG);h2M.position.z=0.12;gG2.add(h2M);
-var s2G=new T.CylinderGeometry(0.05,0.05,0.50,10);
-var s2M=new T.Mesh(s2G,mD);s2M.position.z=0.22;gG2.add(s2M);
-var p1G=new T.CylinderGeometry(0.10,0.14,3,8);var p1M=new T.Mesh(p1G,mD);p1M.position.set(-Cd,-3.5,0);p1M.castShadow=true;S.add(p1M);
-var p2G=new T.CylinderGeometry(0.10,0.14,3,8);var p2M=new T.Mesh(p2G,mD);p2M.position.set(Cd,-3.5,0);p2M.castShadow=true;S.add(p2M);
-var ptG=new T.BufferGeometry();var ptA=new Float32Array(240);for(var i=0;i<240;i+=3){ptA[i]=(Math.random()-0.5)*18;ptA[i+1]=(Math.random()-0.5)*12;ptA[i+2]=(Math.random()-0.5)*8;}ptG.setAttribute("position",new T.BufferAttribute(ptA,3));var ptM=new T.PointsMaterial({color:"#bcc6d0",size:0.05,opacity:0.4,depthWrite:false});var ptO=new T.Points(ptG,ptM);S.add(ptO);
-function gRot(d){var p=((d%(Math.PI*2))+Math.PI*2)%(Math.PI*2);var seg=Math.PI*2/slots;var idx=Math.floor(p/seg);var lp=p-idx*seg;var en=Math.PI/2-Math.PI/slots;var ex=Math.PI/2+Math.PI/slots;if(lp<en)return idx*seg;if(lp>ex)return(idx+1)*seg;return idx*seg+(lp-en)/(ex-en)*seg;}
-var ang=0;
-function anim(){requestAnimationFrame(anim);ang+=0.02;dG.rotation.z=ang%(Math.PI*2);gG2.rotation.z=gRot(ang%(Math.PI*2));ptO.rotation.z+=0.0004;O.update();R.render(S,C);}anim();
-window.addEventListener("resize",function(){C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight);});
-</script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>日内瓦机构 · 间歇分度运动</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
+    #hud{position:absolute;left:16px;top:16px;max-width:430px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
+    #legend{position:absolute;right:16px;bottom:16px;padding:8px 12px;background:rgba(10,12,24,.65);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px}
+    .run{color:#a6e3a1}.dw{color:#f9e2af}.pin{color:#f38ba8}
+  </style>
+</head>
+<body>
+  <div id="hud"><b>外啮合日内瓦机构：连续转动 → 间歇转动</b><br>
+    主动轮每转一周，驱动销进入槽轮一次，使四槽槽轮分度 90°。<br>
+    销离槽期间由锁止圆盘与锁止弧保持停歇。<br>
+    状态：<span id="state" class="run">--</span>，槽轮角：<span id="angle" class="dw">--</span>°
+  </div>
+  <div id="legend"><span class="pin">粉色销</span>：驱动分度　<span class="dw">黄色弧</span>：锁止停歇</div>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
+    const {scene,camera,controls,composer}=quickSetup({cameraPos:[0,-6.2,5.4],target:[0,0,0],fov:42,near:.1,far:80,exposure:1.1});
+    scene.add(new THREE.GridHelper(6,24,0x39415f,0x20263a));
+
+    const drive=new THREE.Group(), wheel=new THREE.Group(); scene.add(drive,wheel);
+    const driveCenter=new THREE.Vector3(-1.15,0,.05), genevaCenter=new THREE.Vector3(1.05,0,.05);
+    drive.position.copy(driveCenter); wheel.position.copy(genevaCenter);
+    const matDrive=MaterialPresets.anodizedAluminum(0x89b4fa), matWheel=MaterialPresets.anodizedAluminum(0xa6e3a1);
+    const matLock=new THREE.MeshStandardMaterial({color:0xf9e2af,roughness:.35,metalness:.55});
+    const matPin=new THREE.MeshStandardMaterial({color:0xf38ba8,roughness:.25,metalness:.65,emissive:0x331018,emissiveIntensity:.25});
+
+    const driveDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.72,.72,.09,96),matDrive); driveDisk.rotation.x=Math.PI/2; drive.add(driveDisk);
+    const crankArm=new THREE.Mesh(GeometryHelpers.createRoundedLink(.62,.08,.07,.02,3),MaterialPresets.brushedAluminum()); crankArm.position.x=.31; drive.add(crankArm);
+    const pin=new THREE.Mesh(GeometryHelpers.createCylinder(.055,.055,.28,48),matPin); pin.rotation.x=Math.PI/2; pin.position.set(.62,0,.18); drive.add(pin);
+    const lockDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.38,.38,.13,96),matLock); lockDisk.rotation.x=Math.PI/2; lockDisk.position.z=.09; drive.add(lockDisk);
+
+    const genevaDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.98,.98,.1,128),matWheel); genevaDisk.rotation.x=Math.PI/2; wheel.add(genevaDisk);
+    for(let i=0;i<4;i++){
+      const slot=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.13),new THREE.MeshStandardMaterial({color:0x0a0a14,roughness:.9}));
+      slot.position.x=.48; slot.rotation.z=i*Math.PI/2; slot.position.z=.04; wheel.add(slot);
+      const end=new THREE.Mesh(GeometryHelpers.createCylinder(.075,.075,.14,48),slot.material); end.rotation.x=Math.PI/2; end.position.set(Math.cos(i*Math.PI/2)*.92,Math.sin(i*Math.PI/2)*.92,.045); wheel.add(end);
+    }
+    const lockArc=new THREE.Mesh(new THREE.TorusGeometry(.56,.055,12,96,Math.PI*.72),matLock); lockArc.position.z=.16; wheel.add(lockArc);
+
+    function ease(u){return u*u*u*(u*(u*6-15)+10);}
+    const slots=4, step=Math.PI/2, active=.34, omega=1.05;
+    createAnimationLoop(null,scene,camera,{composer,controls},(delta,elapsed)=>{
+      const phi=omega*elapsed; drive.rotation.z=phi;
+      const cyc=phi/(Math.PI*2), k=Math.floor(cyc), f=cyc-k;
+      let idx=k%slots, base=k*step, theta=base, moving=false;
+      if(f<active){theta=base+step*ease(f/active); moving=true;}
+      wheel.rotation.z=theta;
+      document.getElementById('state').textContent=moving?'驱动销在槽内，正在分度':'锁止圆盘接合，槽轮停歇';
+      document.getElementById('state').className=moving?'run':'dw';
+      document.getElementById('angle').textContent=((theta*180/Math.PI)%360).toFixed(1);
+      pin.material.emissiveIntensity=moving?.55:.12;
+      lockArc.visible=!moving;
+    }).start();
+  </script>
+</body>
+</html>

@@ -21,7 +21,17 @@
     const { scene, camera, controls, composer } = quickSetup({ cameraPos:[0,-5.6,5.2], target:[0,0,0], fov:40, near:.1, far:70, exposure:1.1 });
     scene.add(new THREE.GridHelper(5,20,0x39415f,0x20263a));
     const body=new THREE.Group(); scene.add(body);
-    const plate=new THREE.Mesh(GeometryHelpers.createRoundedLink(2.4,.62,.08,.14,4), MaterialPresets.anodizedAluminum(0x74c7ec)); plate.rotation.z=.16; body.add(plate);
+    const plateMat=new THREE.MeshStandardMaterial({
+      color:0x74c7ec, metalness:.2, roughness:.35, transparent:true, opacity:.28,
+      side:THREE.DoubleSide, depthWrite:false
+    });
+    const plate=new THREE.Mesh(new THREE.PlaneGeometry(2.15,.52), plateMat);
+    plate.rotation.z=.16; plate.position.z=.06; body.add(plate);
+    const plateEdge=new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(2.15,.52,.025)),
+      new THREE.LineBasicMaterial({color:0x74c7ec,transparent:true,opacity:.9})
+    );
+    plateEdge.rotation.z=.16; plateEdge.position.z=.075; body.add(plateEdge);
     const A=new THREE.Mesh(GeometryHelpers.createPinSphere(.07,64), MaterialPresets.brassPin()); A.position.set(-.9,0,0.11); body.add(A);
     const P=new THREE.Mesh(GeometryHelpers.createPinSphere(.07,64), MaterialPresets.polishedSteel()); P.position.set(.85,.18,0.11); body.add(P);
     const Ipt=new THREE.Mesh(GeometryHelpers.createPinSphere(.06,64), new THREE.MeshStandardMaterial({color:0xf9e2af,emissive:0xf9e2af,emissiveIntensity:.3})); scene.add(Ipt);

@@ -21,23 +21,42 @@
     const { scene, camera, controls, composer } = quickSetup({ cameraPos:[3.8,2.2,4.8], target:[0.2,0.25,0], fov:42, near:.1, far:80, exposure:1.1 });
     const groundMat=new THREE.MeshStandardMaterial({color:0x9b6644,roughness:.92});
     const ground=new THREE.Mesh(new THREE.BoxGeometry(7,.08,2.8),groundMat); ground.position.y=-.04; ground.receiveShadow=true; scene.add(ground);
-    const obstacle=new THREE.Mesh(new THREE.BoxGeometry(.75,.42,2.7),groundMat); obstacle.position.set(1.0,.21,0); obstacle.castShadow=obstacle.receiveShadow=true; scene.add(obstacle);
+    const obstacle=new THREE.Mesh(new THREE.BoxGeometry(.85,.42,2.7),groundMat); obstacle.position.set(1.0,.21,0); obstacle.castShadow=obstacle.receiveShadow=true; scene.add(obstacle);
+    const rampMat=new THREE.MeshStandardMaterial({color:0xb47a52,roughness:.9});
+    [-1,1].forEach(s=>{const ramp=new THREE.Mesh(new THREE.BoxGeometry(.58,.05,2.7),rampMat);ramp.position.set(1.0+s*.58,.03,0);ramp.rotation.z=-s*.34;ramp.receiveShadow=true;scene.add(ramp);});
     const rover=new THREE.Group(); scene.add(rover);
     const body=new THREE.Mesh(new THREE.BoxGeometry(1.4,.36,.72),MaterialPresets.anodizedAluminum(0xc49564)); body.position.y=.85; body.castShadow=true; rover.add(body);
     const wheelMat=new THREE.MeshStandardMaterial({color:0x252525,roughness:.85});
     const metal=MaterialPresets.brushedAluminum(); const R=.18, xs=[-.75,0,.75], zs=[-.62,.62], wheels=[];
-    function terrain(x){ return (Math.abs(x-1.0)<.38) ? .42 : 0; }
-    function cylBetween(a,b,r){const d=b.clone().sub(a),m=a.clone().add(b).multiplyScalar(.5);const mesh=new THREE.Mesh(GeometryHelpers.createCylinder(r,r,d.length(),48),metal);mesh.position.copy(m);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mesh.castShadow=true;return mesh;}
-    zs.forEach(z=>xs.forEach(x=>{const g=new THREE.Group();const wh=new THREE.Mesh(GeometryHelpers.createCylinder(R,R,.16,64),wheelMat);wh.rotation.x=Math.PI/2;wh.castShadow=true;g.add(wh);g.userData={baseX:x,z};rover.add(g);wheels.push(g);}));
-    const arms=new THREE.Group(); rover.add(arms);
+    function smoother(u){u=THREE.MathUtils.clamp(u,0,1);return u*u*u*(u*(u*6-15)+10);}
+    function terrain(x){
+      const H=.42, c=1.0, flat=.40, ramp=.52, d=Math.abs(x-c);
+      if(d<=flat)return H;
+      if(d>=flat+ramp)return 0;
+      return H*(1-smoother((d-flat)/ramp));
+    }
+    function createArm(r){const mesh=new THREE.Mesh(GeometryHelpers.createCylinder(r,r,1,48),metal);mesh.castShadow=true;return mesh;}
+    function setArm(mesh,a,b){const d=b.clone().sub(a),len=d.length(),mid=a.clone().add(b).multiplyScalar(.5);mesh.position.copy(mid);mesh.scale.set(1,len,1);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());}
+    zs.forEach(z=>xs.forEach(x=>{const g=new THREE.Group();const wh=new THREE.Mesh(GeometryHelpers.createCylinder(R,R,.16,64),wheelMat);wh.rotation.x=Math.PI/2;wh.castShadow=true;g.add(wh);g.userData={baseX:x,z,y:R};rover.add(g);wheels.push(g);}));
+    const armMeshes=[]; zs.forEach(z=>{for(let i=0;i<3;i++){const a=createArm(.025);rover.add(a);armMeshes.push({mesh:a,z,idx:i});}});
+    let smoothPitch=0, smoothLift=0;
     createAnimationLoop(null,scene,camera,{composer,controls},(delta,elapsed)=>{
       const x0=-1.9+((elapsed*.42)%4.2); rover.position.x=x0;
-      arms.clear();
       let frontLift=0, leftAvg=0, rightAvg=0;
-      wheels.forEach(w=>{const wx=x0+w.userData.baseX, h=terrain(wx); w.position.set(w.userData.baseX,h+R,w.userData.z); w.rotation.z-=.045; if(w.userData.baseX>.7)frontLift=h; if(w.userData.z>0)leftAvg+=h/3; else rightAvg+=h/3;});
-      const pitch=Math.atan2((terrain(x0+.75)-terrain(x0-.75)),1.5)*.32; rover.rotation.z=0; rover.rotation.x=0; rover.rotation.y=0; body.rotation.z=-pitch;
-      zs.forEach(z=>{const p=new THREE.Vector3(-.2,.72,z); const f=new THREE.Vector3(.75,wheels.find(w=>w.userData.baseX===.75&&w.userData.z===z).position.y,z); const m=new THREE.Vector3(0,wheels.find(w=>w.userData.baseX===0&&w.userData.z===z).position.y,z); const r=new THREE.Vector3(-.75,wheels.find(w=>w.userData.baseX===-.75&&w.userData.z===z).position.y,z); arms.add(cylBetween(p,f,.025),cylBetween(p,m,.025),cylBetween(m,r,.025));});
-      document.getElementById('lift').textContent=frontLift.toFixed(2); document.getElementById('pitch').textContent=(THREE.MathUtils.radToDeg(pitch)).toFixed(1);
+      const a=1-Math.exp(-delta*9);
+      wheels.forEach(w=>{const wx=x0+w.userData.baseX, h=terrain(wx); w.userData.y=THREE.MathUtils.lerp(w.userData.y,h+R,a); w.position.set(w.userData.baseX,w.userData.y,w.userData.z); w.children[0].rotation.z-=.075; if(w.userData.baseX>.7)frontLift=h; if(w.userData.z>0)leftAvg+=h/3; else rightAvg+=h/3;});
+      const targetPitch=Math.atan2((terrain(x0+.75)-terrain(x0-.75)),1.5)*.32; smoothPitch=THREE.MathUtils.lerp(smoothPitch,targetPitch,a);
+      smoothLift=THREE.MathUtils.lerp(smoothLift,frontLift,a);
+      body.rotation.z=-smoothPitch;
+      zs.forEach(z=>{
+        const p=new THREE.Vector3(-.2,.72,z);
+        const f=new THREE.Vector3(.75,wheels.find(w=>w.userData.baseX===.75&&w.userData.z===z).position.y,z);
+        const m=new THREE.Vector3(0,wheels.find(w=>w.userData.baseX===0&&w.userData.z===z).position.y,z);
+        const r=new THREE.Vector3(-.75,wheels.find(w=>w.userData.baseX===-.75&&w.userData.z===z).position.y,z);
+        const set=armMeshes.filter(o=>o.z===z);
+        setArm(set[0].mesh,p,f); setArm(set[1].mesh,p,m); setArm(set[2].mesh,m,r);
+      });
+      document.getElementById('lift').textContent=smoothLift.toFixed(2); document.getElementById('pitch').textContent=(THREE.MathUtils.radToDeg(smoothPitch)).toFixed(1);
     }).start();
   </script>
 </body>

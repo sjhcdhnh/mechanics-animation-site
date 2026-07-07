@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>液压挖掘机 · 反铲工作装置运动学</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
+    #hud{position:absolute;left:16px;top:16px;max-width:460px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
+    #legend{position:absolute;right:16px;bottom:16px;padding:8px 12px;background:rgba(10,12,24,.65);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px}
+    .b{color:#89b4fa}.g{color:#a6e3a1}.y{color:#f9e2af}
+  </style>
+</head>
+<body>
+  <div id="hud"><b>工程应用：液压挖掘机反铲工作装置</b><br>
+    动臂、斗杆、铲斗构成三转动副串联系统；液压缸用两铰点距离表示伸缩量。<br>
+    末端齿尖轨迹：<span class="y">挖掘弧线</span>；当前铲斗姿态角：<span id="bucket" class="g">--</span>°
+  </div>
+  <div id="legend">左键旋转 · 滚轮缩放 · 右键平移</div>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
+    const {scene,camera,controls,composer}=quickSetup({cameraPos:[5.3,3.0,5.8],target:[1.2,.8,0],fov:42,near:.1,far:120,exposure:1.12,bloomStrength:.16});
+    const groundMat=new THREE.MeshStandardMaterial({color:0x7b5138,roughness:.95});
+    const ground=new THREE.Mesh(new THREE.BoxGeometry(8,.12,5),groundMat); ground.position.y=-.08; ground.receiveShadow=true; scene.add(ground);
+    const trench=new THREE.Mesh(new THREE.BoxGeometry(2.4,.08,1.1),new THREE.MeshStandardMaterial({color:0x3b2418,roughness:1})); trench.position.set(2.9,-.02,0); scene.add(trench);
+
+    const yellow=MaterialPresets.anodizedAluminum(0xf4b23c), dark=MaterialPresets.castIron(), steel=MaterialPresets.brushedAluminum();
+    const cylMat=new THREE.MeshStandardMaterial({color:0xd9dde7,metalness:.85,roughness:.22});
+    const rodMat=MaterialPresets.polishedSteel();
+    const root=new THREE.Group(); scene.add(root);
+
+    const trackG=new THREE.Group(); root.add(trackG);
+    [-.48,.48].forEach(z=>{const t=new THREE.Mesh(new THREE.BoxGeometry(1.9,.32,.36),dark);t.position.set(0,.16,z);t.castShadow=t.receiveShadow=true;trackG.add(t);
+      for(let i=0;i<7;i++){const r=new THREE.Mesh(GeometryHelpers.createCylinder(.105,.105,.4,48),steel);r.rotation.x=Math.PI/2;r.position.set(-.75+i*.25,.34,z);trackG.add(r);}
+    });
+    const house=new THREE.Group(); house.position.y=.55; root.add(house);
+    const turntable=new THREE.Mesh(GeometryHelpers.createCylinder(.55,.65,.18,96),dark); turntable.rotation.x=Math.PI/2; house.add(turntable);
+    const cab=new THREE.Mesh(new THREE.BoxGeometry(.65,.62,.58),new THREE.MeshPhysicalMaterial({color:0x1f2b36,metalness:.2,roughness:.25,transmission:.08,transparent:true,opacity:.88})); cab.position.set(-.25,.45,-.28); cab.castShadow=true; house.add(cab);
+    const counter=new THREE.Mesh(new THREE.BoxGeometry(.9,.48,.86),yellow); counter.position.set(-.55,.34,.18); counter.castShadow=true; house.add(counter);
+    const frame=new THREE.Mesh(new THREE.BoxGeometry(.9,.34,.8),yellow); frame.position.set(.28,.34,0); frame.castShadow=true; house.add(frame);
+
+    const boom=new THREE.Mesh(GeometryHelpers.createCylinder(.075,.095,1,64),yellow);
+    const stick=new THREE.Mesh(GeometryHelpers.createCylinder(.065,.08,1,64),yellow);
+    const bucket=new THREE.Group();
+    const bucketShell=new THREE.Mesh(new THREE.BoxGeometry(.36,.28,.52),new THREE.MeshStandardMaterial({color:0x8a5a2f,metalness:.45,roughness:.48})); bucketShell.position.set(.18,-.02,0); bucketShell.rotation.z=-.28; bucket.add(bucketShell);
+    for(let i=-1;i<=1;i++){const tooth=new THREE.Mesh(new THREE.ConeGeometry(.035,.16,20),rodMat);tooth.rotation.z=-Math.PI/2;tooth.position.set(.4,-.18,i*.15);bucket.add(tooth);}
+    const pins=[]; function pinObj(){const p=new THREE.Mesh(GeometryHelpers.createPinSphere(.075,64),MaterialPresets.brassPin());p.castShadow=true;scene.add(p);pins.push(p);return p;}
+    const p0=pinObj(), p1=pinObj(), p2=pinObj(), p3=pinObj();
+    scene.add(boom,stick,bucket);
+
+    function createCylPair(){const g=new THREE.Group();const barrel=new THREE.Mesh(GeometryHelpers.createCylinder(.045,.055,1,48),cylMat);const rod=new THREE.Mesh(GeometryHelpers.createCylinder(.022,.022,1,48),rodMat);g.add(barrel,rod);scene.add(g);return{g,barrel,rod};}
+    const boomCyl=createCylPair(), stickCyl=createCylPair(), bucketCyl=createCylPair();
+    function setBeam(mesh,a,b){const d=b.clone().sub(a),len=d.length();mesh.position.copy(a.clone().add(b).multiplyScalar(.5));mesh.scale.set(1,len,1);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mesh.castShadow=true;}
+    function setCylinderPair(pair,a,b){const d=b.clone().sub(a),len=d.length(),dir=d.clone().normalize(),mid=a.clone().add(b).multiplyScalar(.5);pair.g.position.copy(mid);pair.g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);pair.barrel.scale.set(1,len*.55,1);pair.barrel.position.y=-len*.12;pair.rod.scale.set(1,len*.58,1);pair.rod.position.y=len*.16;}
+    const trailPts=[]; const trail=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xf9e2af})); scene.add(trail);
+    const soil=[]; for(let i=0;i<70;i++){const s=new THREE.Mesh(new THREE.IcosahedronGeometry(.035+Math.random()*.035,0),groundMat);s.position.set(2.15+Math.random()*1.4,.05+Math.random()*.08,(Math.random()-.5)*.9);scene.add(s);soil.push(s);}
+
+    createAnimationLoop(null,scene,camera,{composer,controls},(delta,elapsed)=>{
+      const q=(Math.sin(elapsed*.55)+1)/2, q2=(Math.sin(elapsed*.55-Math.PI*.45)+1)/2;
+      const a0=THREE.MathUtils.degToRad(10+35*q);
+      const a1=THREE.MathUtils.degToRad(-68+34*q2);
+      const a2=THREE.MathUtils.degToRad(-96+82*q);
+      house.rotation.y=Math.sin(elapsed*.23)*.18;
+      const O=new THREE.Vector3(.55,.92,0);
+      const e1=new THREE.Vector3(Math.cos(a0),Math.sin(a0),0), e2=new THREE.Vector3(Math.cos(a0+a1),Math.sin(a0+a1),0), e3=new THREE.Vector3(Math.cos(a0+a1+a2),Math.sin(a0+a1+a2),0);
+      const A=O, B=A.clone().add(e1.multiplyScalar(1.72)), C=B.clone().add(e2.multiplyScalar(1.32)), D=C.clone().add(e3.multiplyScalar(.46));
+      [p0.position,p1.position,p2.position,p3.position].forEach((p,i)=>p.copy([A,B,C,D][i]));
+      setBeam(boom,A,B); setBeam(stick,B,C); bucket.position.copy(C); bucket.rotation.set(0,0,a0+a1+a2);
+      setCylinderPair(boomCyl,new THREE.Vector3(.05,.68,.34),A.clone().lerp(B,.45).add(new THREE.Vector3(0,.08,.22)));
+      setCylinderPair(stickCyl,A.clone().lerp(B,.66).add(new THREE.Vector3(0,.12,-.18)),B.clone().lerp(C,.42).add(new THREE.Vector3(0,.08,-.16)));
+      setCylinderPair(bucketCyl,B.clone().lerp(C,.72).add(new THREE.Vector3(0,.08,.2)),C.clone().lerp(D,.35).add(new THREE.Vector3(0,.06,.18)));
+      trailPts.push(D.clone()); if(trailPts.length>180)trailPts.shift(); trail.geometry.dispose(); trail.geometry=new THREE.BufferGeometry().setFromPoints(trailPts);
+      soil.forEach((s,i)=>{const phase=(elapsed*.9+i*.17)%4;if(phase<1.2){s.position.x=THREE.MathUtils.lerp(s.position.x,D.x,.025);s.position.y=Math.max(.02,THREE.MathUtils.lerp(s.position.y,D.y-.25,.02));}else{s.position.y=Math.max(.02,s.position.y-.002);}});
+      document.getElementById('bucket').textContent=THREE.MathUtils.radToDeg(a0+a1+a2).toFixed(1);
+    }).start();
+  </script>
+</body>
+</html>

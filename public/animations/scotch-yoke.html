@@ -1,99 +1,63 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>苏格兰轭 · 简谐运动</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif; }
-        #info { position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.6); color: #eee; padding: 8px 15px; border-radius: 8px; backdrop-filter: blur(8px); pointer-events: none; z-index: 10; font-size: 14px; border-left: 4px solid #ffaa33; }
-        .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>苏格兰轭机构 · 简谐往复运动</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
+    #hud{position:absolute;left:16px;top:16px;max-width:420px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
+    #hint{position:absolute;right:16px;bottom:16px;padding:8px 12px;background:rgba(10,12,24,.65);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px}
+    .x{color:#89b4fa}.v{color:#a6e3a1}.a{color:#f38ba8}
+  </style>
 </head>
 <body>
-    <div id="info"><span class="dot" style="background:#e63946;"></span>曲柄 <span class="dot" style="background:#3a7bd5;"></span>轭架 <span class="dot" style="background:#f4d03f;"></span>驱动销 x=R·cos(wt)</div>
+  <div id="hud"><b>苏格兰轭机构：旋转 ↔ 简谐直线运动</b><br>
+    曲柄销在轭架竖直槽内滑动，轭架被水平导轨约束。<br>
+    x=R cosθ，v=-Rω sinθ，a=-Rω² cosθ<br>
+    x=<span id="xv" class="x">--</span> m，v=<span id="vv" class="v">--</span> m/s，a=<span id="av" class="a">--</span> m/s²
+  </div>
+  <div id="hint">拖拽旋转 · 滚轮缩放</div>
+  <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
+    const {scene,camera,controls,composer}=quickSetup({cameraPos:[0,-5.6,4.2],target:[0,0,0],fov:42,near:.1,far:70,exposure:1.08});
+    scene.add(new THREE.GridHelper(5.5,22,0x39415f,0x20263a));
 
-    <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
-    </script>
+    const matFrame=MaterialPresets.castIron(), matCrank=MaterialPresets.anodizedAluminum(0xf38ba8);
+    const matYoke=MaterialPresets.anodizedAluminum(0x89b4fa), matPin=MaterialPresets.brassPin();
+    const matRod=MaterialPresets.brushedAluminum();
+    const R=.72, omega=1.25;
 
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    const frame=new THREE.Group(); scene.add(frame);
+    const railTop=new THREE.Mesh(new THREE.BoxGeometry(3.8,.07,.08),matFrame); railTop.position.set(0,.62,0); frame.add(railTop);
+    const railBot=new THREE.Mesh(new THREE.BoxGeometry(3.8,.07,.08),matFrame); railBot.position.set(0,-.62,0); frame.add(railBot);
+    const base=new THREE.Mesh(new THREE.BoxGeometry(.18,1.45,.1),matFrame); base.position.set(-1.55,0,0); frame.add(base);
+    [railTop,railBot,base].forEach(m=>{m.castShadow=m.receiveShadow=true;});
 
-        const scene = new THREE.Scene(); scene.background = new THREE.Color('#1a1d24');
-        const camera = new THREE.PerspectiveCamera(42, innerWidth/innerHeight, 0.1, 40);
-        camera.position.set(0, 0, 9); camera.lookAt(0, 0, 0);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setSize(innerWidth, innerHeight);
-        renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.3;
-        document.body.appendChild(renderer.domElement);
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; controls.dampingFactor = 0.12; controls.target.set(0, 0, 0); controls.update();
+    const crank=new THREE.Group(); scene.add(crank);
+    const disk=new THREE.Mesh(GeometryHelpers.createCylinder(.82,.82,.08,96),matCrank); disk.rotation.x=Math.PI/2; disk.receiveShadow=true; crank.add(disk);
+    const crankArm=new THREE.Mesh(GeometryHelpers.createRoundedLink(R,.09,.08,.025,3),matRod); crankArm.position.x=R/2; crank.add(crankArm);
+    const pin=new THREE.Mesh(GeometryHelpers.createPinSphere(.09,64),matPin); pin.position.x=R; crank.add(pin);
 
-        scene.add(new THREE.AmbientLight('#3a4050', 2.2));
-        scene.add(new THREE.HemisphereLight('#b0c0d8', '#282e3a', 1.6));
-        const keyLight = new THREE.DirectionalLight('#ffffff', 5.5); keyLight.position.set(6, 8, 5);
-        keyLight.castShadow = true; keyLight.shadow.mapSize.width = 2048; keyLight.shadow.mapSize.height = 2048;
-        keyLight.shadow.camera.near = 0.5; keyLight.shadow.camera.far = 30;
-        keyLight.shadow.camera.left = -8; keyLight.shadow.camera.right = 8;
-        keyLight.shadow.camera.top = 6; keyLight.shadow.camera.bottom = -6; keyLight.shadow.bias = -0.0005; scene.add(keyLight);
-        scene.add(new THREE.DirectionalLight('#8a9bb5', 2.0).position.set(-3, 2, -3));
-        scene.add(new THREE.DirectionalLight('#5a6b82', 1.8).position.set(0, -2, 2));
+    const yoke=new THREE.Group(); scene.add(yoke);
+    const yokeBody=new THREE.Mesh(new THREE.BoxGeometry(.74,1.55,.13),matYoke); yokeBody.castShadow=true; yoke.add(yokeBody);
+    const slot=new THREE.Mesh(new THREE.BoxGeometry(.18,1.2,.15),new THREE.MeshStandardMaterial({color:0x0a0a14,roughness:.8,metalness:0})); slot.position.z=.015; yoke.add(slot);
+    const piston=new THREE.Mesh(new THREE.BoxGeometry(.58,.38,.28),MaterialPresets.anodizedAluminum(0xa6e3a1)); piston.position.set(1.45,0,0); piston.castShadow=true; yoke.add(piston);
+    const pistonRod=new THREE.Mesh(GeometryHelpers.createCylinder(.035,.035,1.1,48),matRod); pistonRod.rotation.z=Math.PI/2; pistonRod.position.set(.82,0,0); yoke.add(pistonRod);
 
-        const grid = new THREE.GridHelper(10, 16, '#3a3f4a', '#252830'); grid.position.y = -2.5; scene.add(grid);
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 10), new THREE.MeshStandardMaterial({ color: '#1e2128', roughness: 0.9, metalness: 0.15 }));
-        ground.rotation.x = -Math.PI / 2; ground.position.y = -2.6; ground.receiveShadow = true; scene.add(ground);
+    const wave=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xf9e2af})); wave.position.set(-2.15,-1.35,.02); scene.add(wave);
+    const wavePts=[];
 
-        const mR2 = new THREE.MeshStandardMaterial({ color: '#e63946', roughness: 0.25, metalness: 0.55 });
-        const mB2 = new THREE.MeshStandardMaterial({ color: '#3a7bd5', roughness: 0.25, metalness: 0.55 });
-        const mG2 = new THREE.MeshStandardMaterial({ color: '#f4d03f', roughness: 0.2, metalness: 0.85 });
-        const mD2 = new THREE.MeshStandardMaterial({ color: '#4a4f5a', roughness: 0.55, metalness: 0.5 });
-        const mS2 = new THREE.MeshStandardMaterial({ color: '#8d99a4', roughness: 0.4, metalness: 0.7 });
-        const Cr = 0.8, slotH = Cr * 2 + 0.35, yW = 3.0;
-
-        // --- Crank (red) ---
-        const crankG = new THREE.Group(); scene.add(crankG);
-        crankG.add(new THREE.Mesh(new THREE.CylinderGeometry(Cr, Cr, 0.1, 48), mR2).translateZ(-0.05).castShadow = true);
-        crankG.add(new THREE.Mesh(new THREE.TorusGeometry(Cr, 0.03, 12, 64), mG2).rotateX(Math.PI / 2).translateZ(-0.08));
-        crankG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.12, 24), mG2).translateZ(0.07));
-        const cPin = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.065, 0.18, 20), mG2); cPin.rotation.x = Math.PI / 2; crankG.add(cPin);
-        crankG.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.4, 10), mD2).translateZ(0.16));
-
-        // --- Yoke (blue) ---
-        const yokeG = new THREE.Group(); scene.add(yokeG);
-        yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(yW, 0.12, 0.12), mB2).castShadow = true);
-        yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.12, slotH, 0.12), mB2).castShadow = true);
-        yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.13, slotH - 0.1, 0.14), mD2));
-        yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.12), mB2).translateY(slotH / 2));
-        yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.12), mB2).translateY(-slotH / 2));
-        [[yW / 2, slotH / 3.5], [yW / 2, -slotH / 3.5], [-yW / 2, slotH / 3.5], [-yW / 2, -slotH / 3.5]].forEach(([x, y]) => { yokeG.add(new THREE.Mesh(new THREE.BoxGeometry(0.05, slotH * 0.25, 0.12), mD2).position.set(x, y, 0)); });
-
-        // --- Rails ---
-        [-Cr - 0.2, Cr + 0.2].forEach(y => {
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.03, 0.08), mS2).position.set(0, y, -0.4));
-            scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 6), mD2).position.set(-2.2, y, -0.18));
-            scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 6), mD2).position.set(2.2, y, -0.18));
-        });
-
-        scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 6), mD2).position.set(0, -2.2, Cr + 0.25).castShadow = true);
-        scene.add(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 6), mD2).position.set(0, -2.2, -Cr - 0.25).castShadow = true);
-
-        const pGeo2 = new THREE.BufferGeometry(); const pArr2 = new Float32Array(60 * 3);
-        for (let i = 0; i < 60; i++) { pArr2[i * 3] = (Math.random() - 0.5) * 10; pArr2[i * 3 + 1] = (Math.random() - 0.5) * 6; pArr2[i * 3 + 2] = (Math.random() - 0.5) * 5; }
-        pGeo2.setAttribute('position', new THREE.BufferAttribute(pArr2, 3));
-        const pts2 = new THREE.Points(pGeo2, new THREE.PointsMaterial({ color: '#bcc6d0', size: 0.045, transparent: true, opacity: 0.4, depthWrite: false })); scene.add(pts2);
-
-        const clock2 = new THREE.Clock(); let an2 = 0;
-        function animate() {
-            const dt = Math.min(clock2.getDelta(), 0.1); an2 += dt * 2.5;
-            crankG.rotation.z = an2; cPin.position.set(Math.cos(an2) * Cr, Math.sin(an2) * Cr, 0);
-            yokeG.position.x = Math.cos(an2) * Cr; yokeG.position.y = Math.sin(an2) * Cr;
-            pts2.rotation.z += dt * 0.04; controls.update(); renderer.render(scene, camera); requestAnimationFrame(animate);
-        }
-        animate();
-        window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
-    </script>
+    createAnimationLoop(null,scene,camera,{composer,controls},(delta,elapsed)=>{
+      const th=omega*elapsed, x=R*Math.cos(th), v=-R*omega*Math.sin(th), acc=-R*omega*omega*Math.cos(th);
+      crank.rotation.z=th; yoke.position.x=x;
+      wavePts.push(new THREE.Vector3((elapsed*.35)%3.2, x*.45, 0)); if(wavePts.length>180)wavePts.shift();
+      const pts=wavePts.map((p,i)=>new THREE.Vector3(-1.6+i/55,p.y,0)); wave.geometry.dispose(); wave.geometry=new THREE.BufferGeometry().setFromPoints(pts);
+      document.getElementById('xv').textContent=x.toFixed(3);
+      document.getElementById('vv').textContent=v.toFixed(3);
+      document.getElementById('av').textContent=acc.toFixed(3);
+    }).start();
+  </script>
 </body>
 </html>

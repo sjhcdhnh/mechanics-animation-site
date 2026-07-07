@@ -1,5 +1,21 @@
 [
   {
+    "slug": "fixed-end-force-reduction",
+    "title": "固定端约束 · 平面力系简化",
+    "subtitle": "Fixed-End Constraint — Planar Force System Reduction",
+    "category": "dynamics",
+    "tags": ["固定端约束", "平面力系", "力系简化", "合力", "力偶矩", "静力学"],
+    "mechanismType": "固定端约束平面力系简化",
+    "fileName": "fixed-end-force-reduction.html",
+    "source": "builtin",
+    "downloadable": true,
+    "description": "平面展示固定端约束力系由简化前到简化后的变化。简化前为墙体与杆端共同接触截面上的分布约束反力，动画将这些分布力向固定端O归并，最终只保留固定端处的Fx、Fy两个正交力分量与面外力偶MO。",
+    "author": "匿名",
+    "institution": "",
+    "course": "理论力学",
+    "modelDescription": "以固定端O为简化中心，平面固定端接触截面上的分布约束反力满足Fx=ΣFxi，Fy=ΣFyi，MO=Σ(x_iF_yi-y_iF_xi)+ΣM_i。动画用一排短小实体箭头表示墙体与杆端共同接触截面上的分布反力；简化后只显示Fx、Fy和等效力偶MO三个约束量。单文件Three.js r157渲染，采用正交相机正视平面图，支持缩放和平移。"
+  },
+  {
     "slug": "angular-momentum",
     "title": "动量矩守恒 · 可变转动惯量转台",
     "subtitle": "Angular Momentum Conservation — Variable Moment of Inertia Turntable",

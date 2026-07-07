@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>平面固定端力系简化</title>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #101522;
+      color: #f8fafc;
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+    }
+    canvas { display: block; }
+    .panel {
+      position: fixed;
+      z-index: 5;
+      background: rgba(9, 16, 29, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.34);
+      backdrop-filter: blur(10px);
+      border-radius: 10px;
+    }
+    #title {
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 18px;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+    }
+    #hud {
+      top: 16px;
+      left: 16px;
+      width: 318px;
+      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.75;
+    }
+    #hud b { color: #ffffff; }
+    #hud code {
+      color: #7dd3fc;
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 12px;
+    }
+    #steps {
+      top: 16px;
+      right: 16px;
+      width: 300px;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .step {
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.58);
+      color: #a7b4c8;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .step.active {
+      color: #ffffff;
+      border-color: rgba(56, 189, 248, 0.75);
+      background: rgba(14, 116, 144, 0.28);
+    }
+    #legend {
+      left: 16px;
+      bottom: 16px;
+      padding: 11px 14px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 6px;
+      border-radius: 50%;
+      vertical-align: -1px;
+    }
+    #hint {
+      right: 16px;
+      bottom: 16px;
+      padding: 10px 13px;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    #error {
+      display: none;
+      position: fixed;
+      inset: 24px;
+      z-index: 10;
+      padding: 18px;
+      background: #111827;
+      border: 1px solid #ef4444;
+      border-radius: 10px;
+      color: #fecaca;
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="error"></div>
+  <div id="title" class="panel">平面固定端约束力系简化前后变化</div>
+  <div id="hud" class="panel">
+    <b>平面力系简化到固定端 O</b><br>
+    简化前为墙体与杆端共同接触截面上的分布约束力，简化后为三个约束量。<br>
+    <code>F<sub>x</sub> = ΣF<sub>xi</sub>,　F<sub>y</sub> = ΣF<sub>yi</sub></code><br>
+    <code>M<sub>O</sub> = Σ(x<sub>i</sub>F<sub>yi</sub> - y<sub>i</sub>F<sub>xi</sub>) + ΣM<sub>i</sub></code><br>
+    当前阶段：<span id="phase">简化前</span><br>
+    F<sub>x</sub> = <span id="fxValue">--</span> kN　F<sub>y</sub> = <span id="fyValue">--</span> kN<br>
+    M<sub>O</sub> = <span id="mValue">--</span> kN·m
+  </div>
+  <div id="steps" class="panel">
+    <div class="step active" id="step0">1. 简化前：墙体与杆端共用的接触截面上存在分布约束力</div>
+    <div class="step" id="step1">2. 向固定端 O 简化：分布力合成为平面力与力偶</div>
+    <div class="step" id="step2">3. 简化后：固定端只保留 F<sub>x</sub>、F<sub>y</sub> 和 M<sub>O</sub></div>
+  </div>
+  <div id="legend" class="panel">
+    <span class="dot" style="background:#38bdf8"></span>等效 F<sub>x</sub>　
+    <span class="dot" style="background:#22c55e"></span>等效 F<sub>y</sub>　
+    <span class="dot" style="background:#fbbf24"></span>等效力偶 M<sub>O</sub><br>
+    <span class="dot" style="background:#94a3b8"></span>灰色细线表示分布力向 O 点归并，最终阶段会隐藏
+  </div>
+  <div id="hint" class="panel">滚轮缩放 · 右键/中键平移 · 正视平面图</div>
+
+  <script>
+    window.__fixedEndAnimationStarted = false;
+    window.addEventListener("error", function (event) {
+      var box = document.getElementById("error");
+      if (!box) return;
+      box.style.display = "block";
+      box.textContent = "动画加载/运行出错：\n" + event.message;
+    });
+    setTimeout(function () {
+      if (window.__fixedEndAnimationStarted) return;
+      var box = document.getElementById("error");
+      if (!box) return;
+      box.style.display = "block";
+      box.textContent = "Three.js 模块没有成功启动。\n请通过网站地址访问 /animations/fixed-end-force-reduction.html；若仍失败，通常是浏览器没有连上 unpkg CDN。";
+    }, 3500);
+  </script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.157.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.157.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    window.__fixedEndAnimationStarted = true;
+
+    const errorBox = document.getElementById("error");
+    window.addEventListener("unhandledrejection", (event) => {
+      errorBox.style.display = "block";
+      errorBox.textContent = "动画加载失败：\n" + String(event.reason);
+    });
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101522);
+
+    const frustum = 7.2;
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
+    camera.position.set(0, 0, 12);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableRotate = false;
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0.25, 0, 0);
+    controls.update();
+
+    const origin = new THREE.Vector3(-3.0, 0, 0);
+    const up = new THREE.Vector3(0, 1, 0);
+    const quat = new THREE.Quaternion();
+
+    const matBeam = new THREE.MeshBasicMaterial({ color: 0x64748b });
+    const matBeamEdge = new THREE.LineBasicMaterial({ color: 0xcbd5e1, transparent: true, opacity: 0.75 });
+    const matSupport = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.18, depthWrite: false });
+    const matSupportLine = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.55 });
+    const matTrail = new THREE.MeshBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.16 });
+
+    function updateCamera() {
+      const aspect = window.innerWidth / window.innerHeight;
+      camera.left = -frustum * aspect / 2;
+      camera.right = frustum * aspect / 2;
+      camera.top = frustum / 2;
+      camera.bottom = -frustum / 2;
+      camera.updateProjectionMatrix();
+    }
+
+    function makeMaterial(color, opacity = 1) {
+      return new THREE.MeshBasicMaterial({
+        color,
+        transparent: opacity < 1,
+        opacity,
+        depthWrite: opacity > 0.7,
+      });
+    }
+
+    function setOpacity(root, opacity) {
+      root.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+        obj.material.transparent = opacity < 0.99;
+        obj.material.opacity = opacity;
+        obj.material.depthWrite = opacity > 0.7;
+      });
+    }
+
+    function smoothstep(a, b, x) {
+      const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function box(width, height, color, opacity = 1) {
+      return new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.04), makeMaterial(color, opacity));
+    }
+
+    function cylinderBetween(a, b, radius, material, radial = 24) {
+      const direction = b.clone().sub(a);
+      const length = direction.length();
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, radial), material);
+      mesh.position.copy(a).add(b).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(up, direction.normalize());
+      return mesh;
+    }
+
+    function makeArrow(color, radius = 0.03, headRadius = 0.095) {
+      const group = new THREE.Group();
+      const material = makeMaterial(color);
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 1, 32), material.clone());
+      const head = new THREE.Mesh(new THREE.ConeGeometry(headRadius, 0.25, 36), material.clone());
+      group.add(shaft, head);
+      group.userData.shaft = shaft;
+      group.userData.head = head;
+      return group;
+    }
+
+    function setArrow(arrow, start, vector, scale = 1) {
+      const direction = vector.clone().normalize();
+      const length = Math.max(0.34, vector.length() * scale);
+      const headLength = 0.25;
+      const shaftLength = Math.max(0.06, length - headLength);
+      arrow.position.copy(start);
+      arrow.quaternion.copy(quat.setFromUnitVectors(up, direction));
+      arrow.userData.shaft.scale.set(1, shaftLength, 1);
+      arrow.userData.shaft.position.set(0, shaftLength / 2, 0);
+      arrow.userData.head.position.set(0, shaftLength + headLength / 2, 0);
+    }
+
+    function makeTextSprite(text, color = "#ffffff", size = 42) {
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 128;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = "bold " + size + "px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "rgba(0,0,0,0.72)";
+      ctx.strokeText(text, 256, 64);
+      ctx.fillStyle = color;
+      ctx.fillText(text, 256, 64);
+      const texture = new THREE.CanvasTexture(canvas);
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+      sprite.scale.set(1.28, 0.32, 1);
+      return sprite;
+    }
+
+    function makeMomentArrow(color, radius = 0.52) {
+      const group = new THREE.Group();
+      const material = makeMaterial(color);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.022, 14, 96, Math.PI * 1.55), material.clone());
+      ring.rotation.z = Math.PI * 0.18;
+      const head = new THREE.Mesh(new THREE.ConeGeometry(0.095, 0.22, 32), material.clone());
+      const a = Math.PI * 1.73;
+      head.position.set(Math.cos(a) * radius, Math.sin(a) * radius, 0);
+      head.rotation.z = a - Math.PI / 2;
+      group.add(ring, head);
+      return group;
+    }
+
+    function buildPlanarSupport() {
+      const support = box(0.34, 2.85, 0x38bdf8, 0.18);
+      support.position.copy(origin).add(new THREE.Vector3(-0.17, 0, -0.02));
+      scene.add(support);
+
+      const supportEdges = new THREE.LineSegments(new THREE.EdgesGeometry(support.geometry), matSupportLine);
+      supportEdges.position.copy(support.position);
+      scene.add(supportEdges);
+
+      for (let i = 0; i < 8; i++) {
+        const hatch = box(0.055, 0.65, 0x93c5fd, 0.72);
+        hatch.position.copy(origin).add(new THREE.Vector3(-0.46, -1.18 + i * 0.34, 0));
+        hatch.rotation.z = -Math.PI / 4;
+        scene.add(hatch);
+      }
+
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(5.9, 1.52, 0.05), matBeam);
+      beam.position.copy(origin).add(new THREE.Vector3(2.95, 0, 0));
+      scene.add(beam);
+
+      const beamEdges = new THREE.LineSegments(new THREE.EdgesGeometry(beam.geometry), matBeamEdge);
+      beamEdges.position.copy(beam.position);
+      scene.add(beamEdges);
+
+      const oMarker = new THREE.Mesh(new THREE.CircleGeometry(0.055, 32), makeMaterial(0xf8fafc));
+      oMarker.position.copy(origin).add(new THREE.Vector3(0, 0, 0.05));
+      scene.add(oMarker);
+
+      const contactLine = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.52, 0.07), makeMaterial(0xfbbf24, 0.55));
+      contactLine.position.copy(origin).add(new THREE.Vector3(0.0, 0, 0.02));
+      scene.add(contactLine);
+
+      const axisX = makeArrow(0xef4444, 0.012, 0.045);
+      setArrow(axisX, origin.clone(), new THREE.Vector3(1, 0, 0), 0.72);
+      scene.add(axisX);
+      const axisY = makeArrow(0x22c55e, 0.012, 0.045);
+      setArrow(axisY, origin.clone(), new THREE.Vector3(0, 1, 0), 0.72);
+      scene.add(axisY);
+
+      const labelO = makeTextSprite("固定端 O", "#f8fafc", 38);
+      labelO.position.copy(origin).add(new THREE.Vector3(-0.3, 0.52, 0));
+      scene.add(labelO);
+
+      const contactLabel = makeTextSprite("接触截面", "#fbbf24", 32);
+      contactLabel.scale.set(0.72, 0.18, 1);
+      contactLabel.position.copy(origin).add(new THREE.Vector3(0.62, 0.96, 0));
+      scene.add(contactLabel);
+
+      const grid = new THREE.GridHelper(8, 16, 0x263244, 0x1d2738);
+      grid.rotation.x = Math.PI / 2;
+      grid.position.set(0.35, -1.56, -0.08);
+      grid.scale.y = 0.55;
+      scene.add(grid);
+    }
+
+    buildPlanarSupport();
+
+    const loads = [
+      { point: new THREE.Vector3(0.0, 0.68, 0), force: new THREE.Vector3(0.18, -0.04, 0), color: 0x60a5fa },
+      { point: new THREE.Vector3(0.0, 0.53, 0), force: new THREE.Vector3(0.22, -0.02, 0), color: 0x60a5fa },
+      { point: new THREE.Vector3(0.0, 0.38, 0), force: new THREE.Vector3(0.26, 0.02, 0), color: 0x34d399 },
+      { point: new THREE.Vector3(0.0, 0.23, 0), force: new THREE.Vector3(0.30, 0.05, 0), color: 0x34d399 },
+      { point: new THREE.Vector3(0.0, 0.08, 0), force: new THREE.Vector3(0.32, 0.07, 0), color: 0xfbbf24 },
+      { point: new THREE.Vector3(0.0, -0.08, 0), force: new THREE.Vector3(0.30, -0.06, 0), color: 0xfbbf24 },
+      { point: new THREE.Vector3(0.0, -0.23, 0), force: new THREE.Vector3(0.26, -0.09, 0), color: 0xfb7185 },
+      { point: new THREE.Vector3(0.0, -0.38, 0), force: new THREE.Vector3(0.22, -0.05, 0), color: 0xfb7185 },
+      { point: new THREE.Vector3(0.0, -0.53, 0), force: new THREE.Vector3(0.18, 0.01, 0), color: 0xa78bfa },
+      { point: new THREE.Vector3(0.0, -0.68, 0), force: new THREE.Vector3(0.14, 0.03, 0), color: 0xa78bfa },
+    ];
+    const freeMoment = 0.0;
+    const resultant = loads.reduce((acc, item) => acc.add(item.force), new THREE.Vector3());
+    const momentZ = loads.reduce((sum, item) => sum + item.point.x * item.force.y - item.point.y * item.force.x, freeMoment);
+
+    document.getElementById("fxValue").textContent = resultant.x.toFixed(2);
+    document.getElementById("fyValue").textContent = resultant.y.toFixed(2);
+    document.getElementById("mValue").textContent = momentZ.toFixed(2);
+
+    const sourceGroup = new THREE.Group();
+    const trailGroup = new THREE.Group();
+    const momentGroup = new THREE.Group();
+    const finalGroup = new THREE.Group();
+    scene.add(trailGroup, sourceGroup, momentGroup, finalGroup);
+
+    const loadArrows = loads.map((item) => {
+      const arrow = makeArrow(item.color, 0.02, 0.062);
+      arrow.userData.load = item;
+      sourceGroup.add(arrow);
+
+      const contactPatch = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.04), makeMaterial(0xfbbf24, 0.62));
+      contactPatch.position.copy(origin).add(item.point).add(new THREE.Vector3(0, 0, 0.025));
+      sourceGroup.add(contactPatch);
+
+      const pin = new THREE.Mesh(new THREE.CircleGeometry(0.03, 28), makeMaterial(item.color));
+      pin.position.copy(origin).add(item.point);
+      sourceGroup.add(pin);
+
+      trailGroup.add(cylinderBetween(origin.clone().add(item.point), origin, 0.008, matTrail, 12));
+      return arrow;
+    });
+
+    const sourceLabel = makeTextSprite("分布约束反力", "#e2e8f0", 34);
+    sourceLabel.scale.set(0.84, 0.21, 1);
+    sourceLabel.position.copy(origin).add(new THREE.Vector3(0.62, -0.98, 0));
+    sourceGroup.add(sourceLabel);
+
+    const scalarMoment = makeMomentArrow(0xfbbf24, 0.48);
+    scalarMoment.position.copy(origin);
+    momentGroup.add(scalarMoment);
+
+    const resultXArrow = makeArrow(0x38bdf8, 0.052, 0.14);
+    const resultYArrow = makeArrow(0x22c55e, 0.052, 0.14);
+    const resultMoment = makeMomentArrow(0xfbbf24, 0.58);
+    resultMoment.position.copy(origin);
+    finalGroup.add(resultXArrow, resultYArrow, resultMoment);
+
+    const labelFx = makeTextSprite("F_x", "#38bdf8", 42);
+    labelFx.scale.set(0.55, 0.14, 1);
+    labelFx.position.copy(origin).add(new THREE.Vector3(1.35, 0.18, 0));
+    const labelFy = makeTextSprite("F_y", "#22c55e", 42);
+    labelFy.scale.set(0.55, 0.14, 1);
+    labelFy.position.copy(origin).add(new THREE.Vector3(0.34, -0.95, 0));
+    const labelM = makeTextSprite("等效力偶 M_O", "#fbbf24", 38);
+    labelM.position.copy(origin).add(new THREE.Vector3(0.55, -0.78, 0));
+    finalGroup.add(labelFx, labelFy, labelM);
+
+    setOpacity(finalGroup, 0);
+    setOpacity(momentGroup, 0);
+    setOpacity(trailGroup, 0);
+
+    function updateStep(step) {
+      document.getElementById("phase").textContent = ["简化前", "向 O 点平移", "简化后"][step];
+      for (let i = 0; i < 3; i++) {
+        document.getElementById("step" + i).classList.toggle("active", i === step);
+      }
+    }
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+      const cycle = (elapsed % 8.5) / 8.5;
+      const move = smoothstep(0.22, 0.56, cycle);
+      const finalFade = smoothstep(0.54, 0.74, cycle);
+      const sourceFade = 1 - smoothstep(0.66, 0.86, cycle);
+      const pulse = 1 + Math.sin(elapsed * 5) * 0.025;
+      const step = cycle < 0.28 ? 0 : cycle < 0.62 ? 1 : 2;
+      updateStep(step);
+
+      loadArrows.forEach((arrow) => {
+        const item = arrow.userData.load;
+        const source = origin.clone().add(item.point);
+        const moved = source.clone().lerp(origin, move);
+        setArrow(arrow, moved, item.force, 0.44 * pulse);
+      });
+      setOpacity(sourceGroup, sourceFade);
+      setOpacity(trailGroup, move * (1 - finalFade));
+
+      scalarMoment.scale.setScalar((0.62 + Math.abs(momentZ) * 0.08) * (0.25 + move * 0.75));
+      scalarMoment.rotation.z = momentZ >= 0 ? 0 : Math.PI;
+      setOpacity(momentGroup, move * (1 - finalFade));
+
+      setArrow(resultXArrow, origin.clone().add(new THREE.Vector3(0.06, 0.05, 0)), new THREE.Vector3(resultant.x, 0, 0), 1.05 * pulse);
+      setArrow(resultYArrow, origin.clone().add(new THREE.Vector3(0.06, 0.05, 0)), new THREE.Vector3(0, resultant.y, 0), 1.05 * pulse);
+      resultMoment.scale.setScalar(0.86 + Math.sin(elapsed * 3.2) * 0.03);
+      setOpacity(finalGroup, finalFade);
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    updateCamera();
+    animate();
+
+    window.addEventListener("resize", () => {
+      updateCamera();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>

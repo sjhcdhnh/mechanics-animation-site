@@ -20,9 +20,10 @@ export default function HomePage() {
         {/* Ambient light */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div
-            className="absolute top-[-10%] left-[-5%] w-[600px] h-[600px] rounded-full opacity-[0.05]"
-            style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }}
+            className="absolute inset-x-0 top-0 h-48 opacity-[0.08]"
+            style={{ background: 'linear-gradient(90deg, transparent, var(--accent), transparent)' }}
           />
+          <div className="absolute inset-x-0 top-28 h-px bg-gradient-to-r from-transparent via-accent/20 to-transparent" />
         </div>
 
         {/* Dot grid */}

@@ -52,7 +52,7 @@ export function HeroGallery() {
                 zIndex: isActive ? 3 : 1,
               }}
             >
-              <div className="w-full h-full rounded-2xl overflow-hidden border border-border shadow-lg shadow-black/10">
+              <div className="w-full h-full rounded-2xl overflow-hidden border border-border shadow-2xl shadow-black/15">
                 <img
                   src={slide.src}
                   alt={slide.alt}
@@ -64,13 +64,10 @@ export function HeroGallery() {
           );
         })}
 
-        {/* Ambient glow behind active card */}
+        {/* Thin active frame */}
         <div
-          className="absolute -inset-6 rounded-[32px] opacity-25 pointer-events-none transition-all duration-700"
-          style={{
-            background: 'radial-gradient(ellipse at center, var(--accent) 0%, transparent 65%)',
-            transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
+          className="absolute -inset-px rounded-2xl border border-accent/15 pointer-events-none transition-all duration-700"
+          style={{ transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)' }}
         />
       </div>
 

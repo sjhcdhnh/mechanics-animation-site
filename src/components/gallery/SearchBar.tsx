@@ -28,7 +28,7 @@ export function SearchBar({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder="搜索机构..."
-        className="w-full pl-10 pr-10 py-2.5 bg-foreground/[0.03] border border-border rounded-xl text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-accent/30 focus:bg-foreground/[0.05] transition-all duration-200"
+        className="w-full pl-10 pr-10 py-2.5 bg-foreground/[0.03] border border-border rounded-xl text-sm text-foreground placeholder:text-muted/40 shadow-sm shadow-black/5 focus:outline-none focus:border-accent/30 focus:bg-foreground/[0.05] focus:shadow-accent/10 transition-all duration-200"
       />
       {value && (
         <button

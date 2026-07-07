@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>日内瓦机构 · 间歇分度运动</title>
+  <title>日内瓦机构 | 间歇分度运动</title>
   <style>
     html,body{margin:0;height:100%;overflow:hidden;background:#0a0a14;color:#cdd6f4;font-family:"Microsoft YaHei",sans-serif}
     #hud{position:absolute;left:16px;top:16px;max-width:430px;padding:12px 14px;background:rgba(10,12,24,.78);border:1px solid rgba(255,255,255,.12);border-radius:8px;font-size:12px;line-height:1.75;backdrop-filter:blur(8px)}
@@ -12,51 +12,94 @@
 </head>
 <body>
   <div id="hud"><b>外啮合日内瓦机构：连续转动 → 间歇转动</b><br>
-    主动轮每转一周，驱动销进入槽轮一次，使四槽槽轮分度 90°。<br>
-    销离槽期间由锁止圆盘与锁止弧保持停歇。<br>
+    主动销轮每转一周，驱动销进入槽轮一次，使四槽槽轮分度 90°。<br>
+    销离槽期间由锁止圆盘与槽轮圆弧配合，保持停歇不倒转。<br>
     状态：<span id="state" class="run">--</span>，槽轮角：<span id="angle" class="dw">--</span>°
   </div>
-  <div id="legend"><span class="pin">粉色销</span>：驱动分度　<span class="dw">黄色弧</span>：锁止停歇</div>
+  <div id="legend"><span class="pin">粉色销</span>：进入槽内驱动　<span class="dw">黄色圆盘</span>：停歇锁止</div>
   <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
   <script type="module">
     import * as THREE from 'three';
     import { quickSetup, MaterialPresets, GeometryHelpers, createAnimationLoop } from './js/animation-core.js';
-    const {scene,camera,controls,composer}=quickSetup({cameraPos:[0,-6.2,5.4],target:[0,0,0],fov:42,near:.1,far:80,exposure:1.1});
-    scene.add(new THREE.GridHelper(6,24,0x39415f,0x20263a));
+
+    const {scene,camera,renderer,controls,composer}=quickSetup({cameraPos:[0,-5.8,5.1],target:[0,0,0],fov:42,near:.1,far:80,exposure:1.08,bloomStrength:.12});
+    const pixelRatio=Math.min(window.devicePixelRatio||1,1.4);
+    renderer.setPixelRatio(pixelRatio);
+    composer.setPixelRatio?.(pixelRatio);
+    scene.add(new THREE.GridHelper(5.6,22,0x39415f,0x20263a));
 
     const drive=new THREE.Group(), wheel=new THREE.Group(); scene.add(drive,wheel);
-    const driveCenter=new THREE.Vector3(-1.15,0,.05), genevaCenter=new THREE.Vector3(1.05,0,.05);
+    const driveCenter=new THREE.Vector3(-.82,0,.05), genevaCenter=new THREE.Vector3(.82,0,.05);
     drive.position.copy(driveCenter); wheel.position.copy(genevaCenter);
-    const matDrive=MaterialPresets.anodizedAluminum(0x89b4fa), matWheel=MaterialPresets.anodizedAluminum(0xa6e3a1);
+
+    const matDrive=MaterialPresets.anodizedAluminum(0x89b4fa);
+    const matWheel=MaterialPresets.anodizedAluminum(0xa6e3a1);
     const matLock=new THREE.MeshStandardMaterial({color:0xf9e2af,roughness:.35,metalness:.55});
+    const matSlot=new THREE.MeshStandardMaterial({color:0x070811,roughness:.86,metalness:.05});
     const matPin=new THREE.MeshStandardMaterial({color:0xf38ba8,roughness:.25,metalness:.65,emissive:0x331018,emissiveIntensity:.25});
 
-    const driveDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.72,.72,.09,96),matDrive); driveDisk.rotation.x=Math.PI/2; drive.add(driveDisk);
-    const crankArm=new THREE.Mesh(GeometryHelpers.createRoundedLink(.62,.08,.07,.02,3),MaterialPresets.brushedAluminum()); crankArm.position.x=.31; drive.add(crankArm);
-    const pin=new THREE.Mesh(GeometryHelpers.createCylinder(.055,.055,.28,48),matPin); pin.rotation.x=Math.PI/2; pin.position.set(.62,0,.18); drive.add(pin);
-    const lockDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.38,.38,.13,96),matLock); lockDisk.rotation.x=Math.PI/2; lockDisk.position.z=.09; drive.add(lockDisk);
+    const pinRadius=.78;
+    const driveDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.88,.88,.09,96),matDrive); driveDisk.rotation.x=Math.PI/2; drive.add(driveDisk);
+    const crankArm=new THREE.Mesh(GeometryHelpers.createRoundedLink(pinRadius,.08,.07,.02,3),MaterialPresets.brushedAluminum()); crankArm.position.x=pinRadius/2; drive.add(crankArm);
+    const pin=new THREE.Mesh(GeometryHelpers.createCylinder(.055,.055,.34,48),matPin); pin.rotation.x=Math.PI/2; pin.position.set(pinRadius,0,.2); drive.add(pin);
+    const pinCap=new THREE.Mesh(GeometryHelpers.createPinSphere(.075,48),matPin); pinCap.position.set(pinRadius,0,.39); drive.add(pinCap);
+    const lockDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.42,.42,.13,96),matLock); lockDisk.rotation.x=Math.PI/2; lockDisk.position.z=.1; drive.add(lockDisk);
 
-    const genevaDisk=new THREE.Mesh(GeometryHelpers.createCylinder(.98,.98,.1,128),matWheel); genevaDisk.rotation.x=Math.PI/2; wheel.add(genevaDisk);
+    const genevaDisk=new THREE.Mesh(GeometryHelpers.createCylinder(1.02,1.02,.1,128),matWheel); genevaDisk.rotation.x=Math.PI/2; wheel.add(genevaDisk);
+    const hub=new THREE.Mesh(GeometryHelpers.createCylinder(.16,.16,.16,64),MaterialPresets.polishedSteel()); hub.rotation.x=Math.PI/2; hub.position.z=.13; wheel.add(hub);
     for(let i=0;i<4;i++){
-      const slot=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.13),new THREE.MeshStandardMaterial({color:0x0a0a14,roughness:.9}));
-      slot.position.x=.48; slot.rotation.z=i*Math.PI/2; slot.position.z=.04; wheel.add(slot);
-      const end=new THREE.Mesh(GeometryHelpers.createCylinder(.075,.075,.14,48),slot.material); end.rotation.x=Math.PI/2; end.position.set(Math.cos(i*Math.PI/2)*.92,Math.sin(i*Math.PI/2)*.92,.045); wheel.add(end);
+      const slotGroup=new THREE.Group();
+      slotGroup.rotation.z=i*Math.PI/2;
+      const slot=new THREE.Mesh(new THREE.BoxGeometry(.9,.14,.14),matSlot);
+      slot.position.x=-.49;
+      slot.position.z=.065;
+      slotGroup.add(slot);
+      const outerEnd=new THREE.Mesh(GeometryHelpers.createCylinder(.078,.078,.145,48),matSlot);
+      outerEnd.rotation.x=Math.PI/2;
+      outerEnd.position.set(-.94,0,.07);
+      slotGroup.add(outerEnd);
+      const innerEnd=outerEnd.clone();
+      innerEnd.position.x=-.06;
+      slotGroup.add(innerEnd);
+      wheel.add(slotGroup);
     }
-    const lockArc=new THREE.Mesh(new THREE.TorusGeometry(.56,.055,12,96,Math.PI*.72),matLock); lockArc.position.z=.16; wheel.add(lockArc);
+    const lockArc=new THREE.Mesh(new THREE.TorusGeometry(.54,.055,12,96,Math.PI*.72),matLock); lockArc.position.z=.19; wheel.add(lockArc);
+
+    const contactMark=new THREE.Mesh(GeometryHelpers.createCylinder(.075,.075,.03,48),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0x88ccff,emissiveIntensity:.35,transparent:true,opacity:.55}));
+    contactMark.rotation.x=Math.PI/2; contactMark.position.set(-.9,0,.22); wheel.add(contactMark);
 
     function ease(u){return u*u*u*(u*(u*6-15)+10);}
-    const slots=4, step=Math.PI/2, active=.34, omega=1.05;
-    createAnimationLoop(null,scene,camera,{composer,controls},(delta,elapsed)=>{
-      const phi=omega*elapsed; drive.rotation.z=phi;
-      const cyc=phi/(Math.PI*2), k=Math.floor(cyc), f=cyc-k;
-      let idx=k%slots, base=k*step, theta=base, moving=false;
-      if(f<active){theta=base+step*ease(f/active); moving=true;}
+    const slots=4, step=Math.PI/2, active=.33, omega=1.05;
+    const stateEl=document.getElementById('state');
+    const angleEl=document.getElementById('angle');
+    const movingText='\u9a71\u52a8\u9500\u5728\u69fd\u5185\uff0c\u6b63\u5728\u5206\u5ea6';
+    const dwellText='\u9501\u6b62\u5706\u76d8\u63a5\u5408\uff0c\u69fd\u8f6e\u505c\u6b47';
+
+    createAnimationLoop(renderer,scene,camera,{composer,controls},(delta,elapsed)=>{
+      const phi=omega*elapsed;
+      drive.rotation.z=phi;
+
+      const cyc=phi/(Math.PI*2);
+      const k=Math.floor(cyc);
+      const f=cyc-k;
+      const base=k*step;
+      let theta, moving=false;
+      if(f<active){
+        theta=base+step*ease(f/active);
+        moving=true;
+      }else{
+        theta=base+step;
+      }
       wheel.rotation.z=theta;
-      document.getElementById('state').textContent=moving?'驱动销在槽内，正在分度':'锁止圆盘接合，槽轮停歇';
-      document.getElementById('state').className=moving?'run':'dw';
-      document.getElementById('angle').textContent=((theta*180/Math.PI)%360).toFixed(1);
-      pin.material.emissiveIntensity=moving?.55:.12;
+
+      stateEl.textContent=moving?movingText:dwellText;
+      stateEl.className=moving?'run':'dw';
+      const shownAngle=(((theta*180/Math.PI)%360)+360)%360;
+      angleEl.textContent=shownAngle.toFixed(1);
+      pin.material.emissiveIntensity=moving?.58:.12;
+      pinCap.material.emissiveIntensity=moving?.58:.12;
       lockArc.visible=!moving;
+      contactMark.visible=moving;
     }).start();
   </script>
 </body>

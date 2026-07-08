@@ -59,7 +59,7 @@ export default async function AnimationDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen pt-28 pb-20 px-4">
+    <div className="animation-detail-original min-h-screen pt-28 pb-20 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Breadcrumb */}
         <div className="mb-6">

@@ -49,6 +49,16 @@ html[data-theme="light"] {
   scrollbar-color: var(--border) transparent;
 }
 
+html {
+  font-size: 17px;
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 16.5px;
+  }
+}
+
 body {
   background:
     linear-gradient(135deg, rgba(167, 139, 250, 0.08), transparent 34%),
@@ -155,6 +165,19 @@ html[data-theme="light"] .double-bezel-inner {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.6),
     0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.animation-detail-original {
+  background: var(--background);
+}
+
+.animation-detail-original .glass-sm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 /* ── Animations ── */

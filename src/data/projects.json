@@ -28,5 +28,20 @@
     "author": "匿名",
     "course": "工程力学前沿导论",
     "modelDescription": "双悬臂梁对比演示。左梁（绿色）为Euler-Bernoulli解析解。右梁（紫色）为PINN风格拟合：仅用3-20个稀疏测量点+固定端边界约束通过约束样条插值获得挠度曲线。L=2.0m, E=200GPa, P=1000N。"
+  },
+  {
+    "slug": "truss-solver",
+    "title": "平面桁架问题求解器 · AI 辅助建模",
+    "subtitle": "Interactive Truss Solver — Grid Modeling & AI Explanation",
+    "category": "structural-analysis",
+    "tags": ["桁架", "节点法", "AI辅助", "结构力学", "SVG建模"],
+    "mechanismType": "二维静定桁架分析",
+    "fileName": "truss-solver",
+    "source": "builtin",
+    "downloadable": false,
+    "description": "在可见网格上插入节点、连接杆件并设置支座与荷载；用整体节点平衡方程计算杆件轴力和支座反力，并通过网站统一 AI 接口生成简洁讲解。",
+    "author": "力拔·理力创见",
+    "course": "结构力学",
+    "modelDescription": "原生 SVG 绘图、坐标吸附、静定性检查与高斯消元求解。正轴力为拉力，负轴力为压力，AI 不参与数值计算。"
   }
 ]

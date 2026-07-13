@@ -69,6 +69,8 @@ export function MechanismCover({ slug, category, size = 'card', coverImage }: Pr
         return <ET cx={cx} cy={cy} a={accent} l={line} />;
       case 'spring-oscillator':
         return <SO cx={cx} cy={cy} a={accent} l={line} />;
+      case 'truss-solver':
+        return <TR cx={cx} cy={cy} a={accent} l={line} />;
       default:
         return <GM cx={cx} cy={cy} a={accent} l={line} />;
     }
@@ -92,6 +94,22 @@ export function MechanismCover({ slug, category, size = 'card', coverImage }: Pr
       <rect x={w - 17} y={h - 48} width={1.5} height={32} fill={accent} opacity={0.3} rx={0.75} />
     </svg>
   );
+}
+
+/* Truss solver */
+function TR({ cx, cy, a, l }: { cx: number; cy: number; a: string; l: string }) {
+  const points = [[cx - 150, cy + 70], [cx - 50, cy - 55], [cx + 50, cy + 70], [cx + 150, cy - 55]];
+  const bars = [[0,1],[1,2],[0,2],[2,3],[1,3]];
+  return <g>
+    {Array.from({ length: 7 }, (_, i) => <line key={`v${i}`} x1={cx - 180 + i * 60} y1={cy - 100} x2={cx - 180 + i * 60} y2={cy + 105} stroke={l} strokeWidth=".6" opacity=".2" />)}
+    {Array.from({ length: 4 }, (_, i) => <line key={`h${i}`} x1={cx - 190} y1={cy - 75 + i * 60} x2={cx + 190} y2={cy - 75 + i * 60} stroke={l} strokeWidth=".6" opacity=".2" />)}
+    {bars.map(([i,j], k) => <line key={k} x1={points[i][0]} y1={points[i][1]} x2={points[j][0]} y2={points[j][1]} stroke={k % 2 ? l : a} strokeWidth="3.5" strokeLinecap="round" />)}
+    {points.map(([x,y], i) => <g key={i}><circle cx={x} cy={y} r="7" fill="#12121f" stroke={a} strokeWidth="2.5"/><text x={x+10} y={y-10} fill={a} fontSize="10">N{i}</text></g>)}
+    <path d={`M ${points[0][0]} ${points[0][1]+8} l -16 22 h 32 z`} fill="none" stroke={a} strokeWidth="2" />
+    <path d={`M ${points[2][0]} ${points[2][1]+8} l -16 18 h 32 z`} fill="none" stroke={a} strokeWidth="2" />
+    <line x1={points[1][0]} y1={points[1][1]-60} x2={points[1][0]} y2={points[1][1]-12} stroke="#fbbf24" strokeWidth="2.5" />
+    <polygon points={`${points[1][0]-5},${points[1][1]-20} ${points[1][0]},${points[1][1]-10} ${points[1][0]+5},${points[1][1]-20}`} fill="#fbbf24" />
+  </g>;
 }
 
 /* Slider-Crank */

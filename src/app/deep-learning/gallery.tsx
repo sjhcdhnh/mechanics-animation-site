@@ -10,6 +10,7 @@ export function ProjectsGallery() {
   const getLink = (proj: any) => {
     if (proj.slug === 'deep-learning-4bar-rl') return '/deep-learning';
     if (proj.slug === 'pinn-demo') return '/deep-learning/pinn';
+    if (proj.slug === 'truss-solver') return '/deep-learning/truss';
     return `/animation/${proj.slug}`;
   };
 
